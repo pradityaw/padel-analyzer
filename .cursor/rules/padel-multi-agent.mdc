@@ -1,0 +1,15 @@
+---
+description: Multi-agent workstreams, merge order, and conflict hotspots for padel-analyzer
+alwaysApply: true
+---
+
+# Padel Analyzer — multi-agent workflow
+
+This repo is set up for **parallel work** across multiple Cursor chats or git worktrees.
+
+1. **Read [AGENTS.md](mdc:AGENTS.md)** for workstream A/B/C ownership, merge order, branch names, and `yt-dlp`/`ffmpeg` notes.
+2. **Stay in your slice** unless fixing a shared contract (`shared/types.ts`, router merge in `server/routers/index.ts`).
+3. **Merge order:** shared types → server → client.
+4. **Dev server:** `npm run dev` — app at **http://localhost:3001** by default.
+
+When the user asks for a feature, prefer scoping it to one workstream and calling out cross-stream follow-ups instead of one mega-change.

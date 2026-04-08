@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-padel-green: #a3e635;
+  --color-padel-court: #1a5632;
+  --color-padel-gold: #f59e0b;
+  --color-padel-dark: #0f172a;
+  --color-padel-surface: #1e293b;
+  --color-padel-border: #334155;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-bar {
+  background: linear-gradient(
+    90deg,
+    #a3e635 0%,
+    #34d399 40%,
+    #a3e635 60%,
+    #bef264 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 2s linear infinite;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
