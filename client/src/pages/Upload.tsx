@@ -110,7 +110,9 @@ export default function Upload() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const createAnalysis = trpc.analysis.create.useMutation();
+  const createPending = trpc.analysis.createPending.useMutation();
+  const updateResults = trpc.analysis.updateResults.useMutation();
+  const updateState = trpc.analysis.updateState.useMutation();
   const getYtInfo = trpc.youtube.getInfo.useMutation();
   const downloadYt = trpc.youtube.download.useMutation();
 
@@ -125,6 +127,10 @@ export default function Upload() {
           ? videoBlob
           : new File([videoBlob], fileName, { type: "video/mp4" });
 
+      // Create pending record immediately so work isn't lost on navigation
+      const pending = await createPending.mutateAsync({ videoFileName: fileName });
+      const analysisId = pending.id;
+
       let videoStorageKey: string | undefined;
       if (fileName.startsWith("yt_")) {
         videoStorageKey = fileName;
@@ -135,6 +141,10 @@ export default function Upload() {
         const up = await fetch("/api/upload", { method: "POST", body: fd });
         if (!up.ok) {
           const err = await up.json().catch(() => ({}));
+          await updateState.mutateAsync({
+            id: analysisId,
+            processingState: "failed",
+          });
           throw new Error(
             (err as { error?: string }).error ?? "Failed to save video on server"
           );
@@ -142,6 +152,12 @@ export default function Upload() {
         const { storageKey } = (await up.json()) as { storageKey: string };
         videoStorageKey = storageKey;
       }
+
+      // Mark as processing
+      await updateState.mutateAsync({
+        id: analysisId,
+        processingState: "processing",
+      });
 
       setProgressMsg("Processing frames with AI pose detection...");
       const frames = await processVideo(
@@ -166,8 +182,9 @@ export default function Upload() {
       const result = await analyzeSwing(frames);
       setStage("done");
 
-      const saved = await createAnalysis.mutateAsync({
-        videoFileName: fileName,
+      // Persist final results
+      await updateResults.mutateAsync({
+        id: analysisId,
         videoStorageKey,
         overallScore: result.overallScore,
         dominantSide: result.dominantSide,
@@ -178,11 +195,12 @@ export default function Upload() {
         landmarksJson: JSON.stringify(result.frameLandmarks),
         shotType: result.shotType,
         shotConfidence: result.shotConfidence,
+        processingState: "complete",
       });
 
-      navigate(`/analysis/${saved.id}`);
+      navigate(`/analysis/${analysisId}`);
     },
-    [createAnalysis, navigate]
+    [createPending, updateResults, updateState, navigate]
   );
 
   // ── file upload flow ──────────────────────────────────────────────────────

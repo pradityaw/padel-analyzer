@@ -5,6 +5,59 @@ import { analyses } from "../../drizzle/schema.js";
 import { eq, desc } from "drizzle-orm";
 
 export const analysisRouter = router({
+  createPending: publicProcedure
+    .input(
+      z.object({
+        videoFileName: z.string(),
+        videoStorageKey: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const result = db
+        .insert(analyses)
+        .values({
+          videoFileName: input.videoFileName,
+          videoStorageKey: input.videoStorageKey,
+          overallScore: 0,
+          dominantSide: "right",
+          durationMs: 0,
+          frameCount: 0,
+          sampleFps: 0,
+          phasesJson: "[]",
+          landmarksJson: "[]",
+          processingState: "pending",
+        })
+        .returning()
+        .get();
+      return result;
+    }),
+
+  updateResults: publicProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        videoStorageKey: z.string().optional(),
+        overallScore: z.number(),
+        dominantSide: z.enum(["left", "right"]),
+        durationMs: z.number(),
+        frameCount: z.number(),
+        sampleFps: z.number(),
+        phasesJson: z.string(),
+        landmarksJson: z.string(),
+        shotType: z.string().optional(),
+        shotConfidence: z.number().optional(),
+        processingState: z
+          .enum(["pending", "processing", "complete", "failed"])
+          .default("complete"),
+        qualityWarnings: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
+      db.update(analyses).set(updates).where(eq(analyses.id, id)).run();
+      return db.select().from(analyses).where(eq(analyses.id, id)).get();
+    }),
+
   create: publicProcedure
     .input(
       z.object({
