@@ -40,6 +40,7 @@ import type {
   MetricStatus,
 } from "@shared/types";
 import {
+  PHASE_ORDER,
   PHASE_LABELS,
   SHOT_TYPE_LABELS,
   SHOT_TYPE_COLORS,
@@ -47,14 +48,6 @@ import {
   METRIC_LABELS,
 } from "@shared/types";
 import { cn } from "@/lib/utils";
-
-const PHASE_ORDER: SwingPhaseType[] = [
-  "ready",
-  "backswing",
-  "forwardSwing",
-  "contact",
-  "followThrough",
-];
 
 function RadarCompare({
   gapAnalysis,

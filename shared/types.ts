@@ -58,6 +58,14 @@ export type MetricFeedback = {
   tip: string;
 };
 
+export const PHASE_ORDER: SwingPhaseType[] = [
+  "ready",
+  "backswing",
+  "forwardSwing",
+  "contact",
+  "followThrough",
+];
+
 export const PHASE_LABELS: Record<SwingPhaseType, string> = {
   ready: "Ready",
   backswing: "Backswing",
