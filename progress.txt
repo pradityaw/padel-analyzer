@@ -30,3 +30,12 @@
   - The original `create` mutation is still available for backwards compat but the preferred flow is createPending → updateResults
   - Error handlers in the callback need access to `analysisId` to mark records as "failed"
 ---
+
+## 2026-04-10 - Story 3: Wire shared zod schemas into analysis tRPC router
+- Created `shared/schema.ts` with exported zod schemas: `createAnalysisInputSchema`, `updateAnalysisResultsSchema`, `updateAnalysisStateSchema`, `processingStateSchema`
+- Replaced inline zod definitions in `server/routers/analysis.ts` with imports from `shared/schema.ts`
+- Files changed: `shared/schema.ts` (new), `server/routers/analysis.ts`
+- **Learnings for future iterations:**
+  - Import path from server to shared is `../../shared/schema.js` (relative, with .js extension for ESM)
+  - Shared schemas live in `shared/schema.ts`, types in `shared/types.ts`
+---
