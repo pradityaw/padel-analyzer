@@ -52,9 +52,9 @@ function midpoint(a: Landmark, b: Landmark): Landmark {
   };
 }
 
-function distance(a: Landmark, b: Landmark): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
+import { distance2D } from "./utils";
+
+const distance = distance2D;
 
 export function detectDominantSide(
   frames: FrameLandmarks[]

@@ -25,6 +25,16 @@ import ScoreCard from "@/components/ScoreCard";
 import type { ShotType } from "@shared/types";
 import { SHOT_TYPE_LABELS, SHOT_TYPE_COLORS } from "@shared/types";
 
+/** Returns white or black depending on perceived luminance of hex color */
+function contrastText(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // W3C relative luminance threshold
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.55 ? "#000" : "#fff";
+}
+
 export default function History() {
   const [, navigate] = useLocation();
   const [shotFilter, setShotFilter] = useState<ShotType | "all">("all");
@@ -246,7 +256,7 @@ export default function History() {
                     shotFilter === type
                       ? {
                           backgroundColor: SHOT_TYPE_COLORS[type],
-                          color: "#000",
+                          color: contrastText(SHOT_TYPE_COLORS[type]),
                           borderColor: SHOT_TYPE_COLORS[type],
                         }
                       : {

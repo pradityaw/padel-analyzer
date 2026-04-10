@@ -34,9 +34,9 @@ async function getSession() {
   return sessionPromise;
 }
 
-function distance(a: Landmark, b: Landmark): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
-}
+import { distance3D } from "./utils";
+
+const distance = distance3D;
 
 function normalizeLandmarks(
   frames: FrameLandmarks[]
