@@ -3,6 +3,11 @@ import { router, publicProcedure } from "../_core/trpc.js";
 import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import { eq, desc } from "drizzle-orm";
+import {
+  createAnalysisInputSchema,
+  updateAnalysisResultsSchema,
+  updateAnalysisStateSchema,
+} from "../../shared/schema.js";
 
 export const analysisRouter = router({
   createPending: publicProcedure
@@ -33,25 +38,7 @@ export const analysisRouter = router({
     }),
 
   updateResults: publicProcedure
-    .input(
-      z.object({
-        id: z.number(),
-        videoStorageKey: z.string().optional(),
-        overallScore: z.number(),
-        dominantSide: z.enum(["left", "right"]),
-        durationMs: z.number(),
-        frameCount: z.number(),
-        sampleFps: z.number(),
-        phasesJson: z.string(),
-        landmarksJson: z.string(),
-        shotType: z.string().optional(),
-        shotConfidence: z.number().optional(),
-        processingState: z
-          .enum(["pending", "processing", "complete", "failed"])
-          .default("complete"),
-        qualityWarnings: z.string().optional(),
-      })
-    )
+    .input(updateAnalysisResultsSchema)
     .mutation(async ({ input }) => {
       const { id, ...updates } = input;
       db.update(analyses).set(updates).where(eq(analyses.id, id)).run();
@@ -59,27 +46,7 @@ export const analysisRouter = router({
     }),
 
   create: publicProcedure
-    .input(
-      z.object({
-        videoFileName: z.string(),
-        videoStorageKey: z.string().optional(),
-        thumbnailPath: z.string().optional(),
-        overallScore: z.number(),
-        dominantSide: z.enum(["left", "right"]),
-        durationMs: z.number(),
-        frameCount: z.number(),
-        sampleFps: z.number(),
-        phasesJson: z.string(),
-        landmarksJson: z.string(),
-        shotType: z.string().optional(),
-        shotConfidence: z.number().optional(),
-        processingState: z
-          .enum(["pending", "processing", "complete", "failed"])
-          .optional()
-          .default("complete"),
-        qualityWarnings: z.string().optional(),
-      })
-    )
+    .input(createAnalysisInputSchema)
     .mutation(async ({ input }) => {
       const result = db.insert(analyses).values(input).returning().get();
       return result;
@@ -101,13 +68,7 @@ export const analysisRouter = router({
   }),
 
   updateState: publicProcedure
-    .input(
-      z.object({
-        id: z.number(),
-        processingState: z.enum(["pending", "processing", "complete", "failed"]),
-        qualityWarnings: z.string().optional(),
-      })
-    )
+    .input(updateAnalysisStateSchema)
     .mutation(async ({ input }) => {
       const { id, ...updates } = input;
       db.update(analyses).set(updates).where(eq(analyses.id, id)).run();
