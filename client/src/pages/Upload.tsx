@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useReducer, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,6 +29,69 @@ type YouTubeInfo = {
   thumbnailUrl: string;
   author: string;
 };
+
+type UploadState = {
+  tab: Tab;
+  stage: Stage;
+  file: File | null;
+  ytUrl: string;
+  ytInfo: YouTubeInfo | null;
+  progress: number;
+  progressMsg: string;
+  error: string;
+  dragOver: boolean;
+};
+
+type UploadAction =
+  | { type: "SET_TAB"; tab: Tab }
+  | { type: "SET_STAGE"; stage: Stage }
+  | { type: "SET_FILE"; file: File }
+  | { type: "SET_YT_URL"; url: string }
+  | { type: "SET_YT_INFO"; info: YouTubeInfo }
+  | { type: "SET_PROGRESS"; progress: number }
+  | { type: "SET_PROGRESS_MSG"; msg: string }
+  | { type: "SET_ERROR"; error: string }
+  | { type: "SET_DRAG_OVER"; dragOver: boolean }
+  | { type: "RESET" };
+
+const initialState: UploadState = {
+  tab: "upload",
+  stage: "idle",
+  file: null,
+  ytUrl: "",
+  ytInfo: null,
+  progress: 0,
+  progressMsg: "",
+  error: "",
+  dragOver: false,
+};
+
+function uploadReducer(state: UploadState, action: UploadAction): UploadState {
+  switch (action.type) {
+    case "SET_TAB":
+      return { ...initialState, tab: action.tab };
+    case "SET_STAGE":
+      return { ...state, stage: action.stage };
+    case "SET_FILE":
+      return { ...state, file: action.file, stage: "selected", error: "" };
+    case "SET_YT_URL":
+      return { ...state, ytUrl: action.url };
+    case "SET_YT_INFO":
+      return { ...state, ytInfo: action.info, stage: "yt-preview" };
+    case "SET_PROGRESS":
+      return { ...state, progress: action.progress };
+    case "SET_PROGRESS_MSG":
+      return { ...state, progressMsg: action.msg };
+    case "SET_ERROR":
+      return { ...state, error: action.error };
+    case "SET_DRAG_OVER":
+      return { ...state, dragOver: action.dragOver };
+    case "RESET":
+      return initialState;
+    default:
+      return state;
+  }
+}
 
 const STEPS = [
   {
@@ -98,15 +161,8 @@ function ProcessingSteps({ progressMsg, isDone }: { progressMsg: string; isDone:
 
 export default function Upload() {
   const [, navigate] = useLocation();
-  const [tab, setTab] = useState<Tab>("upload");
-  const [stage, setStage] = useState<Stage>("idle");
-  const [file, setFile] = useState<File | null>(null);
-  const [ytUrl, setYtUrl] = useState("");
-  const [ytInfo, setYtInfo] = useState<YouTubeInfo | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [progressMsg, setProgressMsg] = useState("");
-  const [error, setError] = useState("");
-  const [dragOver, setDragOver] = useState(false);
+  const [state, dispatch] = useReducer(uploadReducer, initialState);
+  const { tab, stage, file, ytUrl, ytInfo, progress, progressMsg, error, dragOver } = state;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -117,8 +173,6 @@ export default function Upload() {
   const downloadYt = trpc.youtube.download.useMutation();
 
   // ── helpers ──────────────────────────────────────────────────────────────
-
-  const resetError = () => setError("");
 
   const runMediaPipeAndSave = useCallback(
     async (videoBlob: Blob, fileName: string) => {
@@ -135,7 +189,7 @@ export default function Upload() {
       if (fileName.startsWith("yt_")) {
         videoStorageKey = fileName;
       } else {
-        setProgressMsg("Saving video on server...");
+        dispatch({ type: "SET_PROGRESS_MSG", msg: "Saving video on server..." });
         const fd = new FormData();
         fd.append("file", videoFile, fileName);
         const up = await fetch("/api/upload", { method: "POST", body: fd });
@@ -159,11 +213,11 @@ export default function Upload() {
         processingState: "processing",
       });
 
-      setProgressMsg("Processing frames with AI pose detection...");
+      dispatch({ type: "SET_PROGRESS_MSG", msg: "Processing frames with AI pose detection..." });
       const frames = await processVideo(
         videoFile,
         (pct: number, frame?: FrameLandmarks) => {
-          setProgress(pct);
+          dispatch({ type: "SET_PROGRESS", progress: pct });
           if (frame && canvasRef.current) {
             const ctx = canvasRef.current.getContext("2d");
             if (ctx) {
@@ -178,9 +232,9 @@ export default function Upload() {
         }
       );
 
-      setProgressMsg("Analyzing swing & classifying shot...");
+      dispatch({ type: "SET_PROGRESS_MSG", msg: "Analyzing swing & classifying shot..." });
       const result = await analyzeSwing(frames);
-      setStage("done");
+      dispatch({ type: "SET_STAGE", stage: "done" });
 
       // Persist final results
       await updateResults.mutateAsync({
@@ -207,22 +261,20 @@ export default function Upload() {
 
   const handleFile = useCallback((f: File) => {
     if (!f.type.startsWith("video/")) {
-      setError("Please upload a video file (.mp4, .mov, .webm)");
+      dispatch({ type: "SET_ERROR", error: "Please upload a video file (.mp4, .mov, .webm)" });
       return;
     }
     if (f.size > 500 * 1024 * 1024) {
-      setError("File too large. Maximum 500 MB.");
+      dispatch({ type: "SET_ERROR", error: "File too large. Maximum 500 MB." });
       return;
     }
-    setFile(f);
-    setStage("selected");
-    setError("");
+    dispatch({ type: "SET_FILE", file: f });
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      setDragOver(false);
+      dispatch({ type: "SET_DRAG_OVER", dragOver: false });
       const f = e.dataTransfer.files[0];
       if (f) handleFile(f);
     },
@@ -231,13 +283,13 @@ export default function Upload() {
 
   const startFileAnalysis = useCallback(async () => {
     if (!file) return;
-    setStage("processing");
-    setProgress(0);
+    dispatch({ type: "SET_STAGE", stage: "processing" });
+    dispatch({ type: "SET_PROGRESS", progress: 0 });
     try {
       await runMediaPipeAndSave(file, file.name);
     } catch (err) {
-      setStage("error");
-      setError(err instanceof Error ? err.message : "Analysis failed.");
+      dispatch({ type: "SET_STAGE", stage: "error" });
+      dispatch({ type: "SET_ERROR", error: err instanceof Error ? err.message : "Analysis failed." });
     }
   }, [file, runMediaPipeAndSave]);
 
@@ -245,48 +297,36 @@ export default function Upload() {
 
   const handleYtLookup = useCallback(async () => {
     if (!ytUrl.trim()) return;
-    resetError();
+    dispatch({ type: "SET_ERROR", error: "" });
     try {
       const info = await getYtInfo.mutateAsync({ url: ytUrl.trim() });
-      setYtInfo(info);
-      setStage("yt-preview");
+      dispatch({ type: "SET_YT_INFO", info });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not fetch video info."
-      );
+      dispatch({
+        type: "SET_ERROR",
+        error: err instanceof Error ? err.message : "Could not fetch video info.",
+      });
     }
   }, [ytUrl, getYtInfo]);
 
   const startYtAnalysis = useCallback(async () => {
     if (!ytInfo) return;
-    setStage("processing");
-    setProgress(0);
+    dispatch({ type: "SET_STAGE", stage: "processing" });
+    dispatch({ type: "SET_PROGRESS", progress: 0 });
     try {
-      setProgressMsg("Downloading video from YouTube...");
+      dispatch({ type: "SET_PROGRESS_MSG", msg: "Downloading video from YouTube..." });
       const result = await downloadYt.mutateAsync({ url: ytUrl.trim() });
 
-      setProgressMsg("Fetching video for analysis...");
+      dispatch({ type: "SET_PROGRESS_MSG", msg: "Fetching video for analysis..." });
       const response = await fetch(result.localUrl);
       const blob = await response.blob();
 
       await runMediaPipeAndSave(blob, result.fileName);
     } catch (err) {
-      setStage("error");
-      setError(err instanceof Error ? err.message : "Analysis failed.");
+      dispatch({ type: "SET_STAGE", stage: "error" });
+      dispatch({ type: "SET_ERROR", error: err instanceof Error ? err.message : "Analysis failed." });
     }
   }, [ytInfo, ytUrl, downloadYt, runMediaPipeAndSave]);
-
-  // ── shared reset ──────────────────────────────────────────────────────────
-
-  const reset = () => {
-    setStage("idle");
-    setFile(null);
-    setYtUrl("");
-    setYtInfo(null);
-    setError("");
-    setProgress(0);
-    setProgressMsg("");
-  };
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -350,10 +390,7 @@ export default function Upload() {
             {(["upload", "youtube"] as Tab[]).map((t) => (
               <button
                 key={t}
-                onClick={() => {
-                  setTab(t);
-                  reset();
-                }}
+                onClick={() => dispatch({ type: "SET_TAB", tab: t })}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors border-b-2",
                   tab === t
@@ -387,9 +424,9 @@ export default function Upload() {
                   exit={{ opacity: 0 }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    setDragOver(true);
+                    dispatch({ type: "SET_DRAG_OVER", dragOver: true });
                   }}
-                  onDragLeave={() => setDragOver(false)}
+                  onDragLeave={() => dispatch({ type: "SET_DRAG_OVER", dragOver: false })}
                   onDrop={handleDrop}
                   onClick={() => inputRef.current?.click()}
                   className={cn(
@@ -434,7 +471,7 @@ export default function Upload() {
                   </p>
                   <div className="flex gap-3 justify-center">
                     <button
-                      onClick={reset}
+                      onClick={() => dispatch({ type: "RESET" })}
                       className="px-5 py-2.5 rounded-lg border border-padel-border text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
                     >
                       Change
@@ -466,7 +503,7 @@ export default function Upload() {
                     <input
                       type="url"
                       value={ytUrl}
-                      onChange={(e) => setYtUrl(e.target.value)}
+                      onChange={(e) => dispatch({ type: "SET_YT_URL", url: e.target.value })}
                       onKeyDown={(e) => e.key === "Enter" && handleYtLookup()}
                       placeholder="https://www.youtube.com/watch?v=..."
                       className="flex-1 bg-slate-800 border border-padel-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-padel-green placeholder:text-slate-600"
@@ -524,7 +561,7 @@ export default function Upload() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={reset}
+                        onClick={() => dispatch({ type: "RESET" })}
                         className="px-4 py-2 rounded-lg border border-padel-border text-slate-400 hover:text-white text-sm transition-colors"
                       >
                         Change
@@ -594,7 +631,7 @@ export default function Upload() {
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <p className="text-red-300 text-sm flex-1">{error}</p>
           <button
-            onClick={reset}
+            onClick={() => dispatch({ type: "RESET" })}
             className="text-sm text-red-400 hover:text-red-300 underline shrink-0"
           >
             Try again
