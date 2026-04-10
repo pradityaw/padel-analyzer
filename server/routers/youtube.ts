@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync, unlinkSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { execFile } from "child_process";
@@ -13,22 +13,32 @@ const rootDir = path.resolve(__dirname, "../..");
 const uploadsDir = path.join(rootDir, "data/uploads");
 mkdirSync(uploadsDir, { recursive: true });
 
-const YOUTUBE_HOSTS = [
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "youtu.be",
-  "music.youtube.com",
-];
+/**
+ * Strict YouTube URL regex — only allows:
+ * - youtube.com/watch?v=ID
+ * - youtube.com/shorts/ID
+ * - youtu.be/ID
+ * - music.youtube.com/watch?v=ID
+ */
+const YOUTUBE_URL_RE =
+  /^https?:\/\/(www\.|m\.|music\.)?youtu(\.be\/|be\.com\/(watch\?v=|shorts\/|embed\/))[a-zA-Z0-9_-]{11}/;
 
 function isYouTubeUrl(raw: string): boolean {
   try {
     const u = new URL(raw);
-    return YOUTUBE_HOSTS.some(
-      (h) => u.hostname === h || u.hostname.endsWith("." + h)
-    );
+    // Must be http/https
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    return YOUTUBE_URL_RE.test(raw);
   } catch {
     return false;
+  }
+}
+
+function cleanupFile(filePath: string) {
+  try {
+    if (existsSync(filePath)) unlinkSync(filePath);
+  } catch {
+    // best-effort cleanup
   }
 }
 
@@ -121,7 +131,12 @@ export const youtubeRouter = router({
       const filePath = path.join(uploadsDir, fileName);
 
       if (!existsSync(filePath)) {
-        await downloadVideo(input.url, filePath);
+        try {
+          await downloadVideo(input.url, filePath);
+        } catch (err) {
+          cleanupFile(filePath);
+          throw err;
+        }
       }
 
       return {

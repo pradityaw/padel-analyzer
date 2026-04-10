@@ -4,10 +4,10 @@ import * as schema from "../drizzle/schema.js";
 import { mkdirSync } from "fs";
 import path from "path";
 
-const dbDir = path.resolve("data");
-mkdirSync(dbDir, { recursive: true });
+const dbPath = process.env.DB_PATH || path.join("data", "padel.db");
+mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
 
-const sqlite = new Database(path.join(dbDir, "padel.db"));
+const sqlite = new Database(path.resolve(dbPath));
 sqlite.pragma("journal_mode = WAL");
 
 export const db = drizzle(sqlite, { schema });
