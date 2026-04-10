@@ -19,3 +19,14 @@
   - `drizzle-kit push` needed after schema changes to sync SQLite
   - New columns should default to a backwards-compatible value so existing rows don't break
 ---
+
+## 2026-04-10 - Story 2: Persist in-progress analysis state to DB
+- Added `createPending` tRPC mutation — creates a placeholder analysis record with `processingState: "pending"` at the start of processing
+- Added `updateResults` tRPC mutation — fills in real analysis data and sets `processingState: "complete"` on success
+- Modified Upload.tsx: creates pending record immediately, transitions to "processing" during MediaPipe, marks "failed" on upload error, fills results + "complete" on success
+- Removed `createAnalysis` in favor of `createPending` + `updateResults` two-phase flow
+- Files changed: `server/routers/analysis.ts`, `client/src/pages/Upload.tsx`
+- **Learnings for future iterations:**
+  - The original `create` mutation is still available for backwards compat but the preferred flow is createPending → updateResults
+  - Error handlers in the callback need access to `analysisId` to mark records as "failed"
+---
