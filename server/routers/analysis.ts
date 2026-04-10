@@ -20,6 +20,11 @@ export const analysisRouter = router({
         landmarksJson: z.string(),
         shotType: z.string().optional(),
         shotConfidence: z.number().optional(),
+        processingState: z
+          .enum(["pending", "processing", "complete", "failed"])
+          .optional()
+          .default("complete"),
+        qualityWarnings: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -41,6 +46,20 @@ export const analysisRouter = router({
   list: publicProcedure.query(async () => {
     return db.select().from(analyses).orderBy(desc(analyses.createdAt)).all();
   }),
+
+  updateState: publicProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        processingState: z.enum(["pending", "processing", "complete", "failed"]),
+        qualityWarnings: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
+      db.update(analyses).set(updates).where(eq(analyses.id, id)).run();
+      return { success: true };
+    }),
 
   delete: publicProcedure
     .input(z.object({ id: z.number() }))

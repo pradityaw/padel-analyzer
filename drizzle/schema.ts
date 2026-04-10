@@ -18,6 +18,12 @@ export const analyses = sqliteTable("analyses", {
   landmarksJson: text("landmarks_json").notNull(),
   shotType: text("shot_type"),
   shotConfidence: real("shot_confidence"),
+  processingState: text("processing_state", {
+    enum: ["pending", "processing", "complete", "failed"],
+  })
+    .notNull()
+    .default("complete"),
+  qualityWarnings: text("quality_warnings"),
 });
 
 export const annotations = sqliteTable("annotations", {

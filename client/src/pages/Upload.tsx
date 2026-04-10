@@ -539,7 +539,7 @@ export default function Upload() {
           </div>
 
           {/* 4-step indicator */}
-          <ProcessingSteps progressMsg={progressMsg} isDone={stage === "done"} />
+          <ProcessingSteps progressMsg={progressMsg} isDone={progress >= 100} />
 
           {/* Shimmer progress bar */}
           <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden mt-6">
