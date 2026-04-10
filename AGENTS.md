@@ -69,3 +69,43 @@ Depends on: <merged PRs or none>
 - **Match existing patterns** in the same folder (imports, tRPC usage, Tailwind).
 - **Don’t commit** `data/*.db` or large uploads; they’re gitignored by design.
 
+---
+
+## Ralph Loop (autonomous iteration)
+
+Ralph is a self-driving agent loop that picks stories from `prd.json`, implements them, and commits — one story per invocation.
+
+### Files
+
+| File | Purpose |
+|---|---|
+| `prd.json` | Story backlog — priority-ordered, `passes` flag tracks completion |
+| `progress.txt` | Append-only log of what each iteration did and learned |
+| `CLAUDE.md` | Prompt fed to Claude Code each iteration (also auto-loaded by Claude Code) |
+| `scripts/ralph/ralph.sh` | The loop runner |
+
+### Quality gate scripts (must all pass before commit)
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run test        # vitest run
+```
+
+### Running the loop
+
+```bash
+# From project root — 20 autonomous iterations using Claude Code
+./scripts/ralph/ralph.sh --tool claude 20
+
+# Dry-run single iteration manually
+claude --dangerously-skip-permissions --print < CLAUDE.md
+```
+
+### Branch strategy
+
+All Ralph stories run on branch `ralph/production-ready` (set in `prd.json` → `branchName`). The loop auto-creates this branch from `main` if it doesn’t exist. When all 16 stories pass, open a single PR from `ralph/production-ready` → `main`.
+
+### Merge order within Ralph
+
+Same as the multi-agent merge order: contracts → server → client. Stories are pre-ordered in `prd.json` to respect this sequence.
+
