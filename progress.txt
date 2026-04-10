@@ -93,3 +93,24 @@
 - dotenv/config import, .env.example with PORT/DB_PATH/UPLOAD_DIR
 - Files changed: `server/routers/youtube.ts`, `server/_core/index.ts`, `server/db.ts`, `.env.example` (new), `package.json`
 ---
+
+## 2026-04-10 - Story 15: Session-based auth middleware
+- Added users + sessions tables to drizzle schema
+- Created auth utilities (scrypt hashing, session generation) in `server/_core/auth.ts`
+- Added tRPC context with session cookie parsing in `server/_core/context.ts`
+- Updated `trpc.ts` with `TRPCContext` type and `protectedProcedure`
+- Created `auth` router with register/login/logout/me procedures
+- Added Login.tsx page with login/register form toggle
+- Files changed: `drizzle/schema.ts`, `server/_core/auth.ts` (new), `server/_core/context.ts` (new), `server/_core/trpc.ts`, `server/_core/index.ts`, `server/routers/auth.ts` (new), `server/routers/index.ts`, `client/src/pages/Login.tsx` (new), `client/src/App.tsx`, `server/routers/analysis.test.ts`
+- **Learnings:**
+  - tRPC context must be passed to `createCaller()` in tests: `{ userId: null }`
+  - Node crypto.scrypt is sufficient for password hashing — no bcrypt dependency needed
+  - Cookie parsing uses the `cookie` package already in deps
+---
+
+## 2026-04-10 - Story 16: E2E smoke test with Playwright
+- Added Playwright config (`playwright.config.ts`) pointing to `e2e/` directory
+- Created smoke test with 5 tests: homepage, upload page, login form, navbar, nonexistent analysis
+- Added `test:e2e` script to package.json
+- Files changed: `playwright.config.ts` (new), `e2e/smoke.spec.ts` (new), `package.json`
+---

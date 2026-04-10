@@ -16,7 +16,7 @@
     {"id": "13", "title": "Add pino structured logging on server side with request ID tracking", "passes": true, "priority": 13},
     {"id": "14", "title": "Add React error boundary with fallback UI on client side", "passes": true, "priority": 14},
     {"id": "15", "title": "Add session-based auth middleware with login/register flow", "passes": true, "priority": 15},
-    {"id": "16", "title": "Add E2E smoke test with Playwright for upload-analyze-view flow", "passes": false, "priority": 16},
+    {"id": "16", "title": "Add E2E smoke test with Playwright for upload-analyze-view flow", "passes": true, "priority": 16},
     {"id": "17", "title": "Add express-rate-limit middleware (10 req/min on upload, 30 req/min on API)", "passes": true, "priority": 17},
     {"id": "18", "title": "Add database indexes on analyses.createdAt, annotations.analysisId, proComparisons.playerAnalysisId", "passes": true, "priority": 18},
     {"id": "19", "title": "Add pagination to analysis.list (limit/offset, default 20) and exclude landmarksJson from list queries", "passes": true, "priority": 19},
