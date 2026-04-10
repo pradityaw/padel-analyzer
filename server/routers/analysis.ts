@@ -92,9 +92,41 @@ export const analysisRouter = router({
       return result ?? null;
     }),
 
-  list: publicProcedure.query(async () => {
-    return db.select().from(analyses).orderBy(desc(analyses.createdAt)).all();
-  }),
+  list: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(100).default(20),
+          offset: z.number().min(0).default(0),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const limit = input?.limit ?? 20;
+      const offset = input?.offset ?? 0;
+      return db
+        .select({
+          id: analyses.id,
+          videoFileName: analyses.videoFileName,
+          videoStorageKey: analyses.videoStorageKey,
+          thumbnailPath: analyses.thumbnailPath,
+          createdAt: analyses.createdAt,
+          overallScore: analyses.overallScore,
+          dominantSide: analyses.dominantSide,
+          durationMs: analyses.durationMs,
+          frameCount: analyses.frameCount,
+          sampleFps: analyses.sampleFps,
+          phasesJson: analyses.phasesJson,
+          shotType: analyses.shotType,
+          shotConfidence: analyses.shotConfidence,
+          processingState: analyses.processingState,
+        })
+        .from(analyses)
+        .orderBy(desc(analyses.createdAt))
+        .limit(limit)
+        .offset(offset)
+        .all();
+    }),
 
   getLandmarks: publicProcedure
     .input(z.object({ id: z.number() }))

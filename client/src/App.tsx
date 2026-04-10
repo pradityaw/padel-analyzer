@@ -7,9 +7,11 @@ import Compare from "./pages/Compare";
 import Annotate from "./pages/Annotate";
 import ProCompare from "./pages/ProCompare";
 import Navbar from "./components/Navbar";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <div className="min-h-dvh flex flex-col">
       <Navbar />
       <main className="flex-1">
@@ -25,5 +27,6 @@ export default function App() {
         </AnimatePresence>
       </main>
     </div>
+    </ErrorBoundary>
   );
 }

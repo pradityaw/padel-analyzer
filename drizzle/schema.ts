@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 
 export const analyses = sqliteTable("analyses", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -26,7 +26,10 @@ export const analyses = sqliteTable("analyses", {
     .notNull()
     .default("complete"),
   qualityWarnings: text("quality_warnings"),
-});
+}, (table) => [
+  index("idx_analyses_created_at").on(table.createdAt),
+  index("idx_analyses_processing_state").on(table.processingState),
+]);
 
 export const annotations = sqliteTable("annotations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -39,7 +42,9 @@ export const annotations = sqliteTable("annotations", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
   notes: text("notes"),
-});
+}, (table) => [
+  index("idx_annotations_analysis_id").on(table.analysisId),
+]);
 
 export const proComparisons = sqliteTable("pro_comparisons", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -51,7 +56,9 @@ export const proComparisons = sqliteTable("pro_comparisons", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
   notes: text("notes"),
-});
+}, (table) => [
+  index("idx_pro_comparisons_player_id").on(table.playerAnalysisId),
+]);
 
 export const proBenchmarks = sqliteTable("pro_benchmarks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
