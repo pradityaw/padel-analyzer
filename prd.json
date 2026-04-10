@@ -1,7 +1,7 @@
 {
   "branchName": "ralph/production-ready",
   "stories": [
-    {"id": "1", "title": "Add DB schema field for analysis processing state (pending/processing/complete/failed) and quality warnings JSON column", "passes": false, "priority": 1},
+    {"id": "1", "title": "Add DB schema field for analysis processing state (pending/processing/complete/failed) and quality warnings JSON column", "passes": true, "priority": 1},
     {"id": "2", "title": "Persist in-progress analysis state to DB so navigating away does not lose work", "passes": false, "priority": 2},
     {"id": "3", "title": "Wire createAnalysisInputSchema from shared/schema.ts into the analysis.create tRPC router for server-side validation", "passes": false, "priority": 3},
     {"id": "4", "title": "Deduplicate PHASE_ORDER constant - remove from ProCompare.tsx and import from shared config", "passes": false, "priority": 4},

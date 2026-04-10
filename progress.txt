@@ -1,0 +1,21 @@
+## Codebase Patterns
+- tRPC client import path from `client/src/lib/trpc.ts` must use `../../../server/routers/index.js` (3 levels up, not 2)
+- React 19 requires initial value for `useRef<T>()` — always pass explicit arg like `useRef<T>(undefined)`
+- Vitest root resolves from vite config `root: "client/"` — test files go under `client/src/`
+- SQLite schema default values matter for backwards compat — use `.default("complete")` on new enum columns
+
+---
+
+## 2026-04-10 - Story 1: Add DB schema fields for processing state + quality warnings
+- Added `processingState` text column (enum: pending/processing/complete/failed, default "complete") to `analyses` table
+- Added `qualityWarnings` nullable text column for JSON quality data
+- Added `updateState` tRPC mutation to transition processing state
+- Updated `analysis.create` input schema to accept both new fields
+- Fixed 3 pre-existing typecheck errors (tRPC import path, React 19 useRef, TS narrowing in Upload.tsx)
+- Added placeholder `utils.test.ts` so vitest exits 0
+- Files changed: `drizzle/schema.ts`, `server/routers/analysis.ts`, `client/src/lib/trpc.ts`, `client/src/components/VideoPlayer.tsx`, `client/src/pages/Upload.tsx`, `client/src/lib/utils.test.ts`
+- **Learnings for future iterations:**
+  - The import path bug was the root cause of ~30 tRPC type errors — always verify relative paths from file location
+  - `drizzle-kit push` needed after schema changes to sync SQLite
+  - New columns should default to a backwards-compatible value so existing rows don't break
+---
