@@ -70,9 +70,28 @@ export const proBenchmarks = sqliteTable("pro_benchmarks", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  expiresAt: text("expires_at").notNull(),
+}, (table) => [
+  index("idx_sessions_user_id").on(table.userId),
+]);
+
 export type Analysis = typeof analyses.$inferSelect;
 export type NewAnalysis = typeof analyses.$inferInsert;
 export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
 export type ProComparison = typeof proComparisons.$inferSelect;
 export type ProBenchmark = typeof proBenchmarks.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;

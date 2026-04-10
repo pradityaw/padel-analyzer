@@ -6,6 +6,7 @@ import History from "./pages/History";
 import Compare from "./pages/Compare";
 import Annotate from "./pages/Annotate";
 import ProCompare from "./pages/ProCompare";
+import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/compare" component={Compare} />
             <Route path="/annotate" component={Annotate} />
             <Route path="/pro-compare" component={ProCompare} />
+            <Route path="/login" component={Login} />
           </Switch>
         </AnimatePresence>
       </main>

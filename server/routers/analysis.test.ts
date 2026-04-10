@@ -59,6 +59,17 @@ testDb.exec(`
     metrics_json TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    expires_at TEXT NOT NULL
+  );
 `);
 
 // Mock the db module
@@ -69,7 +80,7 @@ vi.mock("../db.js", () => ({
 
 // Now import the router (after mocking)
 const { appRouter } = await import("./index.js");
-const caller = appRouter.createCaller({});
+const caller = appRouter.createCaller({ userId: null });
 
 describe("analysis router", () => {
   let createdId: number;

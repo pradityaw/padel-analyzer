@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { createUploadHandler } from "./upload.js";
 import { logger, requestIdMiddleware, requestLogger } from "./logger.js";
 import rateLimit from "express-rate-limit";
+import { createContext } from "./context.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../..");
@@ -53,6 +54,7 @@ app.use(
   "/api/trpc",
   createExpressMiddleware({
     router: appRouter,
+    createContext,
   })
 );
 

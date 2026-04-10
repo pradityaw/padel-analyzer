@@ -39,3 +39,57 @@
   - Import path from server to shared is `../../shared/schema.js` (relative, with .js extension for ESM)
   - Shared schemas live in `shared/schema.ts`, types in `shared/types.ts`
 ---
+
+## 2026-04-10 - Story 4: Deduplicate PHASE_ORDER constant
+- Moved PHASE_ORDER from ProCompare.tsx to shared/types.ts, imported in ProCompare
+- Files changed: `shared/types.ts`, `client/src/pages/ProCompare.tsx`
+---
+
+## 2026-04-10 - Story 5: Refactor Upload.tsx to useReducer
+- Replaced 9 useState hooks with single useReducer (UploadState type + UploadAction union)
+- Files changed: `client/src/pages/Upload.tsx`
+---
+
+## 2026-04-10 - Story 6+7: Landmarks to disk + lazy loading
+- Added `landmarksPath` column to schema, `writeLandmarksFile()` helper writes to `data/landmarks/{id}.json`
+- Added `getLandmarks` query that reads from disk, falls back to inline JSON
+- Analysis.tsx, ProCompare.tsx, Annotate.tsx now lazy-load landmarks via getLandmarks query
+- Files changed: `drizzle/schema.ts`, `server/routers/analysis.ts`, `client/src/pages/Analysis.tsx`, `client/src/pages/ProCompare.tsx`, `client/src/pages/Annotate.tsx`, `vite.config.ts`, `server/_core/index.ts`
+---
+
+## 2026-04-10 - Story 8+9: Filter pills + distance utils
+- Added `contrastText(hex)` in History.tsx using W3C luminance formula
+- Created `distance2D` and `distance3D` in utils.ts, imported in swingAnalyzer and shotClassifier
+- Files changed: `client/src/pages/History.tsx`, `client/src/lib/utils.ts`, `client/src/lib/swingAnalyzer.ts`, `client/src/lib/shotClassifier.ts`
+---
+
+## 2026-04-10 - Story 10+11: Unit tests for swingAnalyzer and shotClassifier
+- 12 tests for swingAnalyzer (detectDominantSide, extractMetrics, detectPhases, getMetricFeedback)
+- 13 tests for shotClassifier (SHOT_TYPES mapping, softmax, shot type index, isModelAvailable)
+- Files changed: `client/src/lib/swingAnalyzer.test.ts` (new), `client/src/lib/shotClassifier.test.ts` (new)
+---
+
+## 2026-04-10 - Story 12: Integration tests for tRPC routers
+- In-memory SQLite with vi.mock for db module, manual table creation via raw SQL
+- Tests: createPending, updateState, updateResults, getById, list, delete (7 tests)
+- Files changed: `server/routers/analysis.test.ts` (new), `vitest.config.ts` (new)
+---
+
+## 2026-04-10 - Story 13+14: Logging + error boundary
+- Pino structured logger with request ID tracking, request/response logging
+- React ErrorBoundary class component with fallback UI wrapping App
+- Files changed: `server/_core/logger.ts` (new), `server/_core/index.ts`, `client/src/components/ErrorBoundary.tsx` (new), `client/src/App.tsx`
+---
+
+## 2026-04-10 - Story 17+18+19: Rate limiting + indexes + pagination
+- express-rate-limit: 30/min API, 10/min uploads
+- DB indexes on createdAt, processingState, annotationsAnalysisId, proComparisonsPlayerId
+- analysis.list with limit/offset pagination, excludes landmarksJson/landmarksPath
+- Files changed: `server/_core/index.ts`, `drizzle/schema.ts`, `server/routers/analysis.ts`
+---
+
+## 2026-04-10 - Story 20+21: YouTube URL hardening + dotenv
+- Strict YouTube URL regex, cleanupFile helper for failed downloads
+- dotenv/config import, .env.example with PORT/DB_PATH/UPLOAD_DIR
+- Files changed: `server/routers/youtube.ts`, `server/_core/index.ts`, `server/db.ts`, `.env.example` (new), `package.json`
+---
