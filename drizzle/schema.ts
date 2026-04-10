@@ -16,6 +16,8 @@ export const analyses = sqliteTable("analyses", {
   sampleFps: real("sample_fps").notNull(),
   phasesJson: text("phases_json").notNull(),
   landmarksJson: text("landmarks_json").notNull(),
+  /** Path to landmarks JSON file on disk (data/landmarks/<id>.json). Null on legacy rows. */
+  landmarksPath: text("landmarks_path"),
   shotType: text("shot_type"),
   shotConfidence: real("shot_confidence"),
   processingState: text("processing_state", {

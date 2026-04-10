@@ -301,9 +301,14 @@ export default function ProCompare() {
     () => (playerData ? JSON.parse(playerData.phasesJson) : []),
     [playerData]
   );
+  // Lazy-load landmarks only when needed
+  const { data: playerLandmarksRaw } = trpc.analysis.getLandmarks.useQuery(
+    { id: selectedPlayerId! },
+    { enabled: selectedPlayerId !== null && !!playerData }
+  );
   const playerFrames = useMemo<FrameLandmarks[]>(
-    () => (playerData ? JSON.parse(playerData.landmarksJson) : []),
-    [playerData]
+    () => (playerLandmarksRaw ? JSON.parse(playerLandmarksRaw) : []),
+    [playerLandmarksRaw]
   );
 
   const proPhases = useMemo<SwingPhase[]>(() => {
@@ -337,9 +342,13 @@ export default function ProCompare() {
     return [];
   }, [proMode, proData, benchmark]);
 
+  const { data: proLandmarksRaw } = trpc.analysis.getLandmarks.useQuery(
+    { id: selectedProId! },
+    { enabled: selectedProId !== null && proMode === "video" && !!proData }
+  );
   const proFrames = useMemo<FrameLandmarks[]>(
-    () => (proMode === "video" && proData ? JSON.parse(proData.landmarksJson) : []),
-    [proMode, proData]
+    () => (proMode === "video" && proLandmarksRaw ? JSON.parse(proLandmarksRaw) : []),
+    [proMode, proLandmarksRaw]
   );
 
   // Filter pro analyses to matching shot type

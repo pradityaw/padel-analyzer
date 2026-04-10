@@ -16,7 +16,6 @@ type AnnotateDialogProps = {
     dominantSide: string;
     frameCount: number;
     durationMs: number;
-    landmarksJson: string;
   };
   onClose: () => void;
 };
@@ -36,7 +35,11 @@ function AnnotateDialog({ analysis, onClose }: AnnotateDialogProps) {
     },
   });
 
-  const frames: FrameLandmarks[] = JSON.parse(analysis.landmarksJson);
+  // Lazy-load landmarks only when this dialog is open
+  const { data: landmarksRaw } = trpc.analysis.getLandmarks.useQuery(
+    { id: analysis.id }
+  );
+  const frames: FrameLandmarks[] = landmarksRaw ? JSON.parse(landmarksRaw) : [];
 
   return (
     <Dialog.Portal>

@@ -10,8 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../..");
 const uploadsDir = path.join(rootDir, "data/uploads");
 
+const landmarksDir = path.join(rootDir, "data/landmarks");
 mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(path.join(rootDir, "data/thumbnails"), { recursive: true });
+mkdirSync(landmarksDir, { recursive: true });
 
 const app = express();
 app.use(express.json({ limit: "500mb" }));
@@ -33,6 +35,7 @@ app.use(
 );
 
 app.use("/uploads", express.static(uploadsDir));
+app.use("/landmarks", express.static(landmarksDir));
 
 const isProd = process.env.NODE_ENV === "production";
 

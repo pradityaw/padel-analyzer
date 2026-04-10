@@ -95,13 +95,19 @@ export default function Analysis() {
     { enabled: !!id }
   );
 
+  // Lazy-load landmarks separately — only fetched when this page mounts
+  const { data: landmarksRaw } = trpc.analysis.getLandmarks.useQuery(
+    { id: Number(id) },
+    { enabled: !!data }
+  );
+
   const parsedData = useMemo(() => {
-    if (!data) return null;
+    if (!data || !landmarksRaw) return null;
     return {
       phases: JSON.parse(data.phasesJson) as SwingPhase[],
-      frames: JSON.parse(data.landmarksJson) as FrameLandmarks[],
+      frames: JSON.parse(landmarksRaw) as FrameLandmarks[],
     };
-  }, [data]);
+  }, [data, landmarksRaw]);
 
   const activePhase = useMemo<SwingPhaseType | undefined>(() => {
     if (!parsedData) return undefined;
