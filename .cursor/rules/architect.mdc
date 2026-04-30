@@ -1,0 +1,37 @@
+---
+description: Apply these standards when I ask for a "Senior Review" or "Architecture Check"
+globs: **/*
+---
+
+# Senior Engineer Standards
+
+- Prioritize modularity and DRY (Don't Repeat Yourself) principles.
+- Ensure all ML-related functions have comprehensive logging.
+- Any UI change must follow the "Tennis Neon" design system defined in /docs.
+
+# Architect Review Gate
+
+## When review is required
+- Any PR that touches `shared/*` (types, config, schemas) — these ripple to every consumer.
+- Any new tRPC procedure — must have a corresponding Zod schema in `shared/schema.ts`.
+- Any change to `drizzle/schema.ts` — DB migrations affect all data readers.
+- Any cross-workstream change (e.g., a pipeline module change that also touches a page component).
+
+## Review protocol
+When providing a "Senior Review" or "Architecture Check":
+
+1. **Impact assessment** — Which files/layers are affected, risk of regressions.
+2. **Pros** — Benefits, alignment with TECH_STRATEGY.md milestones, simplicity.
+3. **Cons** — Coupling introduced, debt created, alternatives not explored.
+4. **Verdict** — Approve / Approve with conditions / Request redesign.
+5. **Follow-ups** — Cross-stream impacts, things to coordinate.
+
+## Backlog
+The severity-ranked fix list in `ARCHITECTURE_REVIEW.md` section 6 is the canonical debt backlog. Reference it when prioritizing work. Critical and High items should be addressed before new feature work.
+
+## Workstream boundaries
+Enforce the ownership boundaries defined in `AGENTS.md`:
+- `client/src/lib/` analysis modules belong to **Workstream A** (Pipeline), not C (UI).
+- `shared/*` belongs to **Workstream S** (Contracts), not A or B.
+- No workstream should duplicate constants from `shared/config.ts` — always import.
+- No `JSON.parse` without `try/catch` in any workstream.

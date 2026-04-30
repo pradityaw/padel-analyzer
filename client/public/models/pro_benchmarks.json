@@ -1,0 +1,282 @@
+{
+  "bandeja": {
+    "sampleCount": 40,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 133.85,
+        "hipRotation": 139.93,
+        "elbowAngle": 117.02,
+        "kneeFlex": 170.91,
+        "spineAngle": 3.5
+      },
+      "backswing": {
+        "shoulderRotation": 131.84,
+        "hipRotation": 135.91,
+        "elbowAngle": 122.74,
+        "kneeFlex": 173.62,
+        "spineAngle": 3.44
+      },
+      "forwardSwing": {
+        "shoulderRotation": 129.4,
+        "hipRotation": 131.52,
+        "elbowAngle": 119.36,
+        "kneeFlex": 173.6,
+        "spineAngle": 4.44
+      },
+      "contact": {
+        "shoulderRotation": 123.84,
+        "hipRotation": 129.37,
+        "elbowAngle": 116.5,
+        "kneeFlex": 172.17,
+        "spineAngle": 4.32
+      },
+      "followThrough": {
+        "shoulderRotation": 118.4,
+        "hipRotation": 123.99,
+        "elbowAngle": 121.15,
+        "kneeFlex": 169.57,
+        "spineAngle": 3.23
+      }
+    }
+  },
+  "vibora": {
+    "sampleCount": 16,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 158.61,
+        "hipRotation": 160.76,
+        "elbowAngle": 133.3,
+        "kneeFlex": 171.83,
+        "spineAngle": 2.28
+      },
+      "backswing": {
+        "shoulderRotation": 155.63,
+        "hipRotation": 159.92,
+        "elbowAngle": 120.6,
+        "kneeFlex": 154.8,
+        "spineAngle": 2.27
+      },
+      "forwardSwing": {
+        "shoulderRotation": 154.72,
+        "hipRotation": 159.04,
+        "elbowAngle": 128.76,
+        "kneeFlex": 158.16,
+        "spineAngle": 2.47
+      },
+      "contact": {
+        "shoulderRotation": 156.17,
+        "hipRotation": 158.19,
+        "elbowAngle": 126.16,
+        "kneeFlex": 168.29,
+        "spineAngle": 3.21
+      },
+      "followThrough": {
+        "shoulderRotation": 157.37,
+        "hipRotation": 158.3,
+        "elbowAngle": 114.22,
+        "kneeFlex": 174.95,
+        "spineAngle": 3.93
+      }
+    }
+  },
+  "smash": {
+    "sampleCount": 34,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 134.01,
+        "hipRotation": 136.35,
+        "elbowAngle": 102.45,
+        "kneeFlex": 165.26,
+        "spineAngle": 4.07
+      },
+      "backswing": {
+        "shoulderRotation": 144.75,
+        "hipRotation": 150.68,
+        "elbowAngle": 93.79,
+        "kneeFlex": 171.05,
+        "spineAngle": 4.74
+      },
+      "forwardSwing": {
+        "shoulderRotation": 139.65,
+        "hipRotation": 148.37,
+        "elbowAngle": 98.48,
+        "kneeFlex": 169.02,
+        "spineAngle": 5.06
+      },
+      "contact": {
+        "shoulderRotation": 127.68,
+        "hipRotation": 132.7,
+        "elbowAngle": 118.54,
+        "kneeFlex": 159.97,
+        "spineAngle": 6.31
+      },
+      "followThrough": {
+        "shoulderRotation": 120.02,
+        "hipRotation": 120.35,
+        "elbowAngle": 131.74,
+        "kneeFlex": 153.5,
+        "spineAngle": 5.69
+      }
+    }
+  },
+  "volley": {
+    "sampleCount": 29,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 161.47,
+        "hipRotation": 162.62,
+        "elbowAngle": 113.64,
+        "kneeFlex": 157.74,
+        "spineAngle": 2.91
+      },
+      "backswing": {
+        "shoulderRotation": 165.45,
+        "hipRotation": 169.84,
+        "elbowAngle": 117.5,
+        "kneeFlex": 160.97,
+        "spineAngle": 3.37
+      },
+      "forwardSwing": {
+        "shoulderRotation": 163.31,
+        "hipRotation": 167.73,
+        "elbowAngle": 122.82,
+        "kneeFlex": 158.98,
+        "spineAngle": 3.45
+      },
+      "contact": {
+        "shoulderRotation": 152.66,
+        "hipRotation": 154.51,
+        "elbowAngle": 111.26,
+        "kneeFlex": 158.0,
+        "spineAngle": 3.69
+      },
+      "followThrough": {
+        "shoulderRotation": 144.07,
+        "hipRotation": 144.79,
+        "elbowAngle": 113.34,
+        "kneeFlex": 166.64,
+        "spineAngle": 2.62
+      }
+    }
+  },
+  "drive": {
+    "sampleCount": 33,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 134.91,
+        "hipRotation": 138.86,
+        "elbowAngle": 126.95,
+        "kneeFlex": 169.6,
+        "spineAngle": 4.95
+      },
+      "backswing": {
+        "shoulderRotation": 140.23,
+        "hipRotation": 142.77,
+        "elbowAngle": 123.31,
+        "kneeFlex": 170.93,
+        "spineAngle": 5.45
+      },
+      "forwardSwing": {
+        "shoulderRotation": 137.95,
+        "hipRotation": 142.58,
+        "elbowAngle": 121.93,
+        "kneeFlex": 169.76,
+        "spineAngle": 5.85
+      },
+      "contact": {
+        "shoulderRotation": 124.81,
+        "hipRotation": 131.88,
+        "elbowAngle": 126.75,
+        "kneeFlex": 163.64,
+        "spineAngle": 6.14
+      },
+      "followThrough": {
+        "shoulderRotation": 122.76,
+        "hipRotation": 128.15,
+        "elbowAngle": 132.82,
+        "kneeFlex": 161.13,
+        "spineAngle": 6.67
+      }
+    }
+  },
+  "lob": {
+    "sampleCount": 33,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 134.81,
+        "hipRotation": 138.53,
+        "elbowAngle": 107.74,
+        "kneeFlex": 168.39,
+        "spineAngle": 5.88
+      },
+      "backswing": {
+        "shoulderRotation": 133.95,
+        "hipRotation": 137.11,
+        "elbowAngle": 105.55,
+        "kneeFlex": 168.8,
+        "spineAngle": 6.06
+      },
+      "forwardSwing": {
+        "shoulderRotation": 135.25,
+        "hipRotation": 138.7,
+        "elbowAngle": 100.96,
+        "kneeFlex": 167.77,
+        "spineAngle": 6.01
+      },
+      "contact": {
+        "shoulderRotation": 131.36,
+        "hipRotation": 134.9,
+        "elbowAngle": 105.57,
+        "kneeFlex": 166.43,
+        "spineAngle": 5.56
+      },
+      "followThrough": {
+        "shoulderRotation": 134.54,
+        "hipRotation": 136.1,
+        "elbowAngle": 110.66,
+        "kneeFlex": 169.64,
+        "spineAngle": 4.24
+      }
+    }
+  },
+  "bajada": {
+    "sampleCount": 12,
+    "phases": {
+      "ready": {
+        "shoulderRotation": 136.28,
+        "hipRotation": 135.98,
+        "elbowAngle": 106.61,
+        "kneeFlex": 164.82,
+        "spineAngle": 5.22
+      },
+      "backswing": {
+        "shoulderRotation": 133.17,
+        "hipRotation": 134.53,
+        "elbowAngle": 120.79,
+        "kneeFlex": 167.56,
+        "spineAngle": 7.36
+      },
+      "forwardSwing": {
+        "shoulderRotation": 131.49,
+        "hipRotation": 136.34,
+        "elbowAngle": 122.77,
+        "kneeFlex": 168.66,
+        "spineAngle": 6.89
+      },
+      "contact": {
+        "shoulderRotation": 138.16,
+        "hipRotation": 141.71,
+        "elbowAngle": 118.82,
+        "kneeFlex": 165.85,
+        "spineAngle": 6.67
+      },
+      "followThrough": {
+        "shoulderRotation": 128.33,
+        "hipRotation": 134.47,
+        "elbowAngle": 112.31,
+        "kneeFlex": 169.83,
+        "spineAngle": 6.34
+      }
+    }
+  }
+}

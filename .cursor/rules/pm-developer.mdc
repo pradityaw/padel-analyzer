@@ -1,0 +1,16 @@
+---
+description: Route feature scoping and backlog questions to the pm-developer subagent
+globs: PRODUCT_BACKLOG.md, TECH_STRATEGY.md, ARCHITECTURE_REVIEW.md
+alwaysApply: false
+---
+
+# PM Developer Agent
+
+When the user asks about **what to build next**, **feature prioritisation**, **acceptance criteria**, or **which workstream should own a task**, route the work to the `pm-developer` subagent defined in `.cursor/agents/pm-developer.md`.
+
+The PM agent owns `PRODUCT_BACKLOG.md` and uses the severity list from `ARCHITECTURE_REVIEW.md` and the milestones from `TECH_STRATEGY.md` to prioritise work.
+
+Key rules:
+- New features never jump ahead of a Critical severity fix unless the user explicitly overrides.
+- Any feature that touches 2+ workstreams requires an **Architect Review** before implementation.
+- The PM agent writes briefs and acceptance criteria — it does not write feature code.

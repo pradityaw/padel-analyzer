@@ -1,0 +1,29 @@
+{
+  "manifestName": "club-match-amateurs-apr-2026",
+  "defaults": {
+    "threshold": 0.015,
+    "minDuration": 1.5,
+    "maxDuration": 6.0,
+    "minGap": 1.0,
+    "sampleFps": 15
+  },
+  "entries": [
+    {
+      "url": "https://www.youtube.com/watch?v=REPLACE_ME",
+      "shotType": "bandeja",
+      "label": "amateur_bandeja_sideview",
+      "notes": "Club-level bandeja rally clip, side camera."
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=REPLACE_ME_TOO",
+      "shotType": "volley",
+      "label": "amateur_volley_midcourt",
+      "notes": "Amateur volley sequence with stable framing.",
+      "clipConfig": {
+        "threshold": 0.012,
+        "minDuration": 1.2,
+        "maxDuration": 5.5
+      }
+    }
+  ]
+}

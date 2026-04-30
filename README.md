@@ -35,6 +35,17 @@ npm run dev
 open http://localhost:3001
 ```
 
+## Mobile app (Expo)
+
+Native clients use **server-side** analysis (Python + MediaPipe on the machine running the API). See [`mobile/README.md`](mobile/README.md).
+
+```bash
+npm run mobile:start    # Metro in /mobile
+npm run mobile:typecheck
+```
+
+Set `EXPO_PUBLIC_API_BASE_URL` in `mobile/.env` (see `mobile/.env.example`). After pulling, apply DB migrations: `npm run db:push` (or `db:migrate`).
+
 ## Parallel work (multiple agents / chats)
 
 See **[AGENTS.md](./AGENTS.md)** for workstream ownership (client vs server vs tooling), merge order, branch naming, and optional git worktrees.

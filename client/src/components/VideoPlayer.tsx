@@ -36,7 +36,7 @@ export default function VideoPlayer({
   const [dimensions, setDimensions] = useState({ w: 640, h: 480 });
   const [activePhaseType, setActivePhaseType] = useState<SwingPhaseType | undefined>();
   const [contactFlash, setContactFlash] = useState(false);
-  const prevPhaseRef = useRef<SwingPhaseType | undefined>();
+  const prevPhaseRef = useRef<SwingPhaseType | undefined>(undefined);
 
   const findFrame = useCallback(
     (time: number) => {

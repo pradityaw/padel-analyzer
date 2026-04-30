@@ -94,3 +94,82 @@ export async function processVideo(
   URL.revokeObjectURL(videoUrl);
   return frames;
 }
+
+export type ProcessVideoStreamYield = {
+  percent: number;
+  frame?: FrameLandmarks;
+};
+
+/**
+ * Async generator for co-operative cancellation (used by {@link runAnalysisPipeline}).
+ */
+export async function* processVideoStream(
+  videoFile: File,
+  options?: { signal?: AbortSignal }
+): AsyncGenerator<
+  ProcessVideoStreamYield,
+  { frames: FrameLandmarks[]; qualityWarning?: "low_detection" }
+> {
+  const signal = options?.signal;
+  const pose = await initLandmarker();
+
+  const videoUrl = URL.createObjectURL(videoFile);
+  const video = document.createElement("video");
+  video.src = videoUrl;
+  video.muted = true;
+  video.playsInline = true;
+
+  await new Promise<void>((resolve, reject) => {
+    video.onloadedmetadata = () => resolve();
+    video.onerror = () => reject(new Error("Failed to load video"));
+  });
+
+  const duration = video.duration;
+  const sampleFps = 15;
+  const interval = 1 / sampleFps;
+  const totalFrames = Math.max(1, Math.floor(duration * sampleFps));
+  const frames: FrameLandmarks[] = [];
+  let framesWithPose = 0;
+
+  try {
+    for (let i = 0; i < totalFrames; i++) {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+
+      const targetTime = i * interval;
+      video.currentTime = targetTime;
+
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+      });
+
+      const timestampMs = targetTime * 1000;
+      const result = pose.detectForVideo(video, timestampMs);
+      const landmarks = convertLandmarks(result);
+
+      const percent = Math.round(((i + 1) / totalFrames) * 100);
+
+      if (landmarks) {
+        framesWithPose++;
+        const frame: FrameLandmarks = {
+          frameIndex: i,
+          timestamp: timestampMs,
+          landmarks,
+        };
+        frames.push(frame);
+        yield { percent, frame };
+      } else {
+        yield { percent };
+      }
+    }
+  } finally {
+    URL.revokeObjectURL(videoUrl);
+  }
+
+  const detectionRatio = framesWithPose / totalFrames;
+  const qualityWarning =
+    detectionRatio < 0.35 ? ("low_detection" as const) : undefined;
+
+  return { frames, qualityWarning };
+}

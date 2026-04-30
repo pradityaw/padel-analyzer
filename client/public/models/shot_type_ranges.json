@@ -1,0 +1,1442 @@
+{
+  "generic": {
+    "ready": {
+      "kneeFlex": {
+        "range": [
+          150,
+          170
+        ],
+        "weight": 0.4
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          15
+        ],
+        "weight": 0.3
+      },
+      "shoulderRotation": {
+        "range": [
+          0,
+          20
+        ],
+        "weight": 0.3
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          30,
+          60
+        ],
+        "weight": 0.4
+      },
+      "hipRotation": {
+        "range": [
+          15,
+          35
+        ],
+        "weight": 0.3
+      },
+      "elbowAngle": {
+        "range": [
+          70,
+          110
+        ],
+        "weight": 0.3
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          20,
+          50
+        ],
+        "weight": 0.35
+      },
+      "hipRotation": {
+        "range": [
+          25,
+          50
+        ],
+        "weight": 0.35
+      },
+      "elbowAngle": {
+        "range": [
+          90,
+          140
+        ],
+        "weight": 0.3
+      }
+    },
+    "contact": {
+      "elbowAngle": {
+        "range": [
+          140,
+          165
+        ],
+        "weight": 0.3
+      },
+      "shoulderRotation": {
+        "range": [
+          40,
+          60
+        ],
+        "weight": 0.25
+      },
+      "hipRotation": {
+        "range": [
+          35,
+          55
+        ],
+        "weight": 0.2
+      },
+      "kneeFlex": {
+        "range": [
+          150,
+          170
+        ],
+        "weight": 0.15
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          15
+        ],
+        "weight": 0.1
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          50,
+          80
+        ],
+        "weight": 0.4
+      },
+      "elbowAngle": {
+        "range": [
+          100,
+          160
+        ],
+        "weight": 0.3
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          20
+        ],
+        "weight": 0.3
+      }
+    }
+  },
+  "bandeja": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          82.4,
+          180
+        ],
+        "weight": 0.722
+      },
+      "hipRotation": {
+        "range": [
+          89.2,
+          180
+        ],
+        "weight": 0.734
+      },
+      "elbowAngle": {
+        "range": [
+          77.5,
+          156.6
+        ],
+        "weight": 0.747
+      },
+      "kneeFlex": {
+        "range": [
+          161.3,
+          180
+        ],
+        "weight": 0.947
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          11.0
+        ],
+        "weight": 0.319
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          66.6,
+          180
+        ],
+        "weight": 0.669
+      },
+      "hipRotation": {
+        "range": [
+          68.7,
+          180
+        ],
+        "weight": 0.669
+      },
+      "elbowAngle": {
+        "range": [
+          67.9,
+          177.6
+        ],
+        "weight": 0.691
+      },
+      "kneeFlex": {
+        "range": [
+          166.9,
+          180
+        ],
+        "weight": 0.963
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          11.2
+        ],
+        "weight": 0.308
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          62.3,
+          180
+        ],
+        "weight": 0.659
+      },
+      "hipRotation": {
+        "range": [
+          63.0,
+          180
+        ],
+        "weight": 0.657
+      },
+      "elbowAngle": {
+        "range": [
+          65.4,
+          173.3
+        ],
+        "weight": 0.689
+      },
+      "kneeFlex": {
+        "range": [
+          167.7,
+          179.5
+        ],
+        "weight": 0.967
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          13.9
+        ],
+        "weight": 0.32
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          70.9,
+          176.8
+        ],
+        "weight": 0.7
+      },
+      "hipRotation": {
+        "range": [
+          73.3,
+          180
+        ],
+        "weight": 0.698
+      },
+      "elbowAngle": {
+        "range": [
+          77.3,
+          155.7
+        ],
+        "weight": 0.748
+      },
+      "kneeFlex": {
+        "range": [
+          164.4,
+          179.9
+        ],
+        "weight": 0.957
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          10.4
+        ],
+        "weight": 0.413
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          51.6,
+          180
+        ],
+        "weight": 0.639
+      },
+      "hipRotation": {
+        "range": [
+          55.6,
+          180
+        ],
+        "weight": 0.644
+      },
+      "elbowAngle": {
+        "range": [
+          72.1,
+          170.2
+        ],
+        "weight": 0.712
+      },
+      "kneeFlex": {
+        "range": [
+          150.5,
+          180
+        ],
+        "weight": 0.899
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          7.6
+        ],
+        "weight": 0.423
+      }
+    }
+  },
+  "vibora": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          135.3,
+          180
+        ],
+        "weight": 0.872
+      },
+      "hipRotation": {
+        "range": [
+          136.1,
+          180
+        ],
+        "weight": 0.867
+      },
+      "elbowAngle": {
+        "range": [
+          98.9,
+          167.7
+        ],
+        "weight": 0.795
+      },
+      "kneeFlex": {
+        "range": [
+          163.7,
+          180
+        ],
+        "weight": 0.955
+      },
+      "spineAngle": {
+        "range": [
+          0.5,
+          4.1
+        ],
+        "weight": 0.56
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          121.0,
+          180
+        ],
+        "weight": 0.818
+      },
+      "hipRotation": {
+        "range": [
+          127.3,
+          180
+        ],
+        "weight": 0.831
+      },
+      "elbowAngle": {
+        "range": [
+          68.6,
+          172.6
+        ],
+        "weight": 0.699
+      },
+      "kneeFlex": {
+        "range": [
+          102.2,
+          180
+        ],
+        "weight": 0.746
+      },
+      "spineAngle": {
+        "range": [
+          0.1,
+          4.4
+        ],
+        "weight": 0.516
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          119.1,
+          180
+        ],
+        "weight": 0.813
+      },
+      "hipRotation": {
+        "range": [
+          126.0,
+          180
+        ],
+        "weight": 0.828
+      },
+      "elbowAngle": {
+        "range": [
+          81.7,
+          175.8
+        ],
+        "weight": 0.732
+      },
+      "kneeFlex": {
+        "range": [
+          115.9,
+          180
+        ],
+        "weight": 0.789
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          5.1
+        ],
+        "weight": 0.489
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          123.6,
+          180
+        ],
+        "weight": 0.828
+      },
+      "hipRotation": {
+        "range": [
+          125.5,
+          180
+        ],
+        "weight": 0.829
+      },
+      "elbowAngle": {
+        "range": [
+          99.8,
+          152.5
+        ],
+        "weight": 0.827
+      },
+      "kneeFlex": {
+        "range": [
+          147.2,
+          180
+        ],
+        "weight": 0.889
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          6.8
+        ],
+        "weight": 0.472
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          120.8,
+          180
+        ],
+        "weight": 0.811
+      },
+      "hipRotation": {
+        "range": [
+          121.3,
+          180
+        ],
+        "weight": 0.811
+      },
+      "elbowAngle": {
+        "range": [
+          68.2,
+          160.2
+        ],
+        "weight": 0.713
+      },
+      "kneeFlex": {
+        "range": [
+          171.5,
+          178.4
+        ],
+        "weight": 0.98
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          11.0
+        ],
+        "weight": 0.357
+      }
+    }
+  },
+  "smash": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          79.2,
+          180
+        ],
+        "weight": 0.71
+      },
+      "hipRotation": {
+        "range": [
+          77.7,
+          180
+        ],
+        "weight": 0.699
+      },
+      "elbowAngle": {
+        "range": [
+          57.2,
+          147.7
+        ],
+        "weight": 0.694
+      },
+      "kneeFlex": {
+        "range": [
+          148.6,
+          180
+        ],
+        "weight": 0.909
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          10.0
+        ],
+        "weight": 0.409
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          95.5,
+          180
+        ],
+        "weight": 0.746
+      },
+      "hipRotation": {
+        "range": [
+          96.4,
+          180
+        ],
+        "weight": 0.735
+      },
+      "elbowAngle": {
+        "range": [
+          35.8,
+          151.7
+        ],
+        "weight": 0.618
+      },
+      "kneeFlex": {
+        "range": [
+          160.2,
+          180
+        ],
+        "weight": 0.94
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          11.1
+        ],
+        "weight": 0.429
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          89.9,
+          180
+        ],
+        "weight": 0.737
+      },
+      "hipRotation": {
+        "range": [
+          95.4,
+          180
+        ],
+        "weight": 0.737
+      },
+      "elbowAngle": {
+        "range": [
+          42.5,
+          154.5
+        ],
+        "weight": 0.637
+      },
+      "kneeFlex": {
+        "range": [
+          152.0,
+          180
+        ],
+        "weight": 0.909
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          12.3
+        ],
+        "weight": 0.412
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          77.4,
+          178.0
+        ],
+        "weight": 0.717
+      },
+      "hipRotation": {
+        "range": [
+          79.5,
+          180
+        ],
+        "weight": 0.714
+      },
+      "elbowAngle": {
+        "range": [
+          83.7,
+          153.3
+        ],
+        "weight": 0.773
+      },
+      "kneeFlex": {
+        "range": [
+          136.5,
+          180
+        ],
+        "weight": 0.872
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          14.5
+        ],
+        "weight": 0.435
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          55.9,
+          180
+        ],
+        "weight": 0.652
+      },
+      "hipRotation": {
+        "range": [
+          50.0,
+          180
+        ],
+        "weight": 0.631
+      },
+      "elbowAngle": {
+        "range": [
+          80.6,
+          180
+        ],
+        "weight": 0.72
+      },
+      "kneeFlex": {
+        "range": [
+          107.4,
+          180
+        ],
+        "weight": 0.769
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          13.2
+        ],
+        "weight": 0.432
+      }
+    }
+  },
+  "volley": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          139.8,
+          180
+        ],
+        "weight": 0.882
+      },
+      "hipRotation": {
+        "range": [
+          138.9,
+          180
+        ],
+        "weight": 0.873
+      },
+      "elbowAngle": {
+        "range": [
+          77.5,
+          149.8
+        ],
+        "weight": 0.759
+      },
+      "kneeFlex": {
+        "range": [
+          124.0,
+          180
+        ],
+        "weight": 0.824
+      },
+      "spineAngle": {
+        "range": [
+          0.1,
+          5.7
+        ],
+        "weight": 0.512
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          147.4,
+          180
+        ],
+        "weight": 0.902
+      },
+      "hipRotation": {
+        "range": [
+          157.3,
+          180
+        ],
+        "weight": 0.931
+      },
+      "elbowAngle": {
+        "range": [
+          62.2,
+          172.8
+        ],
+        "weight": 0.68
+      },
+      "kneeFlex": {
+        "range": [
+          115.5,
+          180
+        ],
+        "weight": 0.78
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          7.1
+        ],
+        "weight": 0.473
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          133.7,
+          180
+        ],
+        "weight": 0.847
+      },
+      "hipRotation": {
+        "range": [
+          146.9,
+          180
+        ],
+        "weight": 0.89
+      },
+      "elbowAngle": {
+        "range": [
+          70.7,
+          175.0
+        ],
+        "weight": 0.702
+      },
+      "kneeFlex": {
+        "range": [
+          112.3,
+          180
+        ],
+        "weight": 0.773
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          7.4
+        ],
+        "weight": 0.467
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          120.7,
+          180
+        ],
+        "weight": 0.827
+      },
+      "hipRotation": {
+        "range": [
+          122.2,
+          180
+        ],
+        "weight": 0.827
+      },
+      "elbowAngle": {
+        "range": [
+          73.6,
+          149.0
+        ],
+        "weight": 0.747
+      },
+      "kneeFlex": {
+        "range": [
+          131.3,
+          180
+        ],
+        "weight": 0.855
+      },
+      "spineAngle": {
+        "range": [
+          0.3,
+          7.1
+        ],
+        "weight": 0.522
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          89.4,
+          180
+        ],
+        "weight": 0.725
+      },
+      "hipRotation": {
+        "range": [
+          90.3,
+          180
+        ],
+        "weight": 0.727
+      },
+      "elbowAngle": {
+        "range": [
+          58.9,
+          167.8
+        ],
+        "weight": 0.675
+      },
+      "kneeFlex": {
+        "range": [
+          145.5,
+          180
+        ],
+        "weight": 0.887
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          5.3
+        ],
+        "weight": 0.492
+      }
+    }
+  },
+  "drive": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          80.0,
+          180
+        ],
+        "weight": 0.711
+      },
+      "hipRotation": {
+        "range": [
+          81.9,
+          180
+        ],
+        "weight": 0.709
+      },
+      "elbowAngle": {
+        "range": [
+          88.0,
+          165.9
+        ],
+        "weight": 0.765
+      },
+      "kneeFlex": {
+        "range": [
+          160.1,
+          179.1
+        ],
+        "weight": 0.947
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          11.2
+        ],
+        "weight": 0.443
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          84.8,
+          180
+        ],
+        "weight": 0.717
+      },
+      "hipRotation": {
+        "range": [
+          86.1,
+          180
+        ],
+        "weight": 0.716
+      },
+      "elbowAngle": {
+        "range": [
+          72.9,
+          173.7
+        ],
+        "weight": 0.71
+      },
+      "kneeFlex": {
+        "range": [
+          161.3,
+          180
+        ],
+        "weight": 0.947
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          12.2
+        ],
+        "weight": 0.448
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          83.3,
+          180
+        ],
+        "weight": 0.716
+      },
+      "hipRotation": {
+        "range": [
+          87.2,
+          180
+        ],
+        "weight": 0.72
+      },
+      "elbowAngle": {
+        "range": [
+          68.2,
+          175.6
+        ],
+        "weight": 0.694
+      },
+      "kneeFlex": {
+        "range": [
+          159.0,
+          180
+        ],
+        "weight": 0.94
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          13.5
+        ],
+        "weight": 0.432
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          67.8,
+          180
+        ],
+        "weight": 0.686
+      },
+      "hipRotation": {
+        "range": [
+          74.9,
+          180
+        ],
+        "weight": 0.698
+      },
+      "elbowAngle": {
+        "range": [
+          91.8,
+          161.7
+        ],
+        "weight": 0.784
+      },
+      "kneeFlex": {
+        "range": [
+          144.2,
+          180
+        ],
+        "weight": 0.894
+      },
+      "spineAngle": {
+        "range": [
+          0.7,
+          11.6
+        ],
+        "weight": 0.528
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          57.2,
+          180
+        ],
+        "weight": 0.652
+      },
+      "hipRotation": {
+        "range": [
+          59.3,
+          180
+        ],
+        "weight": 0.651
+      },
+      "elbowAngle": {
+        "range": [
+          87.3,
+          178.3
+        ],
+        "weight": 0.745
+      },
+      "kneeFlex": {
+        "range": [
+          126.8,
+          180
+        ],
+        "weight": 0.824
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          14.0
+        ],
+        "weight": 0.476
+      }
+    }
+  },
+  "lob": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          84.5,
+          180
+        ],
+        "weight": 0.728
+      },
+      "hipRotation": {
+        "range": [
+          88.8,
+          180
+        ],
+        "weight": 0.736
+      },
+      "elbowAngle": {
+        "range": [
+          65.6,
+          149.8
+        ],
+        "weight": 0.719
+      },
+      "kneeFlex": {
+        "range": [
+          154.4,
+          180
+        ],
+        "weight": 0.923
+      },
+      "spineAngle": {
+        "range": [
+          0.7,
+          11.1
+        ],
+        "weight": 0.53
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          75.8,
+          180
+        ],
+        "weight": 0.697
+      },
+      "hipRotation": {
+        "range": [
+          79.4,
+          180
+        ],
+        "weight": 0.704
+      },
+      "elbowAngle": {
+        "range": [
+          49.4,
+          161.7
+        ],
+        "weight": 0.653
+      },
+      "kneeFlex": {
+        "range": [
+          149.1,
+          180
+        ],
+        "weight": 0.896
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          14.2
+        ],
+        "weight": 0.425
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          79.0,
+          180
+        ],
+        "weight": 0.706
+      },
+      "hipRotation": {
+        "range": [
+          82.1,
+          180
+        ],
+        "weight": 0.71
+      },
+      "elbowAngle": {
+        "range": [
+          43.1,
+          158.8
+        ],
+        "weight": 0.636
+      },
+      "kneeFlex": {
+        "range": [
+          147.3,
+          180
+        ],
+        "weight": 0.891
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          14.2
+        ],
+        "weight": 0.425
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          86.4,
+          176.3
+        ],
+        "weight": 0.745
+      },
+      "hipRotation": {
+        "range": [
+          91.4,
+          178.4
+        ],
+        "weight": 0.756
+      },
+      "elbowAngle": {
+        "range": [
+          59.5,
+          151.7
+        ],
+        "weight": 0.696
+      },
+      "kneeFlex": {
+        "range": [
+          143.9,
+          180
+        ],
+        "weight": 0.881
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          12.9
+        ],
+        "weight": 0.43
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          75.4,
+          180
+        ],
+        "weight": 0.694
+      },
+      "hipRotation": {
+        "range": [
+          72.4,
+          180
+        ],
+        "weight": 0.681
+      },
+      "elbowAngle": {
+        "range": [
+          53.2,
+          168.1
+        ],
+        "weight": 0.658
+      },
+      "kneeFlex": {
+        "range": [
+          147.8,
+          180
+        ],
+        "weight": 0.886
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          10.3
+        ],
+        "weight": 0.41
+      }
+    }
+  },
+  "bajada": {
+    "ready": {
+      "shoulderRotation": {
+        "range": [
+          77.7,
+          180
+        ],
+        "weight": 0.699
+      },
+      "hipRotation": {
+        "range": [
+          76.6,
+          180
+        ],
+        "weight": 0.696
+      },
+      "elbowAngle": {
+        "range": [
+          72.5,
+          140.7
+        ],
+        "weight": 0.758
+      },
+      "kneeFlex": {
+        "range": [
+          150.4,
+          179.3
+        ],
+        "weight": 0.919
+      },
+      "spineAngle": {
+        "range": [
+          0.2,
+          10.2
+        ],
+        "weight": 0.512
+      }
+    },
+    "backswing": {
+      "shoulderRotation": {
+        "range": [
+          70.0,
+          180
+        ],
+        "weight": 0.678
+      },
+      "hipRotation": {
+        "range": [
+          71.2,
+          180
+        ],
+        "weight": 0.68
+      },
+      "elbowAngle": {
+        "range": [
+          86.5,
+          155.1
+        ],
+        "weight": 0.779
+      },
+      "kneeFlex": {
+        "range": [
+          153.1,
+          180
+        ],
+        "weight": 0.921
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          15.4
+        ],
+        "weight": 0.478
+      }
+    },
+    "forwardSwing": {
+      "shoulderRotation": {
+        "range": [
+          67.2,
+          180
+        ],
+        "weight": 0.672
+      },
+      "hipRotation": {
+        "range": [
+          73.2,
+          180
+        ],
+        "weight": 0.684
+      },
+      "elbowAngle": {
+        "range": [
+          92.1,
+          153.5
+        ],
+        "weight": 0.8
+      },
+      "kneeFlex": {
+        "range": [
+          154.0,
+          180
+        ],
+        "weight": 0.92
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          15.0
+        ],
+        "weight": 0.458
+      }
+    },
+    "contact": {
+      "shoulderRotation": {
+        "range": [
+          81.8,
+          180
+        ],
+        "weight": 0.71
+      },
+      "hipRotation": {
+        "range": [
+          86.2,
+          180
+        ],
+        "weight": 0.718
+      },
+      "elbowAngle": {
+        "range": [
+          72.8,
+          164.9
+        ],
+        "weight": 0.721
+      },
+      "kneeFlex": {
+        "range": [
+          148.2,
+          180
+        ],
+        "weight": 0.904
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          16.1
+        ],
+        "weight": 0.414
+      }
+    },
+    "followThrough": {
+      "shoulderRotation": {
+        "range": [
+          67.0,
+          180
+        ],
+        "weight": 0.677
+      },
+      "hipRotation": {
+        "range": [
+          74.9,
+          180
+        ],
+        "weight": 0.693
+      },
+      "elbowAngle": {
+        "range": [
+          57.4,
+          167.2
+        ],
+        "weight": 0.672
+      },
+      "kneeFlex": {
+        "range": [
+          159.0,
+          180
+        ],
+        "weight": 0.94
+      },
+      "spineAngle": {
+        "range": [
+          0,
+          15.4
+        ],
+        "weight": 0.411
+      }
+    }
+  }
+}

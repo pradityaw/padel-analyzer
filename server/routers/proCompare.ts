@@ -142,7 +142,12 @@ export const proCompareRouter = router({
       const cached = db
         .select()
         .from(proBenchmarks)
-        .where(eq(proBenchmarks.shotType, input.shotType))
+        .where(
+          and(
+            eq(proBenchmarks.shotType, input.shotType),
+            eq(proBenchmarks.referenceTier, "pro")
+          )
+        )
         .get();
 
       if (cached && cached.sampleCount === currentCount) {
@@ -213,12 +218,18 @@ export const proCompareRouter = router({
             metricsJson,
             updatedAt: new Date().toISOString(),
           })
-          .where(eq(proBenchmarks.shotType, input.shotType))
+          .where(
+            and(
+              eq(proBenchmarks.shotType, input.shotType),
+              eq(proBenchmarks.referenceTier, "pro")
+            )
+          )
           .run();
       } else {
         db.insert(proBenchmarks)
           .values({
             shotType: input.shotType,
+            referenceTier: "pro",
             sampleCount: currentCount,
             metricsJson,
           })
@@ -283,7 +294,11 @@ export const proCompareRouter = router({
 
     // Get benchmarks
     const benchmarks: Record<string, any> = {};
-    const benchmarkRows = db.select().from(proBenchmarks).all();
+    const benchmarkRows = db
+      .select()
+      .from(proBenchmarks)
+      .where(eq(proBenchmarks.referenceTier, "pro"))
+      .all();
     for (const b of benchmarkRows) {
       benchmarks[b.shotType] = {
         sampleCount: b.sampleCount,

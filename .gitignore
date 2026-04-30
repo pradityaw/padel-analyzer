@@ -3,9 +3,39 @@ dist/
 data/*.db
 data/uploads/
 data/thumbnails/
+data/reports/
+
+# Local env / OS noise
 .env
+.env.*
+!.env.example
+!.env*.example
 *.log
 .DS_Store
 
 data/*.db-wal
 data/*.db-shm
+
+# Agent / IDE artifacts (keep team rules in .cursor/rules if desired — local junk only)
+.claude/
+.cursor-sdk-runs/
+
+# Cursor local agent state (keep shared rules in repo)
+.cursor/agents/
+
+# QA run output
+qa-artifacts/
+
+# Cursor SDK runner (local optional tooling)
+scripts/cursor-sdk/
+
+training/checkpoints/
+training/data/*.json
+training/data/**/*.json
+
+# Optional: ignore ONNX in repo (uncomment if you distribute models separately)
+# client/public/models/*.onnx
+
+playwright-report/
+test-results/
+blob-report/

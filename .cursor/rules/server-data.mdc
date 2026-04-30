@@ -1,0 +1,35 @@
+---
+description: Standards for server routers and data layer (Workstream B)
+globs: server/**
+---
+
+# Server / Data Standards (Workstream B)
+
+## Input validation
+- All tRPC mutations MUST validate input using Zod schemas from `shared/schema.ts` where a matching schema exists.
+- String fields that store JSON (`phasesJson`, `landmarksJson`, `gapAnalysisJson`) MUST have `.max()` length limits to prevent DoS.
+- Numeric fields MUST have bounds (`.min()` / `.max()` / `.finite()`) — never accept `Infinity` or `NaN`.
+- Shot type fields MUST use the `shotTypeSchema` from `shared/schema.ts`, not bare `z.string()`.
+
+## Error handling
+- Configure a tRPC `errorFormatter` in `server/_core/trpc.ts` that sanitizes error messages in production (no stack traces, no raw DB errors, no yt-dlp stderr).
+- All `JSON.parse` on data read from the DB MUST be wrapped in `try/catch`. Return a structured error, not a 500.
+- External process calls (`yt-dlp`, `ffmpeg`) MUST have `timeout` and `maxBuffer` set. Map common failure modes to user-friendly error messages.
+
+## Type safety
+- No `(p: any)` or `Record<string, any>`. Use shared types from `shared/types.ts` or define local types.
+- Avoid `as unknown as` casts. If Zod needs a type assertion for `z.enum`, document why.
+
+## Query performance
+- All list endpoints MUST support cursor-based or offset pagination. Never return unbounded result sets.
+- Avoid N+1 patterns: use JOINs or batch queries instead of per-row lookups inside loops.
+- Export endpoints that build large in-memory arrays SHOULD stream or paginate.
+
+## Data integrity
+- Multi-step mutations (e.g., insert annotation + update analysis) MUST use `db.transaction()`.
+- File operations with TOCTOU risk (check-then-write) MUST use atomic patterns (write to temp file, then rename) or locks.
+- Delete operations MUST handle orphaned related rows (cascade or explicit cleanup).
+
+## Constants
+- Import `SAMPLE_FPS`, `MAX_UPLOAD_BYTES`, `YOUTUBE_MAX_DURATION_SEC`, and other thresholds from `shared/config.ts`. Never hardcode them in routers.
+- Export endpoints should use the per-row `sampleFps` value from the DB, not the global constant, to support future FPS changes.

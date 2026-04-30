@@ -1,0 +1,31 @@
+---
+description: Standards for the analysis pipeline modules (Workstream A)
+globs: client/src/lib/mediapipe.ts,client/src/lib/swingAnalyzer.ts,client/src/lib/shotClassifier.ts,client/src/lib/gapAnalyzer.ts,client/src/lib/skeleton.ts
+---
+
+# Analysis Pipeline Standards (Workstream A)
+
+These files are **computation modules**, not UI. Treat them with the rigor of a data pipeline.
+
+## Error handling
+- All `JSON.parse` calls MUST be wrapped in `try/catch` with a meaningful fallback or re-throw.
+- All async ML functions (MediaPipe init, ONNX session, video processing) MUST have timeout and error recovery paths.
+- Never let an unhandled exception in scoring or classification crash the caller — return a typed error or null result.
+
+## Logging
+- All ML entry points (`processVideo`, `analyzeSwing`, `classifyShotType`) MUST log start time, input size (frame count), and completion time via `console.time` / `console.timeEnd` or equivalent.
+- Warnings (low landmark visibility, empty frames, classification fallback) MUST use `console.warn` with a descriptive prefix like `[pipeline]`.
+
+## Configuration
+- All scoring ranges and weights MUST be imported from `shared/config.ts` (`GENERIC_RANGES`, `METRIC_WEIGHTS`). Never duplicate them locally.
+- All landmark indices MUST use the `LM` constant from `shared/config.ts`. Never hardcode numbers like `16` for right wrist.
+- All thresholds (confidence, velocity ratio, contact zone, FPS) MUST come from `shared/config.ts`.
+
+## Correctness
+- Dominant-side logic must be consistent: if a function accepts `dominantSide`, it must use it for all side-dependent operations (wrist selection, mirroring, etc.).
+- Scoring and feedback functions must use the same ranges — if `analyzeSwing` uses shot-type-specific ranges, `getMetricFeedback` must too.
+- The ONNX preprocessing pipeline must match `training/dataset.py` exactly. Document any deviation.
+
+## Testing surface
+- These modules should be testable without a DOM. Avoid direct DOM manipulation except in `skeleton.ts` (canvas) and `mediapipe.ts` (video element).
+- Export pure functions where possible so they can be unit tested.

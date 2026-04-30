@@ -45,6 +45,9 @@ export type AnalysisResult = {
   sampleFps: number;
   shotType?: ShotType;
   shotConfidence?: number;
+  skillLabel?: QualityBand;
+  skillConfidence?: number;
+  qualityScore?: number;
 };
 
 export type MetricStatus = "good" | "improve" | "issue";
@@ -109,6 +112,25 @@ export const SHOT_TYPE_COLORS: Record<ShotType, string> = {
   bajada: "#f97316",
   other: "#64748b",
 };
+
+// Reference / training metadata (annotations, benchmarks, skill labels)
+export const REFERENCE_TIERS = ["none", "pro", "amateur_curated"] as const;
+export type ReferenceTier = (typeof REFERENCE_TIERS)[number];
+
+export const QUALITY_BANDS = [
+  "pro",
+  "beginner",
+  "developing",
+  "solid_amateur",
+] as const;
+export type QualityBand = (typeof QUALITY_BANDS)[number];
+
+export const REFERENCE_SOURCE_TYPES = [
+  "bulk_import",
+  "youtube",
+  "manual",
+] as const;
+export type ReferenceSourceType = (typeof REFERENCE_SOURCE_TYPES)[number];
 
 // Pro vs Player gap analysis types
 export type MetricGap = {
