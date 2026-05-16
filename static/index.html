@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Analyzer - Airdrop Score Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .warning-banner.show {
+            display: block;
+        }
+
+        .warning-banner h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .warning-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .progress-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 20px;
+            height: 30px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .progress-message {
+            text-align: center;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .airdrop-score {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .score-number {
+            font-size: 3em;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .score-tier {
+            font-size: 1.3em;
+            opacity: 0.9;
+        }
+
+        .score-components {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .score-component {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .disclaimer {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 0.9em;
+            color: #0c5460;
+        }
+
+        @media (max-width: 600px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .score-components {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔮 Polymarket Analyzer</h1>
+            <p class="subtitle">Check your Polymarket activity and estimated airdrop score</p>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label for="address">Ethereum Address (EOA)</label>
+                <input 
+                    type="text" 
+                    id="address" 
+                    placeholder="0x..."
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+            </div>
+            
+            <div class="actions">
+                <button id="analyzeBtn" onclick="startAnalysis()">Analyze Wallet</button>
+                <button class="btn-secondary" onclick="clearStoredData()">Clear Stored Data</button>
+            </div>
+        </div>
+
+        <div class="warning-banner" id="warningBanner">
+            <h3>⚠️ Quality Warnings</h3>
+            <div id="warningsList"></div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+            <div class="progress-message" id="progressMessage">Starting analysis...</div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="card">
+                <h2 style="margin-bottom: 20px; color: #667eea;">📊 Wallet Summary</h2>
+                
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">EOA Address</div>
+                        <div class="stat-value" id="eoa" style="font-size: 0.8em; word-break: break-all;"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Proxy Wallet</div>
+                        <div class="stat-value" id="proxy" style="font-size: 0.8em; word-break: break-all;"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">First Trade</div>
+                        <div class="stat-value" id="firstTrade"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Trades</div>
+                        <div class="stat-value" id="tradeCount"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Volume</div>
+                        <div class="stat-value" id="totalVolume"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Unique Markets</div>
+                        <div class="stat-value" id="uniqueMarkets"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Days</div>
+                        <div class="stat-value" id="activeDays"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Open Positions</div>
+                        <div class="stat-value" id="openPositions"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Realized PnL</div>
+                        <div class="stat-value" id="realizedPnl"></div>
+                    </div>
+                </div>
+
+                <div id="firstMarket" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">First Market Traded:</div>
+                    <div id="firstMarketName" style="font-weight: 600; color: #333;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom: 20px; color: #667eea;">🎁 Airdrop Score</h2>
+                
+                <div class="airdrop-score">
+                    <div style="font-size: 1.1em; opacity: 0.9;">Your Score</div>
+                    <div class="score-number" id="airdropScore">--</div>
+                    <div class="score-tier" id="airdropTier">--</div>
+                    
+                    <div class="score-components">
+                        <div class="score-component">
+                            <div style="font-size: 0.9em; opacity: 0.8;">Volume</div>
+                            <div style="font-size: 1.5em; font-weight: 700;" id="volumePoints">--</div>
+                        </div>
+                        <div class="score-component">
+                            <div style="font-size: 0.9em; opacity: 0.8;">Longevity</div>
+                            <div style="font-size: 1.5em; font-weight: 700;" id="longevityPoints">--</div>
+                        </div>
+                        <div class="score-component">
+                            <div style="font-size: 0.9em; opacity: 0.8;">Diversity</div>
+                            <div style="font-size: 1.5em; font-weight: 700;" id="diversityPoints">--</div>
+                        </div>
+                        <div class="score-component">
+                            <div style="font-size: 0.9em; opacity: 0.8;">Consistency</div>
+                            <div style="font-size: 1.5em; font-weight: 700;" id="consistencyPoints">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disclaimer">
+                    <strong>Disclaimer:</strong> Polymarket has not published official airdrop criteria. 
+                    This score is a heuristic based on common signals cited in third-party analyses 
+                    (volume, longevity, market diversity, consistency). Treat this as a rough estimate only.
+                </div>
+            </div>
+
+            <div class="actions">
+                <button onclick="analyzeAnother()">Analyze Another Wallet</button>
+                <button class="btn-secondary" onclick="shareResults()">Share Results</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Powered by Polymarket Data API & Polygon RPC</p>
+            <p>Your analyses are stored locally in your browser for 24 hours</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const POLL_INTERVAL = 2000; // 2 seconds
+        const TTL = 24 * 60 * 60 * 1000; // 24 hours
+        
+        let currentJobId = null;
+        let pollTimer = null;
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            cleanupStaleAnalyses();
+            restoreStateFromUrlOrStorage();
+        });
+
+        /**
+         * Clean up localStorage entries older than 24 hours
+         */
+        function cleanupStaleAnalyses() {
+            const now = Date.now();
+            const keys = Object.keys(localStorage);
+            
+            for (const key of keys) {
+                if (key.startsWith('pm-analysis-') || key.startsWith('pm-job-')) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (data.timestamp && (now - data.timestamp > TTL)) {
+                            localStorage.removeItem(key);
+                        }
+                    } catch (e) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Restore state from URL parameters or localStorage
+         */
+        function restoreStateFromUrlOrStorage() {
+            const params = new URLSearchParams(window.location.search);
+            const jobId = params.get('job');
+            const address = params.get('address');
+
+            if (jobId) {
+                // Try to restore job state
+                const jobData = localStorage.getItem(`pm-job-${jobId}`);
+                if (jobData) {
+                    const job = JSON.parse(jobData);
+                    document.getElementById('address').value = job.address;
+                    currentJobId = jobId;
+                    
+                    if (job.status === 'in_progress') {
+                        // Resume polling
+                        showProgress();
+                        pollJobStatus(jobId);
+                    } else if (job.status === 'completed') {
+                        // Load from cached analysis
+                        loadCachedAnalysis(job.address);
+                    }
+                }
+            } else if (address) {
+                // Check for cached analysis
+                const cached = localStorage.getItem(`pm-analysis-${address.toLowerCase()}`);
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    if (data.status === 'completed' && Date.now() - data.timestamp < TTL) {
+                        document.getElementById('address').value = address;
+                        displayResults(data);
+                        displayQualityWarnings(data.qualityWarnings);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Load and display a cached analysis
+         */
+        function loadCachedAnalysis(address) {
+            const cached = localStorage.getItem(`pm-analysis-${address.toLowerCase()}`);
+            if (cached) {
+                const data = JSON.parse(cached);
+                if (data.status === 'completed') {
+                    displayResults(data);
+                    displayQualityWarnings(data.qualityWarnings);
+                }
+            }
+        }
+
+        /**
+         * Start a new analysis
+         */
+        async function startAnalysis() {
+            const address = document.getElementById('address').value.trim().toLowerCase();
+            
+            if (!address || !address.startsWith('0x') || address.length !== 42) {
+                showError('Please enter a valid Ethereum address (0x...)');
+                return;
+            }
+
+            hideError();
+            hideResults();
+            hideWarnings();
+            showProgress();
+
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to start analysis');
+                }
+
+                const data = await response.json();
+                currentJobId = data.job_id;
+
+                // Store job in localStorage
+                const jobData = {
+                    address,
+                    status: 'in_progress',
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(`pm-job-${currentJobId}`, JSON.stringify(jobData));
+
+                // Update URL
+                updateUrl(currentJobId, address);
+
+                // Start polling
+                pollJobStatus(currentJobId);
+
+            } catch (error) {
+                showError(error.message);
+                hideProgress();
+                btn.disabled = false;
+                btn.textContent = 'Analyze Wallet';
+            }
+        }
+
+        /**
+         * Poll job status until complete
+         */
+        async function pollJobStatus(jobId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/job/${jobId}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Job not found or expired');
+                    }
+                    throw new Error('Failed to fetch job status');
+                }
+
+                const job = await response.json();
+
+                // Update localStorage
+                localStorage.setItem(`pm-job-${jobId}`, JSON.stringify({
+                    address: job.address,
+                    status: job.status,
+                    timestamp: job.timestamp * 1000
+                }));
+
+                // Update progress
+                if (job.progress) {
+                    updateProgress(job.progress.percentage, job.progress.message);
+                }
+
+                if (job.status === 'completed') {
+                    // Store complete results
+                    const analysisData = {
+                        address: job.address,
+                        status: 'completed',
+                        timestamp: Date.now(),
+                        qualityWarnings: job.qualityWarnings || [],
+                        summary: job.summary,
+                        airdrop: job.airdrop
+                    };
+                    localStorage.setItem(`pm-analysis-${job.address}`, JSON.stringify(analysisData));
+
+                    // Update URL to remove job ID
+                    window.history.replaceState(null, '', `?address=${job.address}`);
+
+                    // Display results
+                    displayResults(analysisData);
+                    displayQualityWarnings(job.qualityWarnings);
+                    hideProgress();
+                    
+                    const btn = document.getElementById('analyzeBtn');
+                    btn.disabled = false;
+                    btn.textContent = 'Analyze Wallet';
+
+                } else if (job.status === 'error') {
+                    showError(job.error?.message || 'Analysis failed');
+                    hideProgress();
+                    
+                    const btn = document.getElementById('analyzeBtn');
+                    btn.disabled = false;
+                    btn.textContent = 'Analyze Wallet';
+
+                } else {
+                    // Continue polling
+                    pollTimer = setTimeout(() => pollJobStatus(jobId), POLL_INTERVAL);
+                }
+
+            } catch (error) {
+                showError(error.message);
+                hideProgress();
+                
+                const btn = document.getElementById('analyzeBtn');
+                btn.disabled = false;
+                btn.textContent = 'Analyze Wallet';
+            }
+        }
+
+        /**
+         * Update URL with job ID and address
+         */
+        function updateUrl(jobId, address) {
+            const url = new URL(window.location);
+            url.searchParams.set('job', jobId);
+            url.searchParams.set('address', address);
+            window.history.pushState(null, '', url);
+        }
+
+        /**
+         * Display analysis results
+         */
+        function displayResults(data) {
+            const { summary, airdrop } = data;
+
+            document.getElementById('eoa').textContent = summary.eoa;
+            document.getElementById('proxy').textContent = summary.proxy || '(none)';
+            document.getElementById('firstTrade').textContent = summary.first_trade_human || 'n/a';
+            document.getElementById('tradeCount').textContent = summary.trade_count.toLocaleString();
+            document.getElementById('totalVolume').textContent = `$${summary.total_volume_usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('uniqueMarkets').textContent = summary.unique_markets;
+            document.getElementById('activeDays').textContent = summary.unique_days_active;
+            document.getElementById('openPositions').textContent = `$${summary.open_positions_value_usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('realizedPnl').textContent = `$${summary.realized_pnl_usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            if (summary.first_trade_market) {
+                document.getElementById('firstMarket').style.display = 'block';
+                document.getElementById('firstMarketName').textContent = summary.first_trade_market;
+            }
+
+            document.getElementById('airdropScore').textContent = airdrop.score;
+            document.getElementById('airdropTier').textContent = airdrop.tier;
+            document.getElementById('volumePoints').textContent = airdrop.components.volume;
+            document.getElementById('longevityPoints').textContent = airdrop.components.longevity;
+            document.getElementById('diversityPoints').textContent = airdrop.components.diversity;
+            document.getElementById('consistencyPoints').textContent = airdrop.components.consistency;
+
+            showResults();
+        }
+
+        /**
+         * Display quality warnings
+         */
+        function displayQualityWarnings(warnings) {
+            if (!warnings || warnings.length === 0) {
+                hideWarnings();
+                return;
+            }
+
+            const warningsList = document.getElementById('warningsList');
+            warningsList.innerHTML = warnings.map(w => `
+                <div class="warning-item">
+                    <strong>${w.type.replace(/_/g, ' ').toUpperCase()}:</strong> ${w.message}
+                </div>
+            `).join('');
+
+            document.getElementById('warningBanner').classList.add('show');
+        }
+
+        /**
+         * Update progress bar
+         */
+        function updateProgress(percentage, message) {
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressFill').textContent = `${percentage}%`;
+            document.getElementById('progressMessage').textContent = message;
+        }
+
+        /**
+         * UI helpers
+         */
+        function showProgress() {
+            document.getElementById('progressContainer').classList.add('show');
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').classList.remove('show');
+            if (pollTimer) {
+                clearTimeout(pollTimer);
+                pollTimer = null;
+            }
+        }
+
+        function showResults() {
+            document.getElementById('results').classList.add('show');
+        }
+
+        function hideResults() {
+            document.getElementById('results').classList.remove('show');
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        function hideWarnings() {
+            document.getElementById('warningBanner').classList.remove('show');
+        }
+
+        /**
+         * Clear all stored data
+         */
+        function clearStoredData() {
+            if (confirm('This will clear all stored analyses from your browser. Continue?')) {
+                Object.keys(localStorage)
+                    .filter(k => k.startsWith('pm-'))
+                    .forEach(k => localStorage.removeItem(k));
+                
+                alert('All stored data cleared!');
+                window.location.href = '/';
+            }
+        }
+
+        /**
+         * Analyze another wallet
+         */
+        function analyzeAnother() {
+            window.location.href = '/';
+        }
+
+        /**
+         * Share results via URL
+         */
+        function shareResults() {
+            const address = document.getElementById('address').value.trim();
+            const url = `${window.location.origin}/?address=${address}`;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Link copied to clipboard!');
+                }).catch(() => {
+                    prompt('Copy this link:', url);
+                });
+            } else {
+                prompt('Copy this link:', url);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -11,6 +11,29 @@ Python 3.11+ and outbound HTTPS.
 
 ## Usage
 
+### Web Interface (Recommended)
+
+The web interface provides a user-friendly way to analyze wallets with state persistence:
+
+```sh
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Start the web server
+python3 app.py
+```
+
+Then open http://localhost:5000 in your browser.
+
+**Features:**
+- 🔄 Real-time progress tracking
+- 💾 Results persist across page refreshes (stored in browser for 24h)
+- 🔗 Deep-linkable results you can share
+- ⚠️ Quality warnings for incomplete or problematic analyses
+- 📱 Mobile-responsive design
+
+### CLI (Original)
+
 ```sh
 python3 polymarket_analyzer.py 0xYourEOA
 # or with a custom RPC:
