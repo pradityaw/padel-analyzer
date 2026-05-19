@@ -8,6 +8,7 @@ data/reports/
 # Local env / OS noise
 .env
 .env.*
+.env.feedback
 !.env.example
 !.env*.example
 *.log
@@ -25,9 +26,6 @@ data/*.db-shm
 
 # QA run output
 qa-artifacts/
-
-# Cursor SDK runner (local optional tooling)
-scripts/cursor-sdk/
 
 training/checkpoints/
 training/data/*.json
