@@ -17,6 +17,7 @@ import { analyzeSwing } from "@/lib/swingAnalyzer";
 import { drawSkeleton } from "@/lib/skeleton";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { isProbablyVideoFile } from "@/lib/videoFile";
 import type { FrameLandmarks } from "@shared/types";
 
 type Stage = "idle" | "selected" | "yt-preview" | "processing" | "done" | "error";
