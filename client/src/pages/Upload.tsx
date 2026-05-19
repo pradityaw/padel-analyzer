@@ -22,6 +22,14 @@ import type { FrameLandmarks } from "@shared/types";
 type Stage = "idle" | "selected" | "yt-preview" | "processing" | "done" | "error";
 type Tab = "upload" | "youtube";
 
+/** Browsers often omit MIME (Safari / iOS) or use octet-stream; fall back on extension. */
+const ALLOWED_VIDEO_EXT = /\.(mp4|mov|webm)$/i;
+
+function isAllowedVideoFile(file: File): boolean {
+  if (file.type.startsWith("video/")) return true;
+  return ALLOWED_VIDEO_EXT.test(file.name);
+}
+
 type YouTubeInfo = {
   videoId: string;
   title: string;
@@ -188,7 +196,7 @@ export default function Upload() {
   // ── file upload flow ──────────────────────────────────────────────────────
 
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith("video/")) {
+    if (!isAllowedVideoFile(f)) {
       setError("Please upload a video file (.mp4, .mov, .webm)");
       return;
     }
@@ -391,7 +399,7 @@ export default function Upload() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept="video/*"
+                    accept="video/*,.mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];

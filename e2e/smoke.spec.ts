@@ -37,6 +37,22 @@ test("upload route exposes core controls", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Look up" })).toBeVisible();
 });
 
+test("upload route accepts video by extension when MIME is empty", async ({
+  page,
+}) => {
+  await page.goto("/upload");
+  await page.setInputFiles('input[type="file"]', {
+    name: "swing-recording.mp4",
+    mimeType: "",
+    buffer: Buffer.alloc(256, 0),
+  });
+
+  await expect(page.getByText("swing-recording.mp4")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Analyze My Swing" })
+  ).toBeVisible();
+});
+
 test("upload route handles invalid file types", async ({ page }) => {
   await page.goto("/upload");
   await page.setInputFiles('input[type="file"]', {
