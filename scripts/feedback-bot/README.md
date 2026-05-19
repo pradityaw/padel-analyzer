@@ -169,6 +169,7 @@ If unset, all human messages in the channel are ingested.
 | `FEEDBACK_MAX_MESSAGES_PER_RUN` | No | Default `100` |
 | `FEEDBACK_MAX_PRS_PER_RUN` | No | Default `3` |
 | `FEEDBACK_MODEL` | No | Default `composer-2` |
+| `FEEDBACK_AGENT_TIMEOUT_MS` | No | Max wait per agent run (default `1200000` = 20 min) |
 
 Add these to **`.env.feedback`** alongside Telegram vars if you use both.
 

@@ -441,7 +441,18 @@ ${JSON.stringify(bundle, null, 2)}
       const rid = run?.id ?? "?";
       console.log(`[triage-slack] Agent run started: ${rid} thread=${t.key}`);
 
+      const timeoutMs =
+        Number(process.env.FEEDBACK_AGENT_TIMEOUT_MS) || 20 * 60 * 1000;
+      const deadline = Date.now() + timeoutMs;
+      let lastStatus = "unknown";
+
       for await (const event of run.stream()) {
+        if (Date.now() > deadline) {
+          throw new Error(
+            `Agent run timed out after ${Math.round(timeoutMs / 60000)} min (run ${rid}, last status: ${lastStatus}). Check Cursor cloud agents dashboard.`
+          );
+        }
+        if (event.type === "status") lastStatus = event.status;
         appendFileSync(logPath, `${JSON.stringify(event)}\n`, "utf8");
         const line = summarizeStreamEvent(event);
         if (line) {
