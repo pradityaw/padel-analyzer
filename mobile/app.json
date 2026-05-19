@@ -20,19 +20,20 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.example.padelanalyzermobile",
       "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Padel Analyzer needs local network access to reach your swing analysis API (for example a dev machine on Wi‑Fi).",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true,
       "package": "com.example.padelanalyzermobile"
     },
     "web": {
