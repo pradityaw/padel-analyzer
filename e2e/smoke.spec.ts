@@ -51,6 +51,21 @@ test("upload route handles invalid file types", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
+test("upload route accepts MOV when MIME is omitted (Safari-like)", async ({
+  page,
+}) => {
+  await page.goto("/upload");
+  await page.setInputFiles('input[type="file"]', {
+    name: "recording.mov",
+    mimeType: "",
+    buffer: Buffer.from("stub"),
+  });
+
+  await expect(
+    page.getByRole("button", { name: "Analyze My Swing" })
+  ).toBeVisible();
+});
+
 test("core app routes render without crash", async ({ page }) => {
   await page.goto("/compare");
   await expect(page.getByRole("heading", { name: "Compare Swings" })).toBeVisible();
