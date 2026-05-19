@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { collectSlackMessages } from "./collect-slack.mjs";
+import { shouldSkipSlackRecord } from "./filter.mjs";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
 
 const PROMPT_PATH = resolve(
@@ -278,12 +279,32 @@ async function main() {
   const modelId = process.env.FEEDBACK_MODEL || "composer-2";
 
   const allRecords = loadInboxRecords();
-  const records = allRecords.filter(
+  const unprocessed = allRecords.filter(
     (r) => r.slack_ts && !processedSet.has(String(r.slack_ts))
   );
 
+  const noise = unprocessed.filter((r) => shouldSkipSlackRecord(r));
+  const records = unprocessed.filter((r) => !shouldSkipSlackRecord(r));
+
+  if (noise.length > 0) {
+    const skipIds = noise.map((r) => String(r.slack_ts));
+    const merged = new Set([...state.processed_message_ids, ...skipIds]);
+    const sorted = [...merged].sort((a, b) => compareTs(a, b));
+    state = {
+      ...state,
+      processed_message_ids: sorted,
+      consumed_ts: maxTsStrings([state.consumed_ts, ...skipIds]),
+    };
+    writeState(state);
+    processedSet.clear();
+    for (const id of state.processed_message_ids) processedSet.add(id);
+    console.log(
+      `[triage-slack] marked ${noise.length} setup/noise message(s) as processed (skipped)`
+    );
+  }
+
   if (records.length === 0) {
-    console.log("[triage-slack] No unprocessed inbox messages.");
+    console.log("[triage-slack] No unprocessed actionable inbox messages.");
     return;
   }
 

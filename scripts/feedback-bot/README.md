@@ -175,10 +175,14 @@ Add these to **`.env.feedback`** alongside Telegram vars if you use both.
 ## Slack commands
 
 ```bash
-npm run feedback:collect-slack
-npm run feedback:dry-run-slack
-npm run feedback:triage-slack
+npm run feedback:collect-slack   # safe — no Cursor API spend
+npm run feedback:dry-run-slack   # safe — bundles only, no PRs
+npm run feedback:triage-slack    # costs Cursor API; may open GitHub PR(s)
 ```
+
+Copy [`.env.feedback.example`](../../.env.feedback.example) to `.env.feedback` and set keys. For testing, use `FEEDBACK_MAX_PRS_PER_RUN=1` and `FEEDBACK_MAX_MESSAGES_PER_RUN=20`.
+
+**Noise filter:** collect and triage skip setup chatter (`/invite`, bare slash commands, very short greetings). Legacy rows already in `slack-inbox.jsonl` are marked processed on the next triage run without starting an agent.
 
 ## Slack GitHub Actions
 

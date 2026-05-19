@@ -14,6 +14,7 @@ import {
 import { dirname, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import { shouldSkipSlackRecord } from "./filter.mjs";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
 
 const FEEDBACK_DIR = resolve(repoRoot, "qa-artifacts/feedback");
@@ -162,6 +163,10 @@ async function messageToRecord(msg, channelId, token, seen) {
 
   const allowlist = parseAllowlist();
   if (allowlist && !allowlist.has(String(msg.user))) return null;
+
+  const text = msg.text || "";
+  const hasFiles = Array.isArray(msg.files) && msg.files.length > 0;
+  if (shouldSkipSlackRecord({ text, media: hasFiles ? [{}] : [] })) return null;
 
   /** @type {Array<{ kind: string; path: string }>} */
   const media = [];
