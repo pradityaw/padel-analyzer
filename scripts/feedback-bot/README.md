@@ -98,7 +98,8 @@ Adjust the cron in the workflow if you want a different local time.
 
 ## Safety notes
 
-- **PRs are opened by the cloud agent** — you review and merge; nothing auto-merges to `main`.
+- **PRs are opened by the cloud agent** — by default you review and merge manually.
+- **Auto-merge:** PRs on branches `feat/feedback-*` or `cursor/feedback-*` targeting the **default branch** are squash-merged when [.github/workflows/feedback-auto-merge.yml](../../.github/workflows/feedback-auto-merge.yml) runs (`npm run typecheck` must pass). Set `FEEDBACK_AUTO_MERGE=1` and `GITHUB_TOKEN` in `.env.feedback` to merge immediately from `feedback:triage-slack` after the agent opens a PR.
 - **Daily caps** limit Cursor API spend (`FEEDBACK_MAX_PRS_PER_RUN`, etc.).
 - **Allowlist** prevents strangers added to the group from generating PRs.
 

@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { collectSlackMessages } from "./collect-slack.mjs";
 import { shouldSkipSlackRecord } from "./filter.mjs";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
+import { mergeFeedbackPr, prNumberFromUrl } from "./lib/merge-feedback-pr.mjs";
 
 const PROMPT_PATH = resolve(
   repoRoot,
@@ -509,6 +510,25 @@ ${JSON.stringify(bundle, null, 2)}
           rootTs,
           `Need a bit more detail: ${clarification}`
         );
+      }
+
+      if (
+        process.env.FEEDBACK_AUTO_MERGE === "1" &&
+        prUrl &&
+        ["bug", "ux", "feature"].includes(classification)
+      ) {
+        const prNumber = prNumberFromUrl(prUrl);
+        if (prNumber) {
+          try {
+            mergeFeedbackPr(prNumber);
+            console.log(`[triage-slack] auto-merged PR #${prNumber}`);
+          } catch (err) {
+            console.warn(
+              `[triage-slack] auto-merge failed for ${prUrl}:`,
+              err instanceof Error ? err.message : err
+            );
+          }
+        }
       }
 
       const ids = t.messages.map((m) => String(m.slack_ts));
