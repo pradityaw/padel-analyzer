@@ -11,6 +11,40 @@ type UploadResponse = {
   storageKey: string;
 };
 
+function readUploadFailureMessage(status: number, bodyText: string, jsonError?: string) {
+  if (jsonError) return jsonError;
+  const trimmed = bodyText.trim();
+  if (trimmed.length > 0) {
+    return `Upload failed (HTTP ${status}): ${trimmed.slice(0, 280)}`;
+  }
+  switch (status) {
+    case 400:
+      return "Upload rejected: no usable video file reached the server. Try another clip or Browse Files.";
+    case 413:
+      return "Video is too large for the server upload limit.";
+    case 503:
+      return "Server unavailable. Is the analyzer running on this machine?";
+    default:
+      return `Upload failed (HTTP ${status}). Check API URL and Wi‑Fi, then retry.`;
+  }
+}
+
+async function parseFailedUploadResponse(response: Response): Promise<string> {
+  const raw = await response.text().catch(() => "");
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json") && raw) {
+    try {
+      const parsed = JSON.parse(raw) as { error?: unknown };
+      if (typeof parsed.error === "string" && parsed.error) {
+        return readUploadFailureMessage(response.status, raw, parsed.error);
+      }
+    } catch {
+      /* fall through — use plain text handling */
+    }
+  }
+  return readUploadFailureMessage(response.status, raw);
+}
+
 export async function uploadVideoAsset(asset: DocumentPickerAsset) {
   const fileName = asset.name || "swing.mp4";
   const form = new FormData();
@@ -20,13 +54,26 @@ export async function uploadVideoAsset(asset: DocumentPickerAsset) {
     type: asset.mimeType || "video/mp4",
   } as any);
 
-  const response = await fetch(`${API_BASE_URL}/api/upload`, {
-    method: "POST",
-    body: form,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: "POST",
+      body: form,
+    });
+  } catch (err) {
+    const isNetworkIssue =
+      err instanceof TypeError ||
+      (err instanceof Error &&
+        (/network/i.test(err.message) || err.message === "Network request failed"));
+    if (isNetworkIssue) {
+      throw new Error(
+        `Could not reach analysis server at ${API_BASE_URL}. Same Wi‑Fi as your computer, correct IP/port, firewall off for 3001, and on iOS allow Local Network for this app.`
+      );
+    }
+    throw err;
+  }
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || "Failed to upload video");
+    throw new Error(await parseFailedUploadResponse(response));
   }
 
   const uploaded = (await response.json()) as UploadResponse;

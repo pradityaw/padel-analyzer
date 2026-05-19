@@ -12,7 +12,11 @@ import {
   View,
 } from "react-native";
 import SectionCard from "../components/SectionCard";
-import { isUsingLocalhostBaseUrl, API_BASE_URL } from "../lib/config";
+import {
+  isUsingLocalhostBaseUrl,
+  usesHttpToPrivateLanBaseUrl,
+  API_BASE_URL,
+} from "../lib/config";
 import {
   createMobileAnalysisJob,
   listRecentAnalyses,
@@ -89,6 +93,13 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.warningText}>
                   Using localhost. This works on simulators, but physical devices
                   need `EXPO_PUBLIC_API_BASE_URL` set to your machine or hosted API.
+                </Text>
+              ) : null}
+              {usesHttpToPrivateLanBaseUrl() && !isUsingLocalhostBaseUrl() ? (
+                <Text style={styles.warningText}>
+                  Plain HTTP on a LAN address. Stay on the same Wi‑Fi, allow Local
+                  Network when iOS prompts, and ensure the analyzer is reachable at
+                  this URL (firewall / correct port).
                 </Text>
               ) : null}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
