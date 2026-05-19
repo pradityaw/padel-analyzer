@@ -30,6 +30,17 @@ type YouTubeInfo = {
   author: string;
 };
 
+/** Safari often leaves `File.type` empty for camera/iCloud recordings; MIME alone is unreliable. */
+const VIDEO_FILENAME_RE =
+  /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv)$/i;
+
+function isLikelyVideoFile(f: File): boolean {
+  if (f.type.startsWith("video/")) return true;
+  const isGenericMime =
+    f.type === "" || f.type === "application/octet-stream";
+  return isGenericMime && VIDEO_FILENAME_RE.test(f.name);
+}
+
 const STEPS = [
   {
     label: "Save video",
@@ -188,7 +199,7 @@ export default function Upload() {
   // ── file upload flow ──────────────────────────────────────────────────────
 
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith("video/")) {
+    if (!isLikelyVideoFile(f)) {
       setError("Please upload a video file (.mp4, .mov, .webm)");
       return;
     }
@@ -362,7 +373,7 @@ export default function Upload() {
             <AnimatePresence mode="wait">
               {/* ── Upload tab ── */}
               {tab === "upload" && stage === "idle" && (
-                <motion.div
+                <motion.label
                   key="upload-idle"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -373,9 +384,8 @@ export default function Upload() {
                   }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  onClick={() => inputRef.current?.click()}
                   className={cn(
-                    "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all",
+                    "relative block cursor-pointer border-2 border-dashed rounded-xl p-12 text-center transition-all",
                     dragOver
                       ? "border-padel-green bg-padel-green/10 scale-[1.02]"
                       : "border-padel-border hover:border-slate-500 hover:bg-white/[0.02]"
@@ -391,14 +401,16 @@ export default function Upload() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept="video/*"
-                    className="hidden"
+                    accept="video/*,.mp4,.mov,.webm,.m4v,.mkv"
+                    aria-label="Choose video file"
+                    className="sr-only"
                     onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleFile(f);
+                      const picked = e.target.files?.[0];
+                      if (picked) handleFile(picked);
+                      e.target.value = "";
                     }}
                   />
-                </motion.div>
+                </motion.label>
               )}
 
               {tab === "upload" && stage === "selected" && file && (
