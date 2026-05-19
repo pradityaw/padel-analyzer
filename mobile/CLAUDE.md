@@ -31,6 +31,8 @@ Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_BASE_URL`:
 - Physical device: `http://192.168.x.x:3001` (use machine's local IP)
 - Production: `https://api.your-domain.com`
 
+`app.json` allows cleartext HTTP to LAN hosts on iOS (`NSAllowsLocalNetworking`) and Android (`usesCleartextTraffic`). After Expo config changes, run a native rebuild or `npx expo prebuild --clean` before retesting uploads on hardware (Metro alone is insufficient).
+
 ## Architecture
 
 ### Mobile is a thin client

@@ -11,6 +11,17 @@ type UploadResponse = {
   storageKey: string;
 };
 
+async function parseFailedUploadResponse(response: Response): Promise<string | undefined> {
+  const raw = await response.text();
+  if (!raw) return undefined;
+  try {
+    const body = JSON.parse(raw) as { error?: string; message?: string };
+    return body.error ?? body.message;
+  } catch {
+    return raw.trim().slice(0, 280);
+  }
+}
+
 export async function uploadVideoAsset(asset: DocumentPickerAsset) {
   const fileName = asset.name || "swing.mp4";
   const form = new FormData();
@@ -25,8 +36,12 @@ export async function uploadVideoAsset(asset: DocumentPickerAsset) {
     body: form,
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || "Failed to upload video");
+    const detail = await parseFailedUploadResponse(response).catch(() => undefined);
+    throw new Error(
+      detail?.trim()
+        ? detail
+        : `Upload failed (HTTP ${response.status}). Check Wi‑Fi and that the API at ${API_BASE_URL} is running.`,
+    );
   }
 
   const uploaded = (await response.json()) as UploadResponse;

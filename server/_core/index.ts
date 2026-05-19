@@ -1,4 +1,5 @@
 import express from "express";
+import { MulterError } from "multer";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers/index.js";
 import path from "path";
@@ -17,7 +18,36 @@ const app = express();
 app.use(express.json({ limit: "500mb" }));
 
 const upload = createUploadHandler(uploadsDir);
-app.post("/api/upload", upload.single("file"), (req, res) => {
+
+function uploadSingleMiddleware(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (err instanceof MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        res.status(413).json({
+          error:
+            "Video is too large (max 500 MB). Try trimming the clip or lowering quality.",
+        });
+        return;
+      }
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err) {
+      res.status(400).json({
+        error:
+          err instanceof Error ? err.message : "Could not receive the upload.",
+      });
+      return;
+    }
+    next();
+  });
+}
+
+app.post("/api/upload", uploadSingleMiddleware, (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -53,6 +83,10 @@ if (isProd) {
 }
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
-app.listen(PORT, () => {
-  console.log(`Padel Analyzer running at http://localhost:${PORT}`);
+/** Bind all interfaces so phones on the LAN can reach the dev API (physical device uploads). */
+const LISTEN_HOST = process.env.HOST || "0.0.0.0";
+app.listen(PORT, LISTEN_HOST, () => {
+  console.log(
+    `Padel Analyzer listening on ${LISTEN_HOST}:${PORT} (browser: http://localhost:${PORT})`,
+  );
 });
