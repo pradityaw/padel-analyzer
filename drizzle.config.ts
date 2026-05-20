@@ -5,6 +5,8 @@ export default defineConfig({
   schema: "./drizzle/schema.ts",
   out: "./drizzle",
   dbCredentials: {
-    url: "./data/padel.db",
+    url: process.env.PADEL_DATA_DIR
+      ? `${process.env.PADEL_DATA_DIR}/padel.db`
+      : "./data/padel.db",
   },
 });

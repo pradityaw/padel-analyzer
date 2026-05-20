@@ -1,25 +1,33 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload as UploadIcon,
   Video,
-  Zap,
   BarChart3,
   AlertCircle,
   Link as LinkIcon,
   Search,
   Clock,
   User,
+  Server,
 } from "lucide-react";
-import { processVideo } from "@/lib/mediapipe";
-import { analyzeSwing } from "@/lib/swingAnalyzer";
-import { drawSkeleton } from "@/lib/skeleton";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import type { FrameLandmarks } from "@shared/types";
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_MB,
+  YOUTUBE_MAX_DURATION_SEC,
+} from "@shared/config";
+import type { AnalysisJobPayload } from "@shared/schema";
 
-type Stage = "idle" | "selected" | "yt-preview" | "processing" | "done" | "error";
+type Stage =
+  | "idle"
+  | "selected"
+  | "yt-preview"
+  | "processing"
+  | "done"
+  | "error";
 type Tab = "upload" | "youtube";
 
 type YouTubeInfo = {
@@ -30,7 +38,6 @@ type YouTubeInfo = {
   author: string;
 };
 
-/** Safari often leaves `File.type` empty for camera/iCloud recordings; MIME alone is unreliable. */
 const VIDEO_FILENAME_RE =
   /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv)$/i;
 
@@ -42,69 +49,146 @@ function isLikelyVideoFile(f: File): boolean {
 }
 
 const STEPS = [
-  {
-    label: "Save video",
-    match: (msg: string, done: boolean) =>
-      done ? false : msg.includes("Saving"),
-  },
-  {
-    label: "Detect pose",
-    match: (msg: string, done: boolean) =>
-      done ? false : msg.includes("AI pose") || msg.includes("frames"),
-  },
-  {
-    label: "Classify shot",
-    match: (msg: string, done: boolean) =>
-      done ? false : msg.includes("classifying") || msg.includes("Analyzing"),
-  },
-  { label: "Score phases", match: (_msg: string, done: boolean) => done },
+  "Upload video",
+  "Extract pose",
+  "Score swing",
+  "Complete",
 ] as const;
 
-function ProcessingSteps({ progressMsg, isDone }: { progressMsg: string; isDone: boolean }) {
-  let activeStep = -1;
-  if (isDone) {
-    activeStep = 3;
-  } else {
-    for (let i = 0; i < STEPS.length; i++) {
-      if (STEPS[i].match(progressMsg, isDone)) activeStep = i;
-    }
-  }
+function stepIndexFromJob(progress: number, status: string): number {
+  if (status === "completed") return 3;
+  if (progress < 20) return 0;
+  if (progress < 85) return 1;
+  return 2;
+}
+
+function ProcessingSteps({
+  progress,
+  status,
+}: {
+  progress: number;
+  status: string;
+}) {
+  const activeStep = stepIndexFromJob(progress, status);
 
   return (
-    <div className="flex items-center justify-between gap-1 w-full max-w-md mx-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center justify-between gap-1 w-full max-w-md mx-auto"
+    >
       {STEPS.map((step, i) => {
-        const completed = i < activeStep || isDone;
-        const active = i === activeStep && !isDone;
+        const completed = i < activeStep;
+        const active = i === activeStep && status !== "completed";
         return (
-          <div key={step.label} className="flex-1 flex flex-col items-center gap-1.5">
-            <div
-              className={[
-                "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-500",
+          <div
+            key={step}
+            className="flex-1 flex flex-col items-center gap-1.5"
+          >
+            <motion.div
+              animate={
+                active
+                  ? { scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }
+                  : { scale: 1, opacity: 1 }
+              }
+              transition={
+                active
+                  ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" }
+                  : { duration: 0.3 }
+              }
+              className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2",
                 completed
                   ? "bg-padel-green border-padel-green text-black"
                   : active
-                    ? "border-padel-green text-padel-green bg-padel-green/10 animate-pulse"
-                    : "border-slate-700 text-slate-600",
-              ].join(" ")}
+                    ? "border-padel-green text-padel-green bg-padel-green/10"
+                    : "border-slate-700 text-slate-600"
+              )}
             >
               {completed ? "✓" : i + 1}
-            </div>
+            </motion.div>
             <span
-              className={[
+              className={cn(
                 "text-[10px] text-center leading-tight hidden sm:block",
-                completed || active ? "text-slate-300" : "text-slate-600",
-              ].join(" ")}
+                completed || active ? "text-slate-300" : "text-slate-600"
+              )}
             >
-              {step.label}
+              {step}
             </span>
-            {i < STEPS.length - 1 && (
-              <div className="absolute" />
-            )}
           </div>
         );
       })}
+    </motion.div>
+  );
+}
+
+function StageBreakdown({
+  stages,
+}: {
+  stages: NonNullable<AnalysisJobPayload["stages"]>;
+}) {
+  return (
+    <div className="mt-6 grid gap-2">
+      {stages.map((stage) => (
+        <div
+          key={stage.id}
+          className="rounded-xl border border-padel-border bg-slate-900/40 p-3"
+        >
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="font-medium text-slate-200">{stage.label}</span>
+            <span
+              className={cn(
+                "text-xs capitalize",
+                stage.status === "completed"
+                  ? "text-padel-green"
+                  : stage.status === "failed"
+                    ? "text-red-300"
+                    : stage.status === "running"
+                      ? "text-amber-300"
+                      : "text-slate-500"
+              )}
+            >
+              {stage.status}
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+            <motion.div
+              className={cn(
+                "h-full rounded-full",
+                stage.status === "failed" ? "bg-red-400" : "bg-padel-green"
+              )}
+              animate={{ width: `${stage.progress}%` }}
+              transition={{ ease: "easeOut", duration: 0.35 }}
+            />
+          </div>
+          {stage.message || stage.errorMessage ? (
+            <p
+              className={cn(
+                "mt-1 text-xs",
+                stage.errorMessage ? "text-red-300" : "text-slate-500"
+              )}
+            >
+              {stage.errorMessage || stage.message}
+            </p>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
+}
+
+async function uploadFileToServer(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  const up = await fetch("/api/upload", { method: "POST", body: fd });
+  if (!up.ok) {
+    const err = await up.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error ?? "Failed to save video on server"
+    );
+  }
+  const { storageKey } = (await up.json()) as { storageKey: string };
+  return storageKey;
 }
 
 export default function Upload() {
@@ -118,93 +202,78 @@ export default function Upload() {
   const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [failedJobId, setFailedJobId] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const createAnalysis = trpc.analysis.create.useMutation();
+  const createJob = trpc.mobileAnalysis.create.useMutation();
+  const retryJob = trpc.mobileAnalysis.retry.useMutation();
   const getYtInfo = trpc.youtube.getInfo.useMutation();
   const downloadYt = trpc.youtube.download.useMutation();
 
-  // ── helpers ──────────────────────────────────────────────────────────────
+  const jobQuery = trpc.mobileAnalysis.getById.useQuery(
+    { id: jobId! },
+    {
+      enabled: jobId != null && stage === "processing",
+      refetchInterval: (q) => {
+        const job = q.state.data;
+        if (!job) return 1500;
+        if (job.status === "completed" || job.status === "failed") {
+          return false;
+        }
+        return 1500;
+      },
+    }
+  );
+
+  useEffect(() => {
+    const job = jobQuery.data;
+    if (!job || stage !== "processing") return;
+
+    setProgress(job.progress);
+    setProgressMsg(job.statusMessage ?? "Working...");
+
+    if (job.status === "completed" && job.analysisId) {
+      setStage("done");
+      navigate(`/analysis/${job.analysisId}`);
+    }
+
+    if (job.status === "failed") {
+      setStage("error");
+      setFailedJobId(job.id);
+      setError(
+        job.errorMessage ??
+          "Analysis failed on the server. Check that Python and MediaPipe are installed."
+      );
+    }
+  }, [jobQuery.data, stage, navigate]);
 
   const resetError = () => setError("");
 
-  const runMediaPipeAndSave = useCallback(
-    async (videoBlob: Blob, fileName: string) => {
-      const videoFile =
-        videoBlob instanceof File
-          ? videoBlob
-          : new File([videoBlob], fileName, { type: "video/mp4" });
+  const startAnalysisJob = useCallback(
+    async (videoFileName: string, videoStorageKey: string) => {
+      setStage("processing");
+      setProgress(0);
+      setProgressMsg("Queued for server analysis...");
+      setFailedJobId(null);
+      setError("");
 
-      let videoStorageKey: string | undefined;
-      if (fileName.startsWith("yt_")) {
-        videoStorageKey = fileName;
-      } else {
-        setProgressMsg("Saving video on server...");
-        const fd = new FormData();
-        fd.append("file", videoFile, fileName);
-        const up = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!up.ok) {
-          const err = await up.json().catch(() => ({}));
-          throw new Error(
-            (err as { error?: string }).error ?? "Failed to save video on server"
-          );
-        }
-        const { storageKey } = (await up.json()) as { storageKey: string };
-        videoStorageKey = storageKey;
-      }
-
-      setProgressMsg("Processing frames with AI pose detection...");
-      const frames = await processVideo(
-        videoFile,
-        (pct: number, frame?: FrameLandmarks) => {
-          setProgress(pct);
-          if (frame && canvasRef.current) {
-            const ctx = canvasRef.current.getContext("2d");
-            if (ctx) {
-              drawSkeleton(
-                ctx,
-                frame.landmarks,
-                canvasRef.current.width,
-                canvasRef.current.height
-              );
-            }
-          }
-        }
-      );
-
-      setProgressMsg("Analyzing swing & classifying shot...");
-      const result = await analyzeSwing(frames);
-      setStage("done");
-
-      const saved = await createAnalysis.mutateAsync({
-        videoFileName: fileName,
+      const job = await createJob.mutateAsync({
+        videoFileName,
         videoStorageKey,
-        overallScore: result.overallScore,
-        dominantSide: result.dominantSide,
-        durationMs: result.durationMs,
-        frameCount: result.frameCount,
-        sampleFps: result.sampleFps,
-        phasesJson: JSON.stringify(result.phases),
-        landmarksJson: JSON.stringify(result.frameLandmarks),
-        shotType: result.shotType,
-        shotConfidence: result.shotConfidence,
       });
-
-      navigate(`/analysis/${saved.id}`);
+      setJobId(job.id);
     },
-    [createAnalysis, navigate]
+    [createJob]
   );
-
-  // ── file upload flow ──────────────────────────────────────────────────────
 
   const handleFile = useCallback((f: File) => {
     if (!isLikelyVideoFile(f)) {
       setError("Please upload a video file (.mp4, .mov, .webm)");
       return;
     }
-    if (f.size > 500 * 1024 * 1024) {
-      setError("File too large. Maximum 500 MB.");
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setError(`File too large. Maximum ${MAX_UPLOAD_MB} MB.`);
       return;
     }
     setFile(f);
@@ -224,17 +293,15 @@ export default function Upload() {
 
   const startFileAnalysis = useCallback(async () => {
     if (!file) return;
-    setStage("processing");
-    setProgress(0);
     try {
-      await runMediaPipeAndSave(file, file.name);
+      setProgressMsg("Saving video on server...");
+      const storageKey = await uploadFileToServer(file);
+      await startAnalysisJob(file.name, storageKey);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Analysis failed.");
     }
-  }, [file, runMediaPipeAndSave]);
-
-  // ── youtube flow ──────────────────────────────────────────────────────────
+  }, [file, startAnalysisJob]);
 
   const handleYtLookup = useCallback(async () => {
     if (!ytUrl.trim()) return;
@@ -252,24 +319,40 @@ export default function Upload() {
 
   const startYtAnalysis = useCallback(async () => {
     if (!ytInfo) return;
-    setStage("processing");
-    setProgress(0);
+    if (ytInfo.durationSeconds > YOUTUBE_MAX_DURATION_SEC) {
+      setError(
+        `Video is too long. Use a clip under ${YOUTUBE_MAX_DURATION_SEC / 60} minutes.`
+      );
+      return;
+    }
     try {
+      setStage("processing");
+      setProgress(0);
       setProgressMsg("Downloading video from YouTube...");
       const result = await downloadYt.mutateAsync({ url: ytUrl.trim() });
-
-      setProgressMsg("Fetching video for analysis...");
-      const response = await fetch(result.localUrl);
-      const blob = await response.blob();
-
-      await runMediaPipeAndSave(blob, result.fileName);
+      await startAnalysisJob(result.fileName, result.fileName);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Analysis failed.");
     }
-  }, [ytInfo, ytUrl, downloadYt, runMediaPipeAndSave]);
+  }, [ytInfo, ytUrl, downloadYt, startAnalysisJob]);
 
-  // ── shared reset ──────────────────────────────────────────────────────────
+  const handleRetry = useCallback(async () => {
+    if (!failedJobId) {
+      reset();
+      return;
+    }
+    try {
+      setStage("processing");
+      setError("");
+      const job = await retryJob.mutateAsync({ id: failedJobId });
+      setJobId(job.id);
+      setFailedJobId(null);
+    } catch (err) {
+      setStage("error");
+      setError(err instanceof Error ? err.message : "Could not retry analysis.");
+    }
+  }, [failedJobId, retryJob]);
 
   const reset = () => {
     setStage("idle");
@@ -279,11 +362,12 @@ export default function Upload() {
     setError("");
     setProgress(0);
     setProgressMsg("");
+    setJobId(null);
+    setFailedJobId(null);
   };
 
-  // ── render ────────────────────────────────────────────────────────────────
-
   const isProcessing = stage === "processing";
+  const jobStatus = jobQuery.data?.status ?? "processing";
 
   return (
     <motion.div
@@ -292,54 +376,65 @@ export default function Upload() {
       exit={{ opacity: 0 }}
       className="max-w-4xl mx-auto px-4 py-12"
     >
-      {/* Hero */}
-      <div className="text-center mb-12">
+      <motion.div
+        className="text-center mb-12"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
         <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-padel-green to-emerald-400 bg-clip-text text-transparent">
           Analyze Your Padel Swing
         </h1>
         <p className="text-slate-400 text-lg max-w-xl mx-auto">
-          Upload a video or paste a YouTube link to get instant AI-powered
-          biomechanical analysis with detailed scoring and coaching tips.
+          Upload a video or paste a YouTube link. Analysis runs on the server
+          with MediaPipe — same pipeline as the mobile app.
         </p>
-      </div>
+      </motion.div>
 
-      {/* How it works */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
         {[
           {
             icon: Video,
             title: "Upload or Link",
-            desc: "Record your swing from the side, upload the clip or paste a YouTube URL",
+            desc: "Side-view swing clip or YouTube URL",
           },
           {
-            icon: Zap,
-            title: "AI Analysis",
-            desc: "MediaPipe tracks 33 body points through every frame",
+            icon: Server,
+            title: "Server analysis",
+            desc: "Pose extraction and phase scoring on your machine",
           },
           {
             icon: BarChart3,
             title: "Get Results",
-            desc: "See scores, angles, and coaching tips for each swing phase",
+            desc: "Scores, phases, and coaching tips",
           },
         ].map((step, i) => (
-          <div
-            key={i}
+          <motion.div
+            key={step.title}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 * i, duration: 0.4 }}
             className="bg-padel-surface rounded-xl p-5 border border-padel-border text-center"
           >
-            <div className="w-10 h-10 rounded-lg bg-padel-green/15 flex items-center justify-center mx-auto mb-3">
+            <motion.div
+              className="w-10 h-10 rounded-lg bg-padel-green/15 flex items-center justify-center mx-auto mb-3"
+              whileHover={{ scale: 1.06 }}
+              transition={{ type: "spring", stiffness: 400, damping: 18 }}
+            >
               <step.icon className="w-5 h-5 text-padel-green" />
-            </div>
+            </motion.div>
             <h3 className="font-semibold mb-1">{step.title}</h3>
             <p className="text-sm text-slate-400">{step.desc}</p>
-          </div>
+          </motion.div>
         ))}
       </div>
 
-      {/* Main input card */}
       {!isProcessing && stage !== "done" && (
         <div className="bg-padel-surface rounded-2xl border border-padel-border overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex border-b border-padel-border">
+          <motion.div
+            className="flex border-b border-padel-border"
+            layout
+          >
             {(["upload", "youtube"] as Tab[]).map((t) => (
               <button
                 key={t}
@@ -367,11 +462,10 @@ export default function Upload() {
                 )}
               </button>
             ))}
-          </div>
+          </motion.div>
 
-          <div className="p-6">
+          <motion.div className="p-6" layout>
             <AnimatePresence mode="wait">
-              {/* ── Upload tab ── */}
               {tab === "upload" && stage === "idle" && (
                 <motion.label
                   key="upload-idle"
@@ -396,7 +490,7 @@ export default function Upload() {
                     Drop your video here or click to browse
                   </p>
                   <p className="text-sm text-slate-500">
-                    .mp4, .mov, .webm — up to 500 MB
+                    .mp4, .mov, .webm — up to {MAX_UPLOAD_MB} MB
                   </p>
                   <input
                     ref={inputRef}
@@ -426,24 +520,29 @@ export default function Upload() {
                   <p className="text-sm text-slate-400 mb-6">
                     {(file.size / (1024 * 1024)).toFixed(1)} MB
                   </p>
-                  <div className="flex gap-3 justify-center">
+                  <motion.div
+                    className="flex gap-3 justify-center"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
                     <button
                       onClick={reset}
                       className="px-5 py-2.5 rounded-lg border border-padel-border text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
                     >
                       Change
                     </button>
-                    <button
+                    <motion.button
                       onClick={startFileAnalysis}
-                      className="px-6 py-2.5 rounded-lg bg-padel-green text-white font-semibold hover:bg-padel-green/90 transition-colors"
+                      disabled={createJob.isPending}
+                      className="px-6 py-2.5 rounded-lg bg-padel-green text-white font-semibold hover:bg-padel-green/90 transition-colors disabled:opacity-60"
+                      whileTap={{ scale: 0.98 }}
                     >
                       Analyze My Swing
-                    </button>
-                  </div>
+                    </motion.button>
+                  </motion.div>
                 </motion.div>
               )}
 
-              {/* ── YouTube tab ── */}
               {tab === "youtube" && stage === "idle" && (
                 <motion.div
                   key="yt-idle"
@@ -452,16 +551,18 @@ export default function Upload() {
                   exit={{ opacity: 0 }}
                 >
                   <p className="text-sm text-slate-400 mb-4">
-                    Paste a YouTube URL of your padel swing (max 5 minutes).
-                    The video will be downloaded server-side and processed
-                    locally — nothing is sent to any AI cloud service.
+                    Paste a YouTube URL (max {YOUTUBE_MAX_DURATION_SEC / 60}{" "}
+                    minutes). The video downloads on the server, then analysis
+                    runs locally.
                   </p>
-                  <div className="flex gap-2">
+                  <motion.div className="flex gap-2">
                     <input
                       type="url"
                       value={ytUrl}
                       onChange={(e) => setYtUrl(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleYtLookup()}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleYtLookup()
+                      }
                       placeholder="https://www.youtube.com/watch?v=..."
                       className="flex-1 bg-slate-800 border border-padel-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-padel-green placeholder:text-slate-600"
                     />
@@ -471,17 +572,21 @@ export default function Upload() {
                       className="px-4 py-2.5 rounded-lg bg-padel-green text-white font-medium hover:bg-padel-green/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                     >
                       {getYtInfo.isPending ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <motion.div
+                          className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 0.8,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                        />
                       ) : (
                         <Search className="w-4 h-4" />
                       )}
                       Look up
                     </button>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-3">
-                    Works with any public YouTube video — shorts, regular videos,
-                    or direct youtu.be links.
-                  </p>
+                  </motion.div>
                 </motion.div>
               )}
 
@@ -493,7 +598,6 @@ export default function Upload() {
                   exit={{ opacity: 0 }}
                   className="flex gap-4"
                 >
-                  {/* Thumbnail */}
                   {ytInfo.thumbnailUrl && (
                     <img
                       src={ytInfo.thumbnailUrl}
@@ -501,11 +605,15 @@ export default function Upload() {
                       className="w-36 h-24 object-cover rounded-lg shrink-0 bg-slate-800"
                     />
                   )}
-                  <div className="flex-1 min-w-0">
+                  <motion.div
+                    className="flex-1 min-w-0"
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                  >
                     <p className="font-semibold text-base leading-snug mb-1 truncate">
                       {ytInfo.title}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mb-4">
+                    <motion.div className="flex items-center gap-3 text-xs text-slate-400 mb-4">
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
                         {ytInfo.author}
@@ -515,7 +623,7 @@ export default function Upload() {
                         {Math.floor(ytInfo.durationSeconds / 60)}:
                         {String(ytInfo.durationSeconds % 60).padStart(2, "0")}
                       </span>
-                    </div>
+                    </motion.div>
                     <div className="flex gap-2">
                       <button
                         onClick={reset}
@@ -530,15 +638,14 @@ export default function Upload() {
                         Analyze This Video
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
         </div>
       )}
 
-      {/* Processing overlay */}
       {isProcessing && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -546,14 +653,16 @@ export default function Upload() {
           className="bg-padel-surface rounded-2xl p-8 border border-padel-border"
         >
           <div className="text-center mb-6">
-            <p className="font-semibold text-xl mb-1">Analyzing your swing...</p>
-            <p className="text-sm text-slate-400">{progressMsg || "Preparing..."}</p>
+            <p className="font-semibold text-xl mb-1">
+              Analyzing your swing on the server...
+            </p>
+            <p className="text-sm text-slate-400">
+              {progressMsg || "Preparing..."}
+            </p>
           </div>
 
-          {/* 4-step indicator */}
-          <ProcessingSteps progressMsg={progressMsg} isDone={false} />
+          <ProcessingSteps progress={progress} status={jobStatus} />
 
-          {/* Shimmer progress bar */}
           <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden mt-6">
             <motion.div
               className="h-full rounded-full shimmer-bar"
@@ -562,23 +671,21 @@ export default function Upload() {
               transition={{ ease: "easeOut", duration: 0.4 }}
             />
           </div>
-          <p className="text-center text-sm text-slate-400 mb-6 tabular-nums">
+          <p className="text-center text-sm text-slate-400 tabular-nums">
             {progress}% complete
           </p>
 
-          {/* Enlarged skeleton canvas — hero of the processing screen */}
-          <div className="flex justify-center">
-            <canvas
-              ref={canvasRef}
-              width={480}
-              height={360}
-              className="rounded-xl bg-slate-900 border border-padel-border w-full max-w-lg"
-            />
-          </div>
+          {jobQuery.data?.stages?.length ? (
+            <StageBreakdown stages={jobQuery.data.stages} />
+          ) : null}
+
+          <p className="text-center text-xs text-slate-500 mt-6 max-w-md mx-auto">
+            Requires Python 3 with MediaPipe and OpenCV on this machine (
+            <code className="text-slate-400">scripts/analyze_video.py</code>).
+          </p>
         </motion.div>
       )}
 
-      {/* Error */}
       {error && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -588,10 +695,10 @@ export default function Upload() {
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <p className="text-red-300 text-sm flex-1">{error}</p>
           <button
-            onClick={reset}
+            onClick={failedJobId ? handleRetry : reset}
             className="text-sm text-red-400 hover:text-red-300 underline shrink-0"
           >
-            Try again
+            {failedJobId ? "Retry analysis" : "Try again"}
           </button>
         </motion.div>
       )}

@@ -3,11 +3,11 @@ import Database from "better-sqlite3";
 import * as schema from "../drizzle/schema.js";
 import { mkdirSync } from "fs";
 import path from "path";
+import { getDataRoot, getDbFilePath } from "./lib/paths.js";
 
-const dbDir = path.resolve("data");
-mkdirSync(dbDir, { recursive: true });
+mkdirSync(getDataRoot(), { recursive: true });
 
-const sqlite = new Database(path.join(dbDir, "padel.db"));
+const sqlite = new Database(getDbFilePath());
 sqlite.pragma("journal_mode = WAL");
 
 export const db = drizzle(sqlite, { schema });

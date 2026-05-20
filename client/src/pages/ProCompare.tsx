@@ -283,7 +283,8 @@ export default function ProCompare() {
   const [syncPlaying, setSyncPlaying] = useState(false);
 
   // Data queries
-  const { data: allAnalyses } = trpc.analysis.list.useQuery();
+  const { data: listData } = trpc.analysis.list.useQuery();
+  const allAnalyses = listData?.items;
   const { data: proAnalyses } = trpc.proCompare.listProAnalyses.useQuery();
 
   const { data: playerData } = trpc.analysis.getById.useQuery(

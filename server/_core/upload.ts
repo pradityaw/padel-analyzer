@@ -1,6 +1,7 @@
 import multer from "multer";
 import path from "path";
 import { randomBytes } from "crypto";
+import { MAX_UPLOAD_BYTES } from "../../shared/config.js";
 
 export function createUploadHandler(uploadsDir: string) {
   const storage = multer.diskStorage({
@@ -14,6 +15,6 @@ export function createUploadHandler(uploadsDir: string) {
 
   return multer({
     storage,
-    limits: { fileSize: 500 * 1024 * 1024 },
+    limits: { fileSize: MAX_UPLOAD_BYTES },
   });
 }

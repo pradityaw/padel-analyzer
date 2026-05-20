@@ -520,8 +520,13 @@ ${JSON.stringify(bundle, null, 2)}
         const prNumber = prNumberFromUrl(prUrl);
         if (prNumber) {
           try {
-            mergeFeedbackPr(prNumber);
+            const mergeResult = await mergeFeedbackPr(prNumber);
             console.log(`[triage-slack] auto-merged PR #${prNumber}`);
+            if (mergeResult.sync?.pulled) {
+              console.log(
+                `[triage-slack] Expo dev sync → ${mergeResult.sync.shortSha}`
+              );
+            }
           } catch (err) {
             console.warn(
               `[triage-slack] auto-merge failed for ${prUrl}:`,

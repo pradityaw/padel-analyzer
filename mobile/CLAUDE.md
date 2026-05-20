@@ -13,13 +13,16 @@ npm run android     # Open Android emulator
 npm run web         # Run Expo web target
 npm run typecheck   # tsc --noEmit (run this to catch type errors without building)
 npm run doctor      # expo-doctor: checks dependency compatibility
+npx tsx scripts/ball-tracking.test.ts   # ball helper smoke tests
 ```
 
 From the repo root:
 
 ```bash
-npm run mobile:start      # Start Metro in /mobile
-npm run mobile:typecheck  # Type-check /mobile
+npm run mobile:start           # Start Metro in /mobile
+npm run mobile:typecheck       # Type-check /mobile
+npm run test:mobile-ball-tracking
+npm run release:beta-gates     # full beta gate suite (includes mobile typecheck)
 ```
 
 **iOS gotcha**: Expo requires full Xcode, not just Command Line Tools. If the simulator fails to launch, run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. The `npm run ios` script already sets `DEVELOPER_DIR` to work around this automatically.
@@ -37,49 +40,54 @@ Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_BASE_URL`:
 
 ### Mobile is a thin client
 
-All ML and analysis logic runs server-side (Python + MediaPipe via `scripts/analyze_video.py`). The mobile app only uploads video, polls for job status, and renders results. There is no on-device inference — this is intentional for v1.
+All ML and analysis logic runs server-side (Python + MediaPipe via `scripts/analyze_video.py` and CV agents). The mobile app uploads video, polls for job status, and renders results. There is no on-device inference — intentional for v1.
+
+### Beta scope (see `docs/BETA_SCOPE.md`)
+
+**In scope:** upload, job progress, skeleton replay, ball marker + relative speed when `ballTracking` is present.
+
+**Out of scope for this beta:** mobile racket overlay, match/rally CV UI (`MATCH_CV_ENABLED = false`), metric km/h without calibration.
 
 ### Screens and navigation
 
-React Navigation native-stack with three screens (`src/screens/`):
+React Navigation native-stack (`src/screens/`):
 
-1. **HomeScreen** — video picker + list of recent analyses
-2. **JobStatusScreen** — polls `mobileAnalysis.getById(jobId)` every 1500ms until `status === "completed"` or `"failed"`, then navigates to Analysis
-3. **AnalysisScreen** — fetches `analysis.getById(analysisId)` and renders phase breakdown
+1. **HomeScreen** — video picker, recent analyses, demo entry
+2. **UploadScreen** / **RecordScreen** — capture or pick video
+3. **JobStatusScreen** — polls `mobileAnalysis.getById` until completed/failed
+4. **AnalysisScreen** — `analysis.getById`, video replay, skeleton + ball SVG overlay
+5. **HistoryScreen**, **CompareScreen**, **ProCompareScreen**, **LoginScreen**, **PrivacyScreen**
 
-Navigation types are defined in `src/lib/navigation.ts` as `RootStackParamList`.
+Navigation types: `src/lib/navigation.ts` (`RootStackParamList`).
 
 ### API layer
 
-- **tRPC client** (`src/lib/trpc.ts`): untyped `@trpc/client` with `httpBatchLink` + superjson transformer. No shared types from the server — client calls procedures by string name.
-- **REST upload** (`src/lib/api.ts`): video uploaded as multipart FormData to `POST /api/upload`, returns `{ storageKey }`. Then `mobileAnalysis.create({ videoFileName, videoStorageKey })` kicks off the background job.
-- **Base URL**: from `EXPO_PUBLIC_API_BASE_URL` via `src/lib/config.ts`
+- **tRPC client** (`src/lib/trpc.ts`): untyped `@trpc/client` with `httpBatchLink` + superjson. No imports from `shared/` (build independence).
+- **REST upload** (`src/lib/api.ts`): `POST /api/upload` → `mobileAnalysis.create`
+- **Base URL**: `EXPO_PUBLIC_API_BASE_URL` via `src/lib/config.ts`
+
+### Tracking helpers
+
+- `src/lib/ballTracking.ts` — parse tuples, frame map, speed label
+- `src/lib/types.ts` — `BallTrackSample`, optional `ballTracking` on `AnalysisDetail`
+- Demo: `getDemoAnalysisDetail()` includes synthetic `ballTracking`
 
 ### State management
 
-TanStack React Query (`@tanstack/react-query` v5). No Redux or Zustand. All state is server-derived.
+TanStack React Query v5. Server-derived state only.
 
 ### Styling
 
-React Native `StyleSheet` only. Dark theme throughout: `#0f172a` background, `#1e293b` cards, `#a3e635` lime accent. No Tailwind, no Radix, no styled-components.
-
-### Key types (`src/lib/types.ts`)
-
-- `AnalysisJob`: tracks upload/processing job (`status: "queued" | "processing" | "completed" | "failed"`)
-- `AnalysisDetail`: final result with `phasesJson` (stringified `AnalysisPhase[]`) and `landmarksJson`
-- `AnalysisPhase`: `type`, `startFrame`, `endFrame`, `score`, and a `metrics` object (shoulderRotation, hipRotation, elbowAngle, kneeFlex, spineAngle, wristVelocity)
+React Native `StyleSheet`. Dark theme: `#0f172a` bg, `#a3e635` accent.
 
 ## Monorepo context
 
-The mobile app lives inside a larger monorepo:
-
 | Directory | Purpose |
 |---|---|
-| `server/` | Express + tRPC + SQLite (Drizzle ORM) backend |
-| `shared/` | Zod schemas shared between server and tools (not imported by mobile) |
-| `client/` | Original React browser app with in-browser MediaPipe + ONNX |
-| `scripts/` | Python analysis pipeline (`analyze_video.py`), yt-dlp helpers |
-| `drizzle/` | SQLite schema and migrations |
-| `data/` | SQLite DB file and uploaded video storage |
+| `server/` | Express + tRPC + SQLite |
+| `shared/` | Zod schemas (not imported by mobile) |
+| `client/` | Web app with full ball/racket overlays |
+| `scripts/cv/` | Python CV agents |
+| `data/` | SQLite, uploads, `analysis-agents/` job artifacts |
 
-The mobile app does **not** import from `server/` or `shared/` — the tRPC client is intentionally untyped to preserve build independence.
+Device QA checklist: `docs/MOBILE_DEVICE_QA.md`.

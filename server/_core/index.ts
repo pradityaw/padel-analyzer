@@ -6,13 +6,15 @@ import path from "path";
 import { mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { createUploadHandler } from "./upload.js";
+import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../..");
-const uploadsDir = path.join(rootDir, "data/uploads");
+const uploadsDir = getUploadsDir();
 
 mkdirSync(uploadsDir, { recursive: true });
-mkdirSync(path.join(rootDir, "data/thumbnails"), { recursive: true });
+mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
 app.use(express.json({ limit: "500mb" }));
@@ -28,8 +30,7 @@ function uploadSingleMiddleware(
     if (err instanceof MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
         res.status(413).json({
-          error:
-            "Video is too large (max 500 MB). Try trimming the clip or lowering quality.",
+          error: `Video is too large (max ${MAX_UPLOAD_MB} MB). Try trimming the clip or lowering quality.`,
         });
         return;
       }
@@ -46,6 +47,10 @@ function uploadSingleMiddleware(
     next();
   });
 }
+
+app.get("/healthz", (_req, res) => {
+  res.json({ ok: true });
+});
 
 app.post("/api/upload", uploadSingleMiddleware, (req, res) => {
   if (!req.file) {
@@ -85,8 +90,18 @@ if (isProd) {
 const PORT = parseInt(process.env.PORT || "3001", 10);
 /** Bind all interfaces so phones on the LAN can reach the dev API (physical device uploads). */
 const LISTEN_HOST = process.env.HOST || "0.0.0.0";
-app.listen(PORT, LISTEN_HOST, () => {
+const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(
     `Padel Analyzer listening on ${LISTEN_HOST}:${PORT} (browser: http://localhost:${PORT})`,
   );
+});
+
+server.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `Padel Analyzer could not start: ${LISTEN_HOST}:${PORT} is already in use.`,
+    );
+    process.exit(1);
+  }
+  throw err;
 });

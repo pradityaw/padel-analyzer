@@ -29,7 +29,8 @@ export default function History() {
   const [, navigate] = useLocation();
   const [shotFilter, setShotFilter] = useState<ShotType | "all">("all");
   const utils = trpc.useUtils();
-  const { data: analyses, isLoading } = trpc.analysis.list.useQuery();
+  const { data: listData, isLoading } = trpc.analysis.list.useQuery();
+  const analyses = listData?.items;
   const deleteMutation = trpc.analysis.delete.useMutation({
     onSuccess: () => utils.analysis.list.invalidate(),
   });

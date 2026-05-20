@@ -15,7 +15,8 @@ export default function Compare() {
   const aId = params.get("a");
   const bId = params.get("b");
 
-  const { data: analyses } = trpc.analysis.list.useQuery();
+  const { data: listData } = trpc.analysis.list.useQuery();
+  const analyses = listData?.items;
 
   const [selectedA, setSelectedA] = useState<number | null>(
     aId ? Number(aId) : null

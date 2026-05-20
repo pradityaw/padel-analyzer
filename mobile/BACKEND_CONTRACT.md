@@ -58,6 +58,18 @@ Output:
 
 - returns the created analysis job row
 
+### `analysis.getById`
+
+Input: `{ "id": <analysisId> }`
+
+The mobile Analysis screen uses this after a job completes. Besides pose fields (`phasesJson`, `landmarksJson`, scores), the server may attach:
+
+- `ballTracking`: `[frameIndex, imageX, imageY, confidence][]` (best-effort; empty if CV artifacts missing)
+- `racketTracking`: `[frameIndex, playerId, imageX, imageY, confidence][]` (returned by API; **not rendered on mobile** in the current beta)
+- `trackingMeta`: `{ sourceJobId, ballSampleCount, racketSampleCount }` (diagnostics)
+
+Artifacts are loaded from the **latest completed** `analysis_jobs` row for this analysis (`data/analysis-agents/job-{jobId}.json`).
+
 ### `mobileAnalysis.getById`
 
 Input:
@@ -93,25 +105,11 @@ Output:
 
 - paginated list payload `{ items, nextCursor, hasMore }`
 
-### `analysis.getById`
-
-Input:
-
-```json
-{
-  "id": 456
-}
-```
-
-Output:
-
-- full analysis row including `phasesJson` and `landmarksJson`
-
 ## Static asset contract
 
 - Uploaded video playback URL: `/uploads/:storageKey`
 
-The mobile app currently opens the stored upload URL externally instead of rendering a native overlay replay.
+The Analysis screen plays in-app video with an SVG skeleton + ball overlay when data is available.
 
 ## Server-side analysis runtime contract
 

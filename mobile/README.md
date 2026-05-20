@@ -5,7 +5,9 @@ Expo / React Native client for the native mobile v1 flow:
 1. Pick a video on-device.
 2. Upload it to the existing backend.
 3. Start a server-side analysis job.
-4. Poll for completion and view the analysis summary.
+4. Poll for completion and view the analysis summary (skeleton replay + best-effort ball overlay).
+
+**Beta scope:** see [../docs/BETA_SCOPE.md](../docs/BETA_SCOPE.md). Racket-head tracking and match analytics are web-only for now.
 
 ## Setup
 

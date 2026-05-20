@@ -4,6 +4,12 @@ data/*.db
 data/uploads/
 data/thumbnails/
 data/reports/
+data/landmarks/
+data/analysis-agents/
+
+# Python bytecode
+**/__pycache__/
+*.pyc
 
 # Local env / OS noise
 .env

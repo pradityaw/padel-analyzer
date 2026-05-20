@@ -2,15 +2,14 @@ import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
 import { mkdirSync, existsSync } from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { getUploadsDir } from "../lib/paths.js";
+import { YOUTUBE_MAX_DURATION_SEC } from "../../shared/config.js";
 
-const exec = promisify(execFile);
+const execFileAsync = promisify(execFile);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
-const uploadsDir = path.join(rootDir, "data/uploads");
+const uploadsDir = getUploadsDir();
 mkdirSync(uploadsDir, { recursive: true });
 
 const YOUTUBE_HOSTS = [
@@ -49,7 +48,7 @@ type VideoInfo = {
 };
 
 async function getVideoInfo(url: string): Promise<VideoInfo> {
-  const { stdout } = await exec("yt-dlp", [
+  const { stdout } = await execFileAsync("yt-dlp", [
     "--no-warnings",
     "--dump-json",
     "--no-download",
@@ -70,7 +69,7 @@ async function downloadVideo(
   url: string,
   outputPath: string
 ): Promise<void> {
-  await exec(
+  await execFileAsync(
     "yt-dlp",
     [
       "--no-warnings",
@@ -105,9 +104,9 @@ export const youtubeRouter = router({
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);
 
-      if (info.duration > 300) {
+      if (info.duration > YOUTUBE_MAX_DURATION_SEC) {
         throw new Error(
-          "Video too long. Please use a clip under 5 minutes for analysis."
+          `Video too long. Please use a clip under ${YOUTUBE_MAX_DURATION_SEC / 60} minutes for analysis.`
         );
       }
 

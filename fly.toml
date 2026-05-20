@@ -1,0 +1,37 @@
+# Fly.io — Padel Analyzer (Node + Vite static + SQLite volume)
+# See docs/DEPLOY.md
+
+app = "padel-analyzer"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/healthz"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Persistent disk for SQLite, uploads, landmarks (create volume first — docs/DEPLOY.md)
+[[mounts]]
+  source = "padel_data"
+  destination = "/data"

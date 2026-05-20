@@ -18,5 +18,18 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["client/src", "shared", "server"]
+  "include": ["client/src", "shared", "server"],
+  "exclude": [
+    "client/src/pages/Login.tsx",
+    "client/src/pages/Home.tsx",
+    "client/src/components/home/**",
+    "client/src/components/CourtHeatmapOverlay.tsx",
+    "client/src/components/RallyTimeline.tsx",
+    "client/src/components/SwingRing.tsx",
+    "server/routers/auth.ts",
+    "server/_core/authRoutes.ts",
+    "server/_core/context.ts",
+    "server/lib/sessionAuth.ts",
+    "server/lib/prHighlights.ts"
+  ]
 }
