@@ -221,6 +221,41 @@ async function addReaction(token, channelId, ts, silent) {
 }
 
 /**
+ * Timestamp to pass to conversations.replies (thread parent only).
+ * @param {object} msg
+ * @returns {string | null}
+ */
+function threadParentTs(msg) {
+  const ts = msg?.ts != null ? String(msg.ts) : "";
+  if (!ts) return null;
+  const threadTs = msg.thread_ts != null ? String(msg.thread_ts) : null;
+  if (threadTs && threadTs !== ts) return null;
+  return threadTs || ts;
+}
+
+/**
+ * @param {object} opts
+ * @param {string} opts.token
+ * @param {string} opts.channelId
+ * @param {string} opts.parentTs
+ */
+async function fetchThreadReplies({ token, channelId, parentTs }) {
+  try {
+    return await slackApi(token, "conversations.replies", {
+      channel: channelId,
+      ts: parentTs,
+      limit: 200,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(
+      `[collect-slack] conversations.replies skipped (ts=${parentTs}): ${msg}`
+    );
+    return { messages: [] };
+  }
+}
+
+/**
  * @param {object} record
  */
 function appendRecord(record) {
@@ -275,14 +310,15 @@ export async function collectSlackMessages(opts = {}) {
       await addReaction(token, channelId, record.slack_ts, silent);
 
       const replyCount = Number(msg.reply_count) || 0;
-      if (replyCount > 0) {
-        const repliesPage = await slackApi(token, "conversations.replies", {
-          channel: channelId,
-          ts: msg.ts,
-          limit: 200,
+      const parentTs = threadParentTs(msg);
+      if (replyCount > 0 && parentTs) {
+        const repliesPage = await fetchThreadReplies({
+          token,
+          channelId,
+          parentTs,
         });
         for (const reply of repliesPage.messages || []) {
-          if (reply.ts === msg.ts) continue;
+          if (String(reply.ts) === parentTs) continue;
           const replyRecord = await messageToRecord(
             reply,
             channelId,
@@ -290,7 +326,7 @@ export async function collectSlackMessages(opts = {}) {
             seen
           );
           if (!replyRecord) continue;
-          replyRecord.reply_to_message_id = parseFloat(msg.ts);
+          replyRecord.reply_to_message_id = parseFloat(parentTs);
           seen.add(replyRecord.slack_ts);
           appendRecord(replyRecord);
           appended += 1;
