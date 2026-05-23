@@ -186,6 +186,21 @@ Copy [`.env.feedback.example`](../../.env.feedback.example) to `.env.feedback` a
 
 **Noise filter:** collect and triage skip setup chatter (`/invite`, bare slash commands, very short greetings). Legacy rows already in `slack-inbox.jsonl` are marked processed on the next triage run without starting an agent.
 
+### Slack message → Cursor SDK → PR (how it actually works)
+
+Posting in Slack does **not** instantly start an agent. There is no Slack Events webhook in this repo. The pipeline is **poll-based**:
+
+1. **Collect** — GitHub Actions (or `npm run feedback:collect-slack`) reads new messages from the feedback channel into `slack-inbox.jsonl`.
+2. **Triage** — `feedback:triage-slack` groups unprocessed messages into threads and starts a **cloud** Cursor SDK agent per thread (up to `FEEDBACK_MAX_PRS_PER_RUN`, default 3).
+3. **Agent** — Opens a GitHub PR when the feedback is classified as `bug`, `ux`, or `feature`.
+4. **Summary** — The bot posts a `Daily triage: …` message in the same Slack channel.
+
+**When triage runs:** daily at **02:30 UTC** (scheduled), or when you click **Run workflow** on [Feedback triage (Slack)](../../.github/workflows/feedback-triage-slack.yml) (`workflow_dispatch`). After posting feedback, run the workflow manually if you do not want to wait for the schedule.
+
+**Message must qualify:** at least ~12 characters (or an attachment), not a trivial greeting, and your Slack user id must be in `SLACK_ALLOWLIST_USER_IDS` if that secret is set. Example that works: `Upload fails on Safari when I tap Analyze — spinner never stops`.
+
+**Preflight:** `npm run feedback:verify-slack` (also runs in CI before triage).
+
 ## Slack GitHub Actions
 
 Workflow [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/feedback-triage-slack.yml) runs `npm run feedback:triage-slack` on a schedule (default `02:30` UTC, 30 min after Telegram). Add secrets:
@@ -202,4 +217,4 @@ Workflow [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/f
 - `qa-artifacts/feedback/media/` — shared with Telegram downloads
 - `.cursor-sdk-runs/feedback/*-triage-slack.jsonl` — agent run logs
 
-**CI persistence:** [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/feedback-triage-slack.yml) restores and saves `qa-artifacts/feedback/` (Slack state, inbox, downloaded media) via Actions cache between scheduled runs.
+**Note:** GitHub Actions runners do not persist `slack-inbox.jsonl` between runs unless you add artifact/cache storage. For CI, prefer `workflow_dispatch` after messages were collected on a machine with persistent `qa-artifacts/`, or extend the workflow to upload/download state artifacts later.

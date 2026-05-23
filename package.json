@@ -22,6 +22,7 @@
     "feedback:collect-slack": "node scripts/feedback-bot/collect-slack.mjs",
     "feedback:triage-slack": "node scripts/feedback-bot/triage-slack.mjs",
     "feedback:dry-run-slack": "node scripts/feedback-bot/triage-slack.mjs --dry-run",
+    "feedback:verify-slack": "node scripts/feedback-bot/verify-slack-setup.mjs",
     "mobile:start": "npm --prefix mobile start",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:doctor": "npm --prefix mobile run doctor",
