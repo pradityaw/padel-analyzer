@@ -202,4 +202,4 @@ Workflow [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/f
 - `qa-artifacts/feedback/media/` — shared with Telegram downloads
 - `.cursor-sdk-runs/feedback/*-triage-slack.jsonl` — agent run logs
 
-**Note:** GitHub Actions runners do not persist `slack-inbox.jsonl` between runs unless you add artifact/cache storage. For CI, prefer `workflow_dispatch` after messages were collected on a machine with persistent `qa-artifacts/`, or extend the workflow to upload/download state artifacts later.
+**CI persistence:** [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/feedback-triage-slack.yml) restores and saves `qa-artifacts/feedback/` (Slack state, inbox, downloaded media) via Actions cache between scheduled runs.
