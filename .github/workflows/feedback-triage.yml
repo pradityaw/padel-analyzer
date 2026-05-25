@@ -15,7 +15,6 @@ env:
 
 jobs:
   triage:
-    if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_FEEDBACK_CHAT_ID != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,6 +41,7 @@ jobs:
           cache: npm
 
       - name: Restore Telegram feedback state
+        if: steps.telegram-secrets.outputs.enabled == 'true'
         uses: actions/cache@v4
         with:
           path: qa-artifacts/feedback
