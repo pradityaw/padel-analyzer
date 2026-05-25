@@ -1,4 +1,3 @@
-import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { eq } from "drizzle-orm";
@@ -11,7 +10,8 @@ import {
 } from "../../drizzle/schema.js";
 import type { AnalysisJobStageId } from "../../shared/schema.js";
 import { AnalysisRunnerError } from "../_core/mobileAnalysisRunner.js";
-import { getDataRoot, getUploadsDir } from "./paths.js";
+import { getDataRoot } from "./paths.js";
+import { resolveVideoUriForProcessing } from "./videoAccess.js";
 import { enqueueAnalysisJob } from "./analysisJobQueue.js";
 import {
   calculateAggregateProgress,
@@ -20,6 +20,11 @@ import {
   updateAnalysisJobStage,
 } from "./analysisJobProgress.js";
 import { runParallelAnalysisOrchestration } from "./parallelAnalysisOrchestrator.js";
+import {
+  createPipelineTimer,
+  writePipelineTimingArtifact,
+} from "./pipelineTiming.js";
+import { isAgentStageSoftFailure } from "./agentStageFallbacks.js";
 
 async function updateJob(
   jobId: number,
@@ -53,6 +58,7 @@ async function writeAgentArtifacts(
     courtCalibration: unknown;
     ballTrajectory: unknown;
     racketTracking: unknown;
+    rallyWindows?: unknown;
   }
 ): Promise<void> {
   const dir = path.join(getDataRoot(), "analysis-agents");
@@ -73,6 +79,7 @@ async function writeAgentArtifacts(
 }
 
 export async function processAnalysisJob(jobId: number): Promise<void> {
+  const timer = createPipelineTimer(`analysis-job-${jobId}`);
   initializeAnalysisJobProgress(jobId);
   try {
     const job = db
@@ -90,19 +97,30 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       errorMessage: null,
     });
 
-    const videoPath = path.join(getUploadsDir(), job.videoStorageKey);
-    if (!existsSync(videoPath)) {
+    let videoPath: string;
+    try {
+      timer.mark("resolve-video-start");
+      videoPath = await resolveVideoUriForProcessing(job.videoStorageKey);
+      timer.mark("resolve-video-done", { videoPath });
+    } catch (error) {
       throw new AnalysisRunnerError(
-        "Uploaded video could not be found on the server. Try uploading again.",
+        error instanceof Error
+          ? error.message
+          : "Uploaded video could not be found on the server. Try uploading again.",
         "VIDEO_NOT_FOUND"
       );
     }
 
+    timer.mark("orchestration-start");
     const result = await runParallelAnalysisOrchestration(
       videoPath,
       (stageId, patch, statusMessage) =>
         updateStage(jobId, stageId, patch, statusMessage)
     );
+    timer.mark("orchestration-done", {
+      rallyWindows: result.rallyWindows?.windows.length ?? 0,
+      sampleFps: result.rallyWindows?.sampleFps,
+    });
 
     await updateStage(
       jobId,
@@ -116,7 +134,25 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       "Saving analysis..."
     );
 
-    await writeAgentArtifacts(jobId, result.agents);
+    await writeAgentArtifacts(jobId, {
+      ...result.agents,
+      rallyWindows: result.rallyWindows ?? null,
+    });
+
+    const warnings: string[] = [];
+    if (isAgentStageSoftFailure(result.agents.courtCalibration)) {
+      warnings.push("court calibration skipped");
+    }
+    if (isAgentStageSoftFailure(result.agents.ballTrajectory)) {
+      warnings.push("ball tracking skipped");
+    }
+    if (isAgentStageSoftFailure(result.agents.racketTracking)) {
+      warnings.push("racket tracking skipped");
+    }
+    const completionMessage =
+      warnings.length > 0
+        ? `Analysis complete (${warnings.join("; ")}).`
+        : "Analysis complete.";
 
     const newAnalysis: NewAnalysis = {
       videoFileName: job.videoFileName,
@@ -146,16 +182,25 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
         message: "Analysis payload saved.",
         errorMessage: null,
       },
-      "Analysis complete."
+      completionMessage
     );
 
     await updateJob(jobId, {
       status: "completed",
       progress: 100,
-      statusMessage: "Analysis complete.",
+      statusMessage: completionMessage,
       analysisId: saved.id,
       errorMessage: null,
     });
+    timer.finish({ analysisId: saved.id });
+    try {
+      await writePipelineTimingArtifact(jobId, timer.snapshot());
+    } catch (artifactError) {
+      console.warn(
+        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
+        artifactError
+      );
+    }
   } catch (error) {
     const message =
       error instanceof AnalysisRunnerError
@@ -171,6 +216,15 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       statusMessage: "Analysis failed.",
       errorMessage: message,
     });
+    timer.finish({ failed: true, message });
+    try {
+      await writePipelineTimingArtifact(jobId, timer.snapshot());
+    } catch (artifactError) {
+      console.warn(
+        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
+        artifactError
+      );
+    }
   }
 }
 

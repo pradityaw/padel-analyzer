@@ -56,6 +56,29 @@ assert("sanitizeBallTrackingPayload drops invalid tuples", () => {
   if (out.length !== 1) throw new Error(`expected 1 got ${out.length}`);
 });
 
+assert("normalizeBallTrackSamples maps Python ball_track objects to tuples", () => {
+  const ball = normalizeBallTrackSamples(
+    {
+      ball_track: [
+        {
+          frame_idx: 5,
+          image_x: 0.42,
+          image_y: 0.18,
+          confidence: 0.77,
+        },
+      ],
+    },
+    landmarksJson
+  );
+  if (ball.length !== 1) throw new Error("expected one normalized tuple");
+  const [fi, x, y, conf] = ball[0]!;
+  if (fi !== 5) throw new Error(`expected frame 5 got ${fi}`);
+  if (x !== 0.42 || y !== 0.18) throw new Error("image coords must round-trip");
+  if (conf !== 0.77) throw new Error("confidence must round-trip");
+  const sanitized = sanitizeBallTrackingPayload(ball);
+  if (sanitized.length !== 1) throw new Error("sanitized payload must keep sample");
+});
+
 assert("sanitizeRacketTrackingPayload accepts valid racket tuples", () => {
   const out = sanitizeRacketTrackingPayload([[0, 0, 0.5, 0.5, 0.4]]);
   if (out.length !== 1) throw new Error("racket sanitize failed");

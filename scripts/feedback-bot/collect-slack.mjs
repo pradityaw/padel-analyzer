@@ -281,9 +281,48 @@ export async function collectSlackMessages(opts = {}) {
   mkdirSync(MEDIA_DIR, { recursive: true });
 
   const seen = loadExistingSlackTs();
+  const fetchedThreads = new Set();
   let state = readState();
   let appended = 0;
   let maxSeenTs = state.oldest_ts;
+
+  /**
+   * @param {string} threadTs
+   * @param {string} parentTs
+   */
+  async function ingestThreadReplies(threadTs, parentTs) {
+    if (fetchedThreads.has(threadTs)) return;
+    fetchedThreads.add(threadTs);
+
+    let repliesPage;
+    try {
+      repliesPage = await slackApi(token, "conversations.replies", {
+        channel: channelId,
+        ts: threadTs,
+        limit: 200,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!silent) {
+        console.warn(
+          `[collect-slack] conversations.replies skipped for ts=${threadTs}: ${msg}`
+        );
+      }
+      return;
+    }
+
+    for (const reply of repliesPage.messages || []) {
+      if (String(reply.ts) === threadTs) continue;
+      const replyRecord = await messageToRecord(reply, channelId, token, seen);
+      if (!replyRecord) continue;
+      replyRecord.reply_to_message_id = parseFloat(parentTs);
+      seen.add(replyRecord.slack_ts);
+      appendRecord(replyRecord);
+      appended += 1;
+      maxSeenTs = maxTs(maxSeenTs, replyRecord.slack_ts);
+      await addReaction(token, channelId, replyRecord.slack_ts, silent);
+    }
+  }
 
   let cursor;
   do {
@@ -300,6 +339,14 @@ export async function collectSlackMessages(opts = {}) {
     cursor = page.response_metadata?.next_cursor;
 
     for (const msg of messages) {
+      const threadTs = String(msg.thread_ts || msg.ts || "");
+      const isThreadParent =
+        !!threadTs && (!msg.thread_ts || String(msg.thread_ts) === String(msg.ts));
+      const replyCount = Number(msg.reply_count) || 0;
+      if (isThreadParent && replyCount > 0) {
+        await ingestThreadReplies(threadTs, threadTs);
+      }
+
       const record = await messageToRecord(msg, channelId, token, seen);
       if (!record) continue;
 

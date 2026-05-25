@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
+import sys
 from typing import Any, Iterable, Sequence
 
 import cv2
@@ -499,7 +500,11 @@ class BallTracker:
             candidates.append((_float(x), _float(y), _float(confidence)))
         return sorted(candidates, key=lambda item: item[2], reverse=True)
 
-    def track_video(self, video_path: str) -> tuple[list[BallTrackPoint], int]:
+    def track_video(
+        self,
+        video_path: str,
+        rally_windows: list[tuple[float, float]] | None = None,
+    ) -> tuple[list[BallTrackPoint], int]:
         """Stream a video and emit detected ball track points."""
 
         capture = cv2.VideoCapture(video_path)
@@ -525,6 +530,16 @@ class BallTracker:
                 ok, frame = capture.read()
                 if not ok:
                     break
+                timestamp_sec = float(frame_idx) / fps
+                if rally_windows:
+                    inside = any(
+                        start_sec <= timestamp_sec <= end_sec
+                        for start_sec, end_sec in rally_windows
+                    )
+                    if not inside:
+                        frame_idx += 1
+                        continue
+
                 frames_processed += 1
 
                 foreground = subtractor.apply(frame)
@@ -579,6 +594,228 @@ class BallTracker:
         if self.homography is None:
             return (_float(point[0]), _float(point[1]))
         return CourtMapper._perspective_transform(point, self.homography.homography_matrix)
+
+
+class TrackNetBallTracker(BallTracker):
+    """Track ball positions with TrackNet while preserving BallTracker output."""
+
+    PLAYABLE_X_BOUNDS: tuple[float, float] = (-1.0, 11.0)
+    PLAYABLE_Y_BOUNDS: tuple[float, float] = (-1.0, 21.0)
+
+    def __init__(
+        self,
+        homography: CourtHomography | None = None,
+        config: CourtMappingConfig | None = None,
+        detector: Any | None = None,
+    ) -> None:
+        super().__init__(homography=homography, config=config)
+        self._detector = detector
+        self._detector_load_attempted = detector is not None
+
+    def track_video(
+        self,
+        video_path: str,
+        rally_windows: list[tuple[float, float]] | None = None,
+    ) -> tuple[list[BallTrackPoint], int]:
+        """Stream a video and emit TrackNet ball track points."""
+
+        detector = self._load_detector()
+        if detector is None:
+            raise RuntimeError("TrackNet detector is unavailable")
+
+        capture = cv2.VideoCapture(video_path)
+        points: list[BallTrackPoint] = []
+        last_center: Point | None = None
+        last_frame_idx: int | None = None
+        frames_processed = 0
+        frame_window: list[np.ndarray] = []
+
+        try:
+            fps = float(capture.get(cv2.CAP_PROP_FPS) or 0.0)
+            if fps <= 1e-6:
+                fps = 30.0
+
+            frame_idx = 0
+            while True:
+                if self.config.max_tracking_frames is not None and frames_processed >= self.config.max_tracking_frames:
+                    break
+                ok, frame = capture.read()
+                if not ok:
+                    break
+                timestamp_sec = float(frame_idx) / fps
+                if rally_windows:
+                    inside = any(
+                        start_sec <= timestamp_sec <= end_sec
+                        for start_sec, end_sec in rally_windows
+                    )
+                    if not inside:
+                        frame_idx += 1
+                        continue
+
+                frames_processed += 1
+                frame_window.append(frame)
+                if len(frame_window) > 3:
+                    frame_window.pop(0)
+                if len(frame_window) < 3:
+                    frame_idx += 1
+                    continue
+
+                try:
+                    candidates = self._detect_candidates(detector, frame_window)
+                except Exception as exc:
+                    self._log_unavailable("TrackNet inference failed", exc)
+                    raise
+
+                selected = self._associate_candidate(candidates, last_center)
+                if selected is not None:
+                    image_x, image_y, confidence = selected
+                    court_x, court_y = self._image_to_court((image_x, image_y))
+                    velocity: float | None = None
+                    if last_center is not None and last_frame_idx is not None:
+                        delta_frames = max(1, frame_idx - last_frame_idx)
+                        velocity = math.dist((image_x, image_y), last_center) / delta_frames
+                    points.append(
+                        BallTrackPoint(
+                            frame_idx=_int(frame_idx),
+                            timestamp_sec=_float(timestamp_sec),
+                            image_x=_float(image_x),
+                            image_y=_float(image_y),
+                            court_x=_float(court_x),
+                            court_y=_float(court_y),
+                            confidence=_float(confidence),
+                            velocity_px_per_frame=None if velocity is None else _float(velocity),
+                        )
+                    )
+                    last_center = (_float(image_x), _float(image_y))
+                    last_frame_idx = frame_idx
+                frame_idx += 1
+        finally:
+            capture.release()
+
+        return points, frames_processed
+
+    def _load_detector(self) -> Any | None:
+        if self._detector is not None:
+            return self._detector
+        if self._detector_load_attempted:
+            return None
+
+        self._detector_load_attempted = True
+        try:
+            try:
+                from tracknet_ball import TrackNetBallDetector, tracknet_config_from_env
+            except ImportError:
+                from scripts.cv.tracknet_ball import TrackNetBallDetector, tracknet_config_from_env
+        except Exception as exc:
+            self._log_unavailable("TrackNet model unavailable", exc)
+            return None
+
+        try:
+            self._detector = TrackNetBallDetector(config=tracknet_config_from_env())
+        except Exception as exc:
+            self._log_unavailable("TrackNet detector load failed", exc)
+            return None
+        return self._detector
+
+    def _detect_candidates(
+        self,
+        detector: Any,
+        frame_window: Sequence[np.ndarray],
+    ) -> list[tuple[float, float, float]]:
+        raw_detections = detector.detect(list(frame_window))
+        candidates = [
+            candidate
+            for candidate in self._normalize_detections(raw_detections)
+            if self._within_playable_court(candidate)
+        ]
+        return sorted(candidates, key=lambda item: item[2], reverse=True)
+
+    def _normalize_detections(self, detections: Any) -> list[tuple[float, float, float]]:
+        if detections is None:
+            return []
+        if isinstance(detections, np.ndarray):
+            detections = detections.tolist()
+        if isinstance(detections, dict):
+            for key in ("detections", "candidates", "points", "ball"):
+                if key in detections:
+                    return self._normalize_detections(detections[key])
+            candidate = self._candidate_from_detection(detections)
+            return [] if candidate is None else [candidate]
+        if isinstance(detections, Sequence) and not isinstance(detections, (str, bytes)):
+            if detections and all(isinstance(value, (int, float, np.integer, np.floating)) for value in detections):
+                candidate = self._candidate_from_detection(detections)
+                return [] if candidate is None else [candidate]
+            candidates: list[tuple[float, float, float]] = []
+            for detection in detections:
+                candidate = self._candidate_from_detection(detection)
+                if candidate is not None:
+                    candidates.append(candidate)
+            return candidates
+
+        candidate = self._candidate_from_detection(detections)
+        return [] if candidate is None else [candidate]
+
+    def _candidate_from_detection(self, detection: Any) -> tuple[float, float, float] | None:
+        if detection is None:
+            return None
+        if isinstance(detection, np.ndarray):
+            detection = detection.tolist()
+
+        if isinstance(detection, dict):
+            x = self._first_present(detection, ("x", "image_x", "cx", "center_x"))
+            y = self._first_present(detection, ("y", "image_y", "cy", "center_y"))
+            bbox = detection.get("bbox") or detection.get("box")
+            if (x is None or y is None) and isinstance(bbox, Sequence) and len(bbox) >= 4:
+                x = (float(bbox[0]) + float(bbox[2])) / 2.0
+                y = (float(bbox[1]) + float(bbox[3])) / 2.0
+            confidence = self._first_present(detection, ("confidence", "score", "probability", "conf"))
+        elif isinstance(detection, Sequence) and not isinstance(detection, (str, bytes)):
+            if len(detection) < 2:
+                return None
+            x = detection[0]
+            y = detection[1]
+            confidence = detection[2] if len(detection) >= 3 else 1.0
+        else:
+            x = self._first_attr(detection, ("x", "image_x", "cx", "center_x"))
+            y = self._first_attr(detection, ("y", "image_y", "cy", "center_y"))
+            confidence = self._first_attr(detection, ("confidence", "score", "probability", "conf"))
+
+        if x is None or y is None:
+            return None
+        if confidence is None:
+            confidence = 1.0
+        return (_float(x), _float(y), _float(np.clip(float(confidence), 0.0, 1.0)))
+
+    def _within_playable_court(self, candidate: tuple[float, float, float]) -> bool:
+        if self.homography is None:
+            return True
+
+        court_x, court_y = self._image_to_court((candidate[0], candidate[1]))
+        if not (math.isfinite(court_x) and math.isfinite(court_y)):
+            return False
+        min_x, max_x = self.PLAYABLE_X_BOUNDS
+        min_y, max_y = self.PLAYABLE_Y_BOUNDS
+        return min_x <= court_x <= max_x and min_y <= court_y <= max_y
+
+    @staticmethod
+    def _first_present(mapping: dict[str, Any], keys: Sequence[str]) -> Any | None:
+        for key in keys:
+            if key in mapping and mapping[key] is not None:
+                return mapping[key]
+        return None
+
+    @staticmethod
+    def _first_attr(value: Any, keys: Sequence[str]) -> Any | None:
+        for key in keys:
+            if hasattr(value, key):
+                attr = getattr(value, key)
+                if attr is not None:
+                    return attr
+        return None
+
+    @staticmethod
+    def _log_unavailable(message: str, exc: Exception) -> None:
+        print(f"[court_mapping] {message}: {exc}", file=sys.stderr)
 
 
 class ShotPositionExtractor:
@@ -682,14 +919,68 @@ def _court_homography_from_payload(payload: dict[str, Any]) -> CourtHomography |
     )
 
 
-def track_ball_and_shots(video_path: str, config: CourtMappingConfig | None = None) -> dict[str, Any]:
+def track_ball_and_shots(
+    video_path: str,
+    config: CourtMappingConfig | None = None,
+    rally_windows_path: str | None = None,
+) -> dict[str, Any]:
     """Track the ball and extract shot events with JSON-serializable output."""
 
     active_config = config or CourtMappingConfig()
     court_payload = build_court_homography(video_path, active_config)
     homography = _court_homography_from_payload(court_payload)
     tracker = BallTracker(homography=homography, config=active_config)
-    ball_points, frames_processed = tracker.track_video(video_path)
+    rally_windows: list[tuple[float, float]] | None = None
+    if rally_windows_path:
+        try:
+            from rally_windows import load_rally_windows
+
+            cfg = load_rally_windows(rally_windows_path)
+            if cfg is not None:
+                rally_windows = list(cfg.windows)
+        except Exception:
+            rally_windows = None
+    ball_points, frames_processed = tracker.track_video(
+        video_path, rally_windows=rally_windows
+    )
+    shots = ShotPositionExtractor().extract(ball_points)
+
+    return {
+        "court": court_payload,
+        "ball_track": [point.to_dict() for point in ball_points],
+        "shots": [shot.to_dict() for shot in shots],
+        "summary": {
+            "frames_processed": _int(frames_processed),
+            "track_points": _int(len(ball_points)),
+            "shot_count": _int(len(shots)),
+        },
+    }
+
+
+def track_ball_and_shots_tracknet(
+    video_path: str,
+    config: CourtMappingConfig | None = None,
+    rally_windows_path: str | None = None,
+) -> dict[str, Any]:
+    """Track the ball with TrackNet and preserve the OpenCV payload shape."""
+
+    active_config = config or CourtMappingConfig()
+    court_payload = build_court_homography(video_path, active_config)
+    homography = _court_homography_from_payload(court_payload)
+    tracker = TrackNetBallTracker(homography=homography, config=active_config)
+    rally_windows: list[tuple[float, float]] | None = None
+    if rally_windows_path:
+        try:
+            from rally_windows import load_rally_windows
+
+            cfg = load_rally_windows(rally_windows_path)
+            if cfg is not None:
+                rally_windows = list(cfg.windows)
+        except Exception:
+            rally_windows = None
+    ball_points, frames_processed = tracker.track_video(
+        video_path, rally_windows=rally_windows
+    )
     shots = ShotPositionExtractor().extract(ball_points)
 
     return {
@@ -713,6 +1004,8 @@ __all__ = [
     "CourtMappingConfig",
     "ShotEvent",
     "ShotPositionExtractor",
+    "TrackNetBallTracker",
     "build_court_homography",
     "track_ball_and_shots",
+    "track_ball_and_shots_tracknet",
 ]

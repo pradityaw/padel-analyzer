@@ -1,4 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  Component,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,15 +20,29 @@ import {
   Clock,
   User,
   Server,
+  CheckCircle2,
+  WifiOff,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { uploadVideoForAnalysis } from "@/lib/mobileUpload";
+import {
+  flushTrackingQueue,
+  subscribeTrackingSyncStatus,
+  type TrackingSyncStatus,
+} from "@/lib/trackingSyncQueue";
 import {
   MAX_UPLOAD_BYTES,
   MAX_UPLOAD_MB,
   YOUTUBE_MAX_DURATION_SEC,
 } from "@shared/config";
 import type { AnalysisJobPayload } from "@shared/schema";
+import {
+  estimateProcessingTime,
+  formatElapsedVsEstimate,
+  probeVideoFileDuration,
+  type ProcessingTimeEstimate,
+} from "@/lib/processingTimeEstimate";
 
 type Stage =
   | "idle"
@@ -29,6 +52,7 @@ type Stage =
   | "done"
   | "error";
 type Tab = "upload" | "youtube";
+type UploadMode = "stream" | "xhr" | "cloud-single" | "cloud-multipart";
 
 type YouTubeInfo = {
   videoId: string;
@@ -37,6 +61,47 @@ type YouTubeInfo = {
   thumbnailUrl: string;
   author: string;
 };
+
+class UploadErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[upload] Render failure", error, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <div className="mx-auto max-w-2xl rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-center">
+        <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-300" />
+        <p className="text-lg font-semibold text-red-100">
+          Upload screen hit an error
+        </p>
+        <p className="mt-2 text-sm text-red-200">
+          {this.state.error.message ||
+            "Refresh the upload flow and try the clip again."}
+        </p>
+        <button
+          onClick={() => {
+            this.setState({ error: null });
+            this.props.onReset();
+          }}
+          className="mt-4 min-h-11 rounded-lg bg-red-400 px-5 font-semibold text-slate-950"
+        >
+          Reset upload
+        </button>
+      </div>
+    );
+  }
+}
 
 const VIDEO_FILENAME_RE =
   /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv)$/i;
@@ -60,6 +125,46 @@ function stepIndexFromJob(progress: number, status: string): number {
   if (progress < 20) return 0;
   if (progress < 85) return 1;
   return 2;
+}
+
+function ProcessingTimeBanner({
+  estimate,
+  elapsedSec,
+  compact = false,
+}: {
+  estimate: ProcessingTimeEstimate;
+  elapsedSec?: number;
+  compact?: boolean;
+}) {
+  const tierStyles =
+    estimate.tier === "long"
+      ? "border-amber-500/35 bg-amber-500/10 text-amber-100"
+      : estimate.tier === "moderate"
+        ? "border-sky-500/30 bg-sky-500/10 text-sky-100"
+        : "border-padel-green/30 bg-padel-green/10 text-emerald-100";
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-4 text-left",
+        tierStyles,
+        compact ? "mt-4" : "mt-5"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Clock className="h-5 w-5 shrink-0 mt-0.5 opacity-90" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-snug">{estimate.headline}</p>
+          <p className="mt-1.5 text-xs leading-relaxed opacity-90">{estimate.detail}</p>
+          {elapsedSec != null && elapsedSec > 0 ? (
+            <p className="mt-2 text-xs font-medium tabular-nums opacity-95">
+              {formatElapsedVsEstimate(elapsedSec, estimate)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ProcessingSteps({
@@ -177,18 +282,123 @@ function StageBreakdown({
   );
 }
 
-async function uploadFileToServer(file: File): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file, file.name);
-  const up = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!up.ok) {
-    const err = await up.json().catch(() => ({}));
-    throw new Error(
-      (err as { error?: string }).error ?? "Failed to save video on server"
-    );
-  }
-  const { storageKey } = (await up.json()) as { storageKey: string };
-  return storageKey;
+function MobileProcessingProgress({
+  uploadProgress,
+  uploadMode,
+  jobProgress,
+  jobStatus,
+  progressMsg,
+  syncStatus,
+}: {
+  uploadProgress: number;
+  uploadMode: UploadMode | null;
+  jobProgress: number;
+  jobStatus: string;
+  progressMsg: string;
+  syncStatus: TrackingSyncStatus;
+}) {
+  const uploadDone = uploadProgress >= 100;
+  const processingDone = jobStatus === "completed";
+  const syncDone = syncStatus.pendingTuples === 0 && !syncStatus.syncing;
+
+  const rows = [
+    {
+      label: "Upload",
+      value: uploadDone
+        ? "Saved in storage"
+        : uploadProgress > 0
+          ? `${uploadProgress}% via ${
+              uploadMode === "cloud-single" || uploadMode === "cloud-multipart"
+                ? "cloud"
+                : uploadMode === "stream"
+                  ? "stream"
+                  : "mobile fallback"
+            }`
+          : "Waiting to start",
+      done: uploadDone,
+      warn: false,
+    },
+    {
+      label: "Processing",
+      value:
+        progressMsg ||
+        (jobProgress < 30
+          ? "Uploading / preparing video..."
+          : `${jobProgress}% complete`),
+      done: processingDone,
+      warn: false,
+    },
+    {
+      label: "Tracking sync",
+      value: syncStatus.online
+        ? syncStatus.syncing
+          ? "Syncing cached tuples..."
+          : syncDone
+            ? "Synced"
+            : `${syncStatus.pendingTuples} tuples pending`
+        : `${syncStatus.pendingTuples} tuples cached offline`,
+      done: syncDone,
+      warn: !syncStatus.online || Boolean(syncStatus.lastError),
+    },
+  ];
+
+  return (
+    <div className="mt-6 rounded-2xl border border-padel-border bg-slate-950/50 p-4 text-left">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-white">Mobile QA progress</p>
+          <p className="text-xs text-slate-500">
+            Keep this screen open until upload, processing, and tracking sync finish.
+          </p>
+        </div>
+        {!syncStatus.online ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300">
+            <WifiOff className="h-3.5 w-3.5" />
+            Offline
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className={cn(
+              "min-h-24 rounded-xl border p-3",
+              row.warn
+                ? "border-amber-500/30 bg-amber-500/10"
+                : row.done
+                  ? "border-padel-green/30 bg-padel-green/10"
+                  : "border-slate-800 bg-slate-900/70"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {row.label}
+              </span>
+              {row.done ? (
+                <CheckCircle2 className="h-4 w-4 text-padel-green" />
+              ) : null}
+            </div>
+            <p
+              className={cn(
+                "mt-2 text-sm leading-snug",
+                row.warn ? "text-amber-200" : "text-slate-200"
+              )}
+            >
+              {row.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {syncStatus.lastError ? (
+        <p className="mt-3 text-xs text-amber-200">
+          Tracking sync error: {syncStatus.lastError}. It will retry automatically.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function Upload() {
@@ -200,10 +410,26 @@ export default function Upload() {
   const [ytInfo, setYtInfo] = useState<YouTubeInfo | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadMode, setUploadMode] = useState<UploadMode | null>(null);
+  const [trackingSyncStatus, setTrackingSyncStatus] =
+    useState<TrackingSyncStatus>({
+      online: typeof navigator === "undefined" ? true : navigator.onLine,
+      syncing: false,
+      pendingBatches: 0,
+      pendingTuples: 0,
+    });
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [jobId, setJobId] = useState<number | null>(null);
   const [failedJobId, setFailedJobId] = useState<number | null>(null);
+  const [fileDurationSec, setFileDurationSec] = useState<number | null>(null);
+  const [processingEstimate, setProcessingEstimate] =
+    useState<ProcessingTimeEstimate | null>(null);
+  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(
+    null
+  );
+  const [elapsedSec, setElapsedSec] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const createJob = trpc.mobileAnalysis.create.useMutation();
@@ -211,7 +437,7 @@ export default function Upload() {
   const getYtInfo = trpc.youtube.getInfo.useMutation();
   const downloadYt = trpc.youtube.download.useMutation();
 
-  const jobQuery = trpc.mobileAnalysis.getById.useQuery(
+  const jobQuery = trpc.mobileAnalysis.getProgress.useQuery(
     { id: jobId! },
     {
       enabled: jobId != null && stage === "processing",
@@ -221,10 +447,16 @@ export default function Upload() {
         if (job.status === "completed" || job.status === "failed") {
           return false;
         }
-        return 1500;
+        return 2500;
       },
     }
   );
+
+  useEffect(() => {
+    const unsubscribe = subscribeTrackingSyncStatus(setTrackingSyncStatus);
+    void flushTrackingQueue();
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const job = jobQuery.data;
@@ -248,12 +480,43 @@ export default function Upload() {
     }
   }, [jobQuery.data, stage, navigate]);
 
+  useEffect(() => {
+    if (stage !== "processing" || processingStartedAt == null) {
+      setElapsedSec(0);
+      return;
+    }
+    const tick = () => {
+      setElapsedSec(Math.floor((Date.now() - processingStartedAt) / 1000));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [stage, processingStartedAt]);
+
+  const uploadFileEstimate = useMemo(() => {
+    if (!file) return null;
+    return estimateProcessingTime({
+      durationSec: fileDurationSec,
+      source: "upload",
+      fileSizeMb: file.size / (1024 * 1024),
+    });
+  }, [file, fileDurationSec]);
+
+  const youtubeEstimate = useMemo(() => {
+    if (!ytInfo) return null;
+    return estimateProcessingTime({
+      durationSec: ytInfo.durationSeconds,
+      source: "youtube",
+    });
+  }, [ytInfo]);
+
   const resetError = () => setError("");
 
   const startAnalysisJob = useCallback(
     async (videoFileName: string, videoStorageKey: string) => {
       setStage("processing");
       setProgress(0);
+      setUploadProgress(100);
       setProgressMsg("Queued for server analysis...");
       setFailedJobId(null);
       setError("");
@@ -277,8 +540,12 @@ export default function Upload() {
       return;
     }
     setFile(f);
+    setFileDurationSec(null);
     setStage("selected");
     setError("");
+    void probeVideoFileDuration(f).then((duration) => {
+      setFileDurationSec(duration);
+    });
   }, []);
 
   const handleDrop = useCallback(
@@ -294,14 +561,36 @@ export default function Upload() {
   const startFileAnalysis = useCallback(async () => {
     if (!file) return;
     try {
-      setProgressMsg("Saving video on server...");
-      const storageKey = await uploadFileToServer(file);
+      const estimate = estimateProcessingTime({
+        durationSec: fileDurationSec,
+        source: "upload",
+        fileSizeMb: file.size / (1024 * 1024),
+      });
+      setProcessingEstimate(estimate);
+      setProcessingStartedAt(Date.now());
+      setStage("processing");
+      setProgress(0);
+      setUploadProgress(0);
+      setUploadMode(null);
+      setProgressMsg("Uploading video (streaming, no full-file buffer)...");
+      const storageKey = await uploadVideoForAnalysis(file, {
+        onProgress: (upload) => {
+          setUploadMode(upload.mode);
+          setUploadProgress(upload.percent);
+          setProgress(Math.max(1, Math.round(upload.percent * 0.25)));
+          setProgressMsg(
+            `Uploading video (${upload.percent}%)${
+              upload.mode === "stream" ? " via streaming" : ""
+            }...`
+          );
+        },
+      });
       await startAnalysisJob(file.name, storageKey);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Analysis failed.");
     }
-  }, [file, startAnalysisJob]);
+  }, [file, fileDurationSec, startAnalysisJob]);
 
   const handleYtLookup = useCallback(async () => {
     if (!ytUrl.trim()) return;
@@ -321,13 +610,22 @@ export default function Upload() {
     if (!ytInfo) return;
     if (ytInfo.durationSeconds > YOUTUBE_MAX_DURATION_SEC) {
       setError(
-        `Video is too long. Use a clip under ${YOUTUBE_MAX_DURATION_SEC / 60} minutes.`
+        `Video too long. Please use a clip under ${YOUTUBE_MAX_DURATION_SEC / 60} minutes for analysis.`
       );
       return;
     }
     try {
+      setProcessingEstimate(
+        estimateProcessingTime({
+          durationSec: ytInfo.durationSeconds,
+          source: "youtube",
+        })
+      );
+      setProcessingStartedAt(Date.now());
       setStage("processing");
       setProgress(0);
+      setUploadProgress(100);
+      setUploadMode(null);
       setProgressMsg("Downloading video from YouTube...");
       const result = await downloadYt.mutateAsync({ url: ytUrl.trim() });
       await startAnalysisJob(result.fileName, result.fileName);
@@ -357,25 +655,32 @@ export default function Upload() {
   const reset = () => {
     setStage("idle");
     setFile(null);
+    setFileDurationSec(null);
     setYtUrl("");
     setYtInfo(null);
     setError("");
     setProgress(0);
+    setUploadProgress(0);
+    setUploadMode(null);
     setProgressMsg("");
     setJobId(null);
     setFailedJobId(null);
+    setProcessingEstimate(null);
+    setProcessingStartedAt(null);
+    setElapsedSec(0);
   };
 
   const isProcessing = stage === "processing";
   const jobStatus = jobQuery.data?.status ?? "processing";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="max-w-4xl mx-auto px-4 py-12"
-    >
+    <UploadErrorBoundary onReset={reset}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        className="max-w-4xl mx-auto px-4 py-12"
+      >
       <motion.div
         className="text-center mb-12"
         initial={{ opacity: 0, y: 12 }}
@@ -517,11 +822,19 @@ export default function Upload() {
                 >
                   <Video className="w-10 h-10 text-padel-green mx-auto mb-3" />
                   <p className="font-semibold text-lg mb-1">{file.name}</p>
-                  <p className="text-sm text-slate-400 mb-6">
+                  <p className="text-sm text-slate-400 mb-2">
                     {(file.size / (1024 * 1024)).toFixed(1)} MB
+                    {fileDurationSec != null
+                      ? ` · ${Math.floor(fileDurationSec / 60)}:${String(
+                          Math.floor(fileDurationSec % 60)
+                        ).padStart(2, "0")}`
+                      : " · reading duration…"}
                   </p>
+                  {uploadFileEstimate ? (
+                    <ProcessingTimeBanner estimate={uploadFileEstimate} />
+                  ) : null}
                   <motion.div
-                    className="flex gap-3 justify-center"
+                    className="flex gap-3 justify-center mt-6"
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
@@ -613,7 +926,7 @@ export default function Upload() {
                     <p className="font-semibold text-base leading-snug mb-1 truncate">
                       {ytInfo.title}
                     </p>
-                    <motion.div className="flex items-center gap-3 text-xs text-slate-400 mb-4">
+                    <motion.div className="flex items-center gap-3 text-xs text-slate-400 mb-3">
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
                         {ytInfo.author}
@@ -624,7 +937,10 @@ export default function Upload() {
                         {String(ytInfo.durationSeconds % 60).padStart(2, "0")}
                       </span>
                     </motion.div>
-                    <div className="flex gap-2">
+                    {youtubeEstimate ? (
+                      <ProcessingTimeBanner estimate={youtubeEstimate} compact />
+                    ) : null}
+                    <div className="flex gap-2 mt-4">
                       <button
                         onClick={reset}
                         className="px-4 py-2 rounded-lg border border-padel-border text-slate-400 hover:text-white text-sm transition-colors"
@@ -661,6 +977,13 @@ export default function Upload() {
             </p>
           </div>
 
+          {processingEstimate ? (
+            <ProcessingTimeBanner
+              estimate={processingEstimate}
+              elapsedSec={elapsedSec}
+            />
+          ) : null}
+
           <ProcessingSteps progress={progress} status={jobStatus} />
 
           <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden mt-6">
@@ -674,6 +997,15 @@ export default function Upload() {
           <p className="text-center text-sm text-slate-400 tabular-nums">
             {progress}% complete
           </p>
+
+          <MobileProcessingProgress
+            uploadProgress={uploadProgress}
+            uploadMode={uploadMode}
+            jobProgress={progress}
+            jobStatus={jobStatus}
+            progressMsg={progressMsg}
+            syncStatus={trackingSyncStatus}
+          />
 
           {jobQuery.data?.stages?.length ? (
             <StageBreakdown stages={jobQuery.data.stages} />
@@ -702,6 +1034,7 @@ export default function Upload() {
           </button>
         </motion.div>
       )}
-    </motion.div>
+      </motion.div>
+    </UploadErrorBoundary>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FrameLandmarks } from "@shared/types";
 import type { FrameSyncIndex } from "@/lib/frameSync";
+import { MIN_BALL_SPEED_CONFIDENCE } from "@/lib/ballTracking";
 import {
   calculateSpeedKmhBetweenPixels,
   type HomographyMatrix,
@@ -26,6 +27,8 @@ type UsePlaybackSpeedsOptions = {
   dominantSide?: DominantSide;
   /** Optional normalized ball x,y pairs aligned to the frame array. */
   ballPositions?: Float32Array;
+  /** Per-frame ball confidence aligned to the frame array (from CV tracker). */
+  ballConfidences?: Float32Array;
   /**
    * Optional normalized racket-head x,y pairs aligned to the frame
    * array (Phase 2 server-side tracker). When provided the speed
@@ -92,10 +95,22 @@ function getPackedPoint(
 
 function getBallPoint(
   ballPositions: Float32Array | undefined,
+  ballConfidences: Float32Array | undefined,
   arrayIdx: number,
   dimensions: { w: number; h: number }
 ): Point2D | null {
-  return getPackedPoint(ballPositions, arrayIdx, dimensions);
+  const point = getPackedPoint(ballPositions, arrayIdx, dimensions);
+  if (!point) return null;
+  if (ballConfidences && arrayIdx >= 0 && arrayIdx < ballConfidences.length) {
+    const confidence = ballConfidences[arrayIdx]!;
+    if (
+      !Number.isFinite(confidence) ||
+      confidence < MIN_BALL_SPEED_CONFIDENCE
+    ) {
+      return null;
+    }
+  }
+  return point;
 }
 
 function getDominantWristPoint(
@@ -155,6 +170,7 @@ export function usePlaybackSpeeds({
   dimensions,
   dominantSide = "right",
   ballPositions,
+  ballConfidences,
   racketPositions,
   smoothingWindow = DEFAULT_SMOOTHING_WINDOW,
   displayThrottleMs = DEFAULT_DISPLAY_THROTTLE_MS,
@@ -172,6 +188,7 @@ export function usePlaybackSpeeds({
     dimensions,
     dominantSide,
     ballPositions,
+    ballConfidences,
     racketPositions,
     smoothingWindow,
     displayThrottleMs,
@@ -182,6 +199,7 @@ export function usePlaybackSpeeds({
     dimensions,
     dominantSide,
     ballPositions,
+    ballConfidences,
     racketPositions,
     smoothingWindow,
     displayThrottleMs,
@@ -230,6 +248,7 @@ export function usePlaybackSpeeds({
     reset();
   }, [
     ballPositions,
+    ballConfidences,
     racketPositions,
     dimensions.h,
     dimensions.w,
@@ -247,6 +266,7 @@ export function usePlaybackSpeeds({
         dimensions: currentDimensions,
         dominantSide: currentDominantSide,
         ballPositions: currentBallPositions,
+        ballConfidences: currentBallConfidences,
         racketPositions: currentRacketPositions,
         smoothingWindow: currentSmoothingWindow,
       } = optionsRef.current;
@@ -257,7 +277,12 @@ export function usePlaybackSpeeds({
       }
 
       let nextBallKmh = latestDisplayRef.current.ballKmh;
-      const ballPoint = getBallPoint(currentBallPositions, arrayIdx, currentDimensions);
+      const ballPoint = getBallPoint(
+        currentBallPositions,
+        currentBallConfidences,
+        arrayIdx,
+        currentDimensions
+      );
       if (ballPoint) {
         const currentBall = { frameIndex: frame.frameIndex, point: ballPoint };
         const ballSpeed = calculateTrackedSpeedKmh(

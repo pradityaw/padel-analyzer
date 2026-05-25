@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { drawOverlayFrame } from "./drawOverlay";
+import { OverlayFrameBudget } from "./overlayFrameBudget";
 import type {
   OverlayLayerFlags,
   OverlayWorkerInboundMessage,
@@ -23,6 +24,8 @@ const state: WorkerState = {
   payload: null,
   layers: { skeleton: true, ball: false },
 };
+
+const frameBudget = new OverlayFrameBudget();
 
 const scope = self as DedicatedWorkerGlobalScope;
 
@@ -51,11 +54,16 @@ function paintFrame(
     return;
   }
 
+  const degrade = frameBudget.degradeForFrame();
+  const t0 = performance.now();
+
   drawOverlayFrame(ctx, payload, arrayIdx, width, height, {
     layers,
     highlightContact,
+    degrade,
   });
 
+  frameBudget.record(performance.now() - t0);
   post({ type: "painted", arrayIdx });
 }
 
@@ -116,6 +124,7 @@ scope.onmessage = (ev: MessageEvent<OverlayWorkerInboundMessage | { type: "ping"
     case "dispose": {
       state.ctx = null;
       state.payload = null;
+      frameBudget.reset();
       scope.close();
       break;
     }

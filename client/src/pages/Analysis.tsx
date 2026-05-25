@@ -10,6 +10,10 @@ import PhaseTimeline from "@/components/PhaseTimeline";
 import MetricsPanel from "@/components/MetricsPanel";
 import ScoreCard from "@/components/ScoreCard";
 import SwingCoachingPanel from "@/components/SwingCoachingPanel";
+import {
+  ballTrackingSchema,
+  racketTrackingSchema,
+} from "@shared/schema";
 import type {
   BallTrackSample,
   FrameLandmarks,
@@ -132,17 +136,19 @@ export default function Analysis() {
     }
     const phases = phasesR.value;
     const frames = framesR.value;
+
+    const ballParsed = ballTrackingSchema.safeParse(data.ballTracking);
+    const racketParsed = racketTrackingSchema.safeParse(data.racketTracking);
+
     return {
       phases,
       frames,
-      ballTracking:
-        Array.isArray(data.ballTracking)
-          ? (data.ballTracking as BallTrackSample[])
-          : [],
-      racketTracking:
-        Array.isArray(data.racketTracking)
-          ? (data.racketTracking as RacketTrackSample[])
-          : [],
+      ballTracking: ballParsed.success
+        ? (ballParsed.data as BallTrackSample[])
+        : [],
+      racketTracking: racketParsed.success
+        ? (racketParsed.data as RacketTrackSample[])
+        : [],
       frameSync: buildFrameSyncIndex(frames, data.sampleFps),
     };
   }, [data]);

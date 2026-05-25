@@ -12,6 +12,17 @@ import {
   runCvAgentStage,
   type CvAgentStageOptions,
 } from "./cvAgentStageRunner.js";
+import { detectRalliesForVideo } from "./rallyDetection.js";
+import {
+  ballTrajectoryFallback,
+  courtCalibrationFallback,
+} from "./agentStageFallbacks.js";
+import {
+  activeDurationSec,
+  buildRallyWindowsPayload,
+  writeRallyWindowsFile,
+  type RallyWindowsPayload,
+} from "./rallyWindowsFile.js";
 import { mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
@@ -19,18 +30,6 @@ import path from "path";
 type StagePatch = Partial<
   Omit<AnalysisJobStageProgress, "id" | "label" | "weight">
 >;
-
-function isRejected<T>(
-  result: PromiseSettledResult<T>
-): result is PromiseRejectedResult {
-  return result.status === "rejected";
-}
-
-function isFulfilled<T>(
-  result: PromiseSettledResult<T>
-): result is PromiseFulfilledResult<T> {
-  return result.status === "fulfilled";
-}
 
 export type StageReporter = (
   stageId: AnalysisJobStageId,
@@ -45,6 +44,7 @@ export type ParallelAnalysisResult = {
     ballTrajectory: unknown;
     racketTracking: unknown;
   };
+  rallyWindows?: RallyWindowsPayload;
 };
 
 async function runReportedStage<T>(
@@ -53,6 +53,8 @@ async function runReportedStage<T>(
   report: StageReporter,
   runner: () => Promise<T>
 ): Promise<T> {
+  const startedAt = Date.now();
+  console.log(`[analysis-stage] ${stageId} start`);
   await report(
     stageId,
     { status: "running", progress: 5, message: messages.running, errorMessage: null },
@@ -60,6 +62,8 @@ async function runReportedStage<T>(
   );
   try {
     const result = await runner();
+    const elapsedMs = Date.now() - startedAt;
+    console.log(`[analysis-stage] ${stageId} done ${elapsedMs}ms`);
     await report(
       stageId,
       { status: "completed", progress: 100, message: messages.completed, errorMessage: null },
@@ -68,6 +72,8 @@ async function runReportedStage<T>(
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown stage failure.";
+    const elapsedMs = Date.now() - startedAt;
+    console.warn(`[analysis-stage] ${stageId} failed ${elapsedMs}ms: ${message}`);
     await report(
       stageId,
       { status: "failed", progress: 100, message: "Stage failed.", errorMessage: message },
@@ -77,19 +83,67 @@ async function runReportedStage<T>(
   }
 }
 
+async function runSoftReportedStage<T>(
+  stageId: AnalysisJobStageId,
+  messages: { running: string; completed: string },
+  report: StageReporter,
+  runner: () => Promise<T>,
+  fallback: (error: unknown) => T
+): Promise<T> {
+  try {
+    return await runReportedStage(stageId, messages, report, runner);
+  } catch (error) {
+    return fallback(error);
+  }
+}
+
 function assertSwingQuality(result: AnalysisResultPayload): void {
   if (result.frameCount < MIN_FRAMES_FOR_PHASES) {
     throw new AnalysisRunnerError(
-      `Could not detect enough pose data (${result.frameCount} frames). Record from the side with the player clearly visible and try a brighter clip.`,
+      `Could not detect enough pose data (${result.frameCount} frames). Record from the side with the player clearly visible during active rallies.`,
       "LOW_QUALITY"
     );
   }
 
   if (result.phases.length === 0) {
     throw new AnalysisRunnerError(
-      "No swing phases could be detected. Use a side-view clip that shows one full swing.",
+      "No swing phases could be detected. Use a side-view clip that shows at least one full swing in an active rally.",
       "LOW_QUALITY"
     );
+  }
+}
+
+function rallyStageArgs(rallyWindowsPath: string | null): CvAgentStageOptions {
+  return rallyWindowsPath
+    ? { extraArgs: ["--rally-windows", rallyWindowsPath] }
+    : {};
+}
+
+async function detectRalliesOrFullVideo(videoPath: string) {
+  try {
+    return await detectRalliesForVideo(videoPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown rally detection failure.";
+    console.warn(
+      `[analysis-stage] ingestion rally detection failed; processing full clip: ${message}`
+    );
+    return {
+      fps: 30,
+      frameCount: 0,
+      durationMs: 0,
+      totalActiveMs: 0,
+      totalDeadMs: 0,
+      audioAvailable: false,
+      capabilities: {
+        motion: false,
+        velocity: false,
+        audio: false,
+        shots: false,
+        shake: false,
+      },
+      rallies: [],
+      computedAt: new Date().toISOString(),
+    };
   }
 }
 
@@ -101,69 +155,81 @@ export async function runParallelAnalysisOrchestration(
     "ingestion",
     {
       status: "running",
-      progress: 40,
-      message: "Validating uploaded video and preparing workers.",
+      progress: 10,
+      message: "Preparing video for analysis.",
       errorMessage: null,
     },
-    "Preparing parallel analysis agents..."
-  );
-  await report(
-    "ingestion",
-    { status: "completed", progress: 100, message: "Video ready for analysis." },
-    "Starting court, player, and ball agents..."
+    "Preparing video..."
   );
 
-  const courtPromise = runReportedStage(
+  await report(
+    "ingestion",
+    {
+      status: "running",
+      progress: 35,
+      message: "Detecting active rally windows (trimming dead time).",
+      errorMessage: null,
+    },
+    "Detecting rallies..."
+  );
+
+  const rallyDetectionPromise = detectRalliesOrFullVideo(videoPath);
+  const courtPromise = runSoftReportedStage(
     "courtCalibration",
     {
       running: "Agent A is calibrating court boundaries and homography.",
       completed: "Agent A calibrated court geometry.",
     },
     report,
-    () => runCvAgentStage("court", videoPath)
+    () => runCvAgentStage("court", videoPath),
+    courtCalibrationFallback
+  );
+
+  const rallyDetection = await rallyDetectionPromise;
+  const rallyPayload = buildRallyWindowsPayload(rallyDetection);
+  const rallyWindowsPath = await writeRallyWindowsFile(rallyPayload);
+  const activeSec = activeDurationSec(rallyPayload);
+
+  await report(
+    "ingestion",
+    {
+      status: "completed",
+      progress: 100,
+      message: `Found ${rallyPayload.windows.length} active window(s); analyzing ~${Math.round(activeSec)}s at ${rallyPayload.sampleFps} fps.`,
+    },
+    "Starting agents on active rallies..."
   );
 
   const playerPromise = runReportedStage(
     "playerTracking",
     {
-      running: "Agent B is extracting skeleton, racket, and swing landmarks.",
+      running: `Agent B is extracting pose landmarks (${rallyPayload.sampleFps} fps, rally windows only).`,
       completed: "Agent B extracted player movement landmarks.",
     },
     report,
-    () => runMobileAnalysis(videoPath)
+    () =>
+      runMobileAnalysis(videoPath, {
+        rallyWindowsPath,
+        sampleFps: rallyPayload.sampleFps,
+      })
   );
 
-  const ballPromise = runReportedStage(
+  const ballPromise = runSoftReportedStage(
     "ballTrajectory",
     {
-      running: "Agent C is isolating ball trajectory and shot events.",
+      running: "Agent C is isolating ball trajectory inside active rallies.",
       completed: "Agent C isolated ball trajectory.",
     },
     report,
-    () => runCvAgentStage("ball", videoPath)
+    () => runCvAgentStage("ball", videoPath, rallyStageArgs(rallyWindowsPath)),
+    ballTrajectoryFallback
   );
 
-  const [courtSettled, playerSettled, ballSettled] = await Promise.allSettled([
+  const [courtCalibration, swing, ballTrajectory] = await Promise.all([
     courtPromise,
     playerPromise,
     ballPromise,
   ]);
-
-  const failures = [courtSettled, playerSettled, ballSettled].filter(isRejected);
-  if (failures.length > 0) {
-    const first = failures[0]?.reason;
-    throw first instanceof Error ? first : new Error("Parallel analysis failed.");
-  }
-
-  if (
-    !isFulfilled(courtSettled) ||
-    !isFulfilled(playerSettled) ||
-    !isFulfilled(ballSettled)
-  ) {
-    throw new Error("Parallel analysis did not produce complete results.");
-  }
-
-  const swing = playerSettled.value;
   assertSwingQuality(swing);
 
   await report(
@@ -177,11 +243,6 @@ export async function runParallelAnalysisOrchestration(
     "Tracking racket head from pose landmarks..."
   );
 
-  // Racket-head tracking depends on per-frame pose landmarks, so it
-  // cannot run in the same parallel batch as the player stage. Instead
-  // we run it here as the first beat of the aggregation phase: cheap
-  // (≤O(frame_count)), failure-tolerant, and recovered by the wrist
-  // proxy on the client when missing.
   const racketTracking = await runRacketStageOrFallback(videoPath, swing);
 
   await report(
@@ -198,15 +259,16 @@ export async function runParallelAnalysisOrchestration(
   return {
     swing,
     agents: {
-      courtCalibration: courtSettled.value,
-      ballTrajectory: ballSettled.value,
+      courtCalibration,
+      ballTrajectory,
       racketTracking,
     },
+    rallyWindows: rallyPayload,
   };
 }
 
 async function runRacketStageOrFallback(
-  videoPath: string,
+  videoUri: string,
   swing: AnalysisResultPayload
 ): Promise<unknown> {
   const tempDir = await mkdtemp(path.join(tmpdir(), "padel-racket-"));
@@ -227,7 +289,7 @@ async function runRacketStageOrFallback(
         "1",
       ],
     };
-    return await runCvAgentStage("racket", videoPath, options);
+    return await runCvAgentStage("racket", videoUri, options);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Racket-head tracker failed.";
@@ -253,4 +315,3 @@ async function runRacketStageOrFallback(
     }
   }
 }
-

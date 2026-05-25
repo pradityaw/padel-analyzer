@@ -22,10 +22,24 @@ export const PHASE_ORDER: readonly SwingPhaseType[] = [
 
 export const SAMPLE_FPS = 15;
 
-export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
+export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
-export const YOUTUBE_MAX_DURATION_SEC = 300; // 5 minutes
+export const YOUTUBE_MAX_DURATION_SEC = 30 * 60; // 30 minutes
+
+export const PADEL_BALL_BACKENDS = ["opencv", "tracknet"] as const;
+export type PadelBallBackend = (typeof PADEL_BALL_BACKENDS)[number];
+export const DEFAULT_PADEL_BALL_BACKEND: PadelBallBackend = "opencv";
+
+export const CV_PIPELINE_DEFAULT_TIMEOUT_MS = 45 * 60 * 1000;
+export const CV_PROCESS_SIGKILL_GRACE_MS = 5 * 1000;
+export const CV_COURT_STAGE_TIMEOUT_MS = 3 * 60 * 1000;
+export const CV_BALL_STAGE_TIMEOUT_MS = 15 * 60 * 1000;
+export const CV_BALL_TRACKNET_TIMEOUT_MS = 45 * 60 * 1000;
+export const CV_RACKET_STAGE_TIMEOUT_MS = 5 * 60 * 1000;
+export const MOBILE_ANALYSIS_TIMEOUT_MS = 45 * 60 * 1000;
+export const RALLY_DETECTION_DEFAULT_TIMEOUT_MS = 45 * 60 * 1000;
+export const YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ── ML thresholds ───────────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ import {
   REFERENCE_TIERS,
   SHOT_TYPES,
 } from "./types";
-import { SAMPLE_FPS } from "./config";
+import { MAX_UPLOAD_BYTES, SAMPLE_FPS } from "./config";
 
 // ── Landmark coordinate schema ──────────────────────────────────────────────
 
@@ -59,6 +59,101 @@ export const racketTrackSampleSchema = z.tuple([
 ]);
 
 export const racketTrackingSchema = z.array(racketTrackSampleSchema);
+
+// ── Mobile tracking sync (client queue → server debug artifact) ───────────────
+
+export const trackingSyncPoseSchema = z.enum([
+  "detected",
+  "missing",
+  "interpolated",
+]);
+
+/**
+ * Lightweight frame-indexed tuple: `[frameIndex, imageX, imageY, poseState]`.
+ *
+ * The browser queue stores these tuples instead of full landmark arrays so
+ * mobile devices can retry sync without retaining raw videos or large JSON.
+ */
+export const trackingSyncTupleSchema = z.tuple([
+  z.number().int().min(0),
+  z.number().finite(),
+  z.number().finite(),
+  trackingSyncPoseSchema,
+]);
+
+export const trackingSyncInputSchema = z.object({
+  sessionId: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_.:-]+$/),
+  source: z.enum(["client-pose", "mobile-upload-debug"]),
+  sequence: z.number().int().min(0),
+  tuples: z.array(trackingSyncTupleSchema).min(1).max(1_000),
+  clientCreatedAt: z.string().datetime().optional(),
+});
+
+// ── Direct-to-bucket upload (presigned URL flow) ─────────────────────────────
+
+export const initiateUploadInputSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(128),
+  contentLength: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+});
+
+export const presignedSingleUploadSchema = z.object({
+  mode: z.literal("single"),
+  storageKey: z.string().min(1),
+  uploadUrl: z.string().url(),
+  method: z.literal("PUT"),
+  headers: z.record(z.string()),
+});
+
+export const presignedMultipartUploadSchema = z.object({
+  mode: z.literal("multipart"),
+  storageKey: z.string().min(1),
+  uploadId: z.string().min(1),
+  partSize: z.number().int().positive(),
+  parts: z.array(
+    z.object({
+      partNumber: z.number().int().positive(),
+      uploadUrl: z.string().url(),
+    })
+  ).min(1),
+});
+
+export const localUploadFallbackSchema = z.object({
+  mode: z.literal("local"),
+  uploadUrl: z.literal("/api/upload"),
+});
+
+export const initiateUploadResponseSchema = z.discriminatedUnion("mode", [
+  presignedSingleUploadSchema,
+  presignedMultipartUploadSchema,
+  localUploadFallbackSchema,
+]);
+
+export const completeUploadInputSchema = z.object({
+  storageKey: z.string().min(1),
+  contentLength: z.number().int().positive().max(MAX_UPLOAD_BYTES).optional(),
+  uploadId: z.string().min(1).optional(),
+  parts: z
+    .array(
+      z.object({
+        partNumber: z.number().int().positive(),
+        etag: z.string().min(1),
+      })
+    )
+    .optional(),
+});
+
+export const completeUploadResponseSchema = z.object({
+  storageKey: z.string().min(1),
+});
+
+export const uploadCapabilitiesSchema = z.object({
+  mode: z.enum(["cloud", "local"]),
+});
 
 // ── Phase metrics (angles + velocity) ───────────────────────────────────────
 
@@ -215,6 +310,29 @@ export const analysisJobSchema = z.object({
   stages: z.array(analysisJobStageProgressSchema).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+export const analysisJobIdInputSchema = analysisJobSchema.pick({ id: true });
+
+export const analysisJobGetInputSchema = analysisJobIdInputSchema.extend({
+  includeTracking: z.boolean().optional().default(false),
+});
+
+/** Metadata for CV tracking arrays hydrated from on-disk agent artifacts. */
+export const trackingMetaSchema = z.object({
+  sourceJobId: z.number().int().positive().nullable(),
+  ballSampleCount: z.number().int().min(0),
+  racketSampleCount: z.number().int().min(0),
+});
+
+/**
+ * Completed mobile job poll with ball/racket tracks merged from
+ * `data/analysis-agents/job-{id}.json` when `analysisId` is set.
+ */
+export const analysisJobDetailSchema = analysisJobSchema.extend({
+  ballTracking: ballTrackingSchema.default([]),
+  racketTracking: racketTrackingSchema.default([]),
+  trackingMeta: trackingMetaSchema,
 });
 
 // ── tRPC create-analysis input (what the client sends to the server) ────────
@@ -452,6 +570,14 @@ export type BallTrackSample = z.infer<typeof ballTrackSampleSchema>;
 export type BallTrackingPayload = z.infer<typeof ballTrackingSchema>;
 export type RacketTrackSample = z.infer<typeof racketTrackSampleSchema>;
 export type RacketTrackingPayload = z.infer<typeof racketTrackingSchema>;
+export type TrackingSyncPose = z.infer<typeof trackingSyncPoseSchema>;
+export type TrackingSyncTuple = z.infer<typeof trackingSyncTupleSchema>;
+export type TrackingSyncInput = z.infer<typeof trackingSyncInputSchema>;
+export type InitiateUploadInput = z.infer<typeof initiateUploadInputSchema>;
+export type InitiateUploadResponse = z.infer<typeof initiateUploadResponseSchema>;
+export type CompleteUploadInput = z.infer<typeof completeUploadInputSchema>;
+export type CompleteUploadResponse = z.infer<typeof completeUploadResponseSchema>;
+export type UploadCapabilities = z.infer<typeof uploadCapabilitiesSchema>;
 export type PhaseMetricsPayload = z.infer<typeof phaseMetricsSchema>;
 export type SwingPhasePayload = z.infer<typeof swingPhaseSchema>;
 export type AnalysisResultPayload = z.infer<typeof analysisResultSchema>;
@@ -466,10 +592,14 @@ export type AnalysisJobStatus = z.infer<typeof analysisJobStatusSchema>;
 export type AnalysisJobStageId = z.infer<typeof analysisJobStageIdSchema>;
 export type AnalysisJobStageStatus = z.infer<typeof analysisJobStageStatusSchema>;
 export type AnalysisJobStageProgress = z.infer<typeof analysisJobStageProgressSchema>;
+export type AnalysisJobIdInput = z.infer<typeof analysisJobIdInputSchema>;
+export type AnalysisJobGetInput = z.infer<typeof analysisJobGetInputSchema>;
 export type CreateMobileAnalysisJobInput = z.infer<
   typeof createMobileAnalysisJobInputSchema
 >;
 export type AnalysisJobPayload = z.infer<typeof analysisJobSchema>;
+export type TrackingMeta = z.infer<typeof trackingMetaSchema>;
+export type AnalysisJobDetailPayload = z.infer<typeof analysisJobDetailSchema>;
 export type AnnotationCreateInput = z.infer<typeof annotationCreateInputSchema>;
 export type AnnotationUpdateInput = z.infer<typeof annotationUpdateInputSchema>;
 export type RallySignals = z.infer<typeof rallySignalsSchema>;

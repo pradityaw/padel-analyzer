@@ -28,8 +28,11 @@ import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 import { getDataRoot, getUploadsDir } from "./paths.js";
+import {
+  RALLY_DETECTION_DEFAULT_TIMEOUT_MS,
+} from "../../shared/config.js";
+import { terminateChildWithEscalation } from "./managedSubprocess.js";
 
-const DEFAULT_TIMEOUT_MS = 4 * 60 * 1000;
 const DEFAULT_MAX_STDOUT_BYTES = 8 * 1024 * 1024;
 const MAX_STDERR_BYTES = 64 * 1024;
 
@@ -127,7 +130,7 @@ function coerceSignals(raw: Record<string, unknown> | undefined) {
   return out;
 }
 
-function snakeToCamel(payload: RawPayload, analysisId: number): RallyDetectionResult {
+function snakeToCamel(payload: RawPayload, analysisId?: number): RallyDetectionResult {
   const fps = pickNumber(payload.fps);
   const frameCount = Math.max(0, Math.floor(pickNumber(payload.frame_count)));
   const durationMs = Math.max(0, pickNumber(payload.duration_ms));
@@ -158,7 +161,7 @@ function snakeToCamel(payload: RawPayload, analysisId: number): RallyDetectionRe
   });
 
   const result = {
-    analysisId,
+    ...(analysisId != null && analysisId > 0 ? { analysisId } : {}),
     fps,
     frameCount,
     durationMs,
@@ -241,7 +244,7 @@ function spawnDetector(
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      child.kill("SIGTERM");
+      terminateChildWithEscalation(child);
       reject(new RallyDetectionError("Rally detection timed out.", "TIMEOUT"));
     }, timeoutMs);
 
@@ -250,7 +253,7 @@ function spawnDetector(
       if (stdoutBytes > maxStdoutBytes && !settled) {
         settled = true;
         clearTimeout(timer);
-        child.kill("SIGTERM");
+        terminateChildWithEscalation(child);
         reject(
           new RallyDetectionError(
             "Rally detection output exceeded the size limit.",
@@ -385,7 +388,7 @@ export async function detectRalliesForAnalysis(
     }
 
     const timeoutMs = Number(
-      process.env.RALLY_DETECTION_TIMEOUT_MS || DEFAULT_TIMEOUT_MS
+      process.env.RALLY_DETECTION_TIMEOUT_MS || RALLY_DETECTION_DEFAULT_TIMEOUT_MS
     );
     const maxStdoutBytes = Number(
       process.env.RALLY_DETECTION_MAX_STDOUT_BYTES || DEFAULT_MAX_STDOUT_BYTES
@@ -411,4 +414,18 @@ export async function getCachedRallies(
   const cached = await readCache(analysisId);
   if (!cached) return null;
   return { ...cached, analysisId };
+}
+
+/** Rally detection for a local video path (used before analysis jobs). */
+export async function detectRalliesForVideo(
+  videoPath: string
+): Promise<RallyDetectionResult> {
+  const timeoutMs = Number(
+    process.env.RALLY_DETECTION_TIMEOUT_MS || RALLY_DETECTION_DEFAULT_TIMEOUT_MS
+  );
+  const maxStdoutBytes = Number(
+    process.env.RALLY_DETECTION_MAX_STDOUT_BYTES || DEFAULT_MAX_STDOUT_BYTES
+  );
+  const raw = await spawnDetector(videoPath, timeoutMs, maxStdoutBytes);
+  return snakeToCamel(raw);
 }

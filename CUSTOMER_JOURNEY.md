@@ -33,7 +33,7 @@ Sessions list with a line chart (score progress) and session cards. Empty state 
 Get a video into the system as frictionlessly as possible.
 
 ### Entry Paths
-1. **File upload** — drag/drop or file picker (.mp4, .mov, .webm, max 500 MB)
+1. **File upload** — drag/drop or file picker (.mp4, .mov, .webm, up to 2 GB)
 2. **YouTube link** — paste URL → preview card with thumbnail, title, duration
 
 ### Current State

@@ -16,7 +16,7 @@ type UploadResponse = {
 
 // Mirror of MAX_UPLOAD_BYTES in shared/config.ts. The mobile app does not
 // import from shared/ to preserve build independence (see mobile/CLAUDE.md).
-const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
 /** Video source from Photos, Files, or in-app camera — not tied to DocumentPicker. */
@@ -118,7 +118,7 @@ export async function createMobileAnalysisJob(input: {
 }
 
 export async function getMobileAnalysisJob(jobId: number) {
-  return (await trpc.query("mobileAnalysis.getById", { id: jobId })) as
+  return (await trpc.query("mobileAnalysis.getProgress", { id: jobId })) as
     | AnalysisJob
     | null;
 }

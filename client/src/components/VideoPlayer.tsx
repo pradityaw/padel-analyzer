@@ -12,6 +12,8 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  Rewind,
+  FastForward,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -32,7 +34,11 @@ import {
   resolveFrameAtTime,
   type FrameSyncIndex,
 } from "@/lib/frameSync";
-import { buildBallPositionsForFrames } from "@/lib/ballTracking";
+import { buildPackedBallTrackForFrames } from "@/lib/ballTracking";
+import {
+  isOverlayStressMode,
+  startOverlayStressTest,
+} from "@/lib/overlay/stressTest";
 import { buildRacketPositionsForFrames } from "@/lib/racketTracking";
 import type {
   BallTrackSample,
@@ -52,6 +58,20 @@ export type VideoPlayerHandle = {
   seekToFrameIndex: (frameIndex: number) => void;
   seekToTimeSec: (timeSec: number) => void;
 };
+
+const SEEK_STEP_OPTIONS_SEC = [5, 10, 30] as const;
+
+function formatVideoTime(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "0:00";
+  const total = Math.floor(sec);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 type Props = {
   videoUrl: string;
@@ -118,6 +138,7 @@ function VideoPlayerInner(
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [videoDurationSec, setVideoDurationSec] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [seekStepSec, setSeekStepSec] = useState<number>(10);
   const [dimensions, setDimensions] = useState({ w: 640, h: 480 });
   const [activePhaseType, setActivePhaseType] = useState<SwingPhaseType>();
   const [contactFlash, setContactFlash] = useState(false);
@@ -132,12 +153,21 @@ function VideoPlayerInner(
   const frameSyncRef = useRef(frameSync);
   frameSyncRef.current = frameSync;
 
-  const effectiveBallPositions = useMemo(
+  const effectiveBallTrack = useMemo(
     () =>
-      ballPositions ??
-      buildBallPositionsForFrames(frames, ballTracking, frameSync, dimensions),
+      ballPositions
+        ? { positions: ballPositions, confidences: undefined }
+        : buildPackedBallTrackForFrames(
+            frames,
+            ballTracking,
+            frameSync,
+            dimensions
+          ),
     [ballPositions, ballTracking, dimensions, frameSync, frames]
   );
+
+  const effectiveBallPositions = effectiveBallTrack?.positions;
+  const effectiveBallConfidences = effectiveBallTrack?.confidences;
 
   const effectiveRacketPositions = useMemo(
     () =>
@@ -185,6 +215,7 @@ function VideoPlayerInner(
     dimensions,
     dominantSide,
     ballPositions: effectiveBallPositions,
+    ballConfidences: effectiveBallConfidences,
     racketPositions: effectiveRacketPositions,
   });
 
@@ -292,6 +323,13 @@ function VideoPlayerInner(
   );
 
   useEffect(() => {
+    if (!isOverlayStressMode()) return;
+    const canvas = canvasRef.current;
+    if (!canvas || !videoUrl) return;
+    return startOverlayStressTest({ canvas, durationSec: 5 });
+  }, [videoUrl, dimensions.w, dimensions.h]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
@@ -333,6 +371,49 @@ function VideoPlayerInner(
     } else {
       v.pause();
     }
+  };
+
+  const seekBySeconds = useCallback(
+    (deltaSec: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      video.pause();
+      setPlaying(false);
+      cancelFrameLoop();
+
+      const duration =
+        Number.isFinite(video.duration) && video.duration > 0
+          ? video.duration
+          : videoDurationSec;
+      const nextTime = Math.max(
+        0,
+        Math.min(duration > 0 ? duration : Infinity, video.currentTime + deltaSec)
+      );
+
+      video.currentTime = nextTime;
+      resetSyncCache();
+      lastUiFrameRef.current = -1;
+      resetPlaybackSpeedsRef.current();
+      syncToCurrentTime({ forceTimeUi: true });
+    },
+    [
+      cancelFrameLoop,
+      resetSyncCache,
+      syncToCurrentTime,
+      videoDurationSec,
+    ]
+  );
+
+  const cycleSeekStep = () => {
+    setSeekStepSec((current) => {
+      const idx = SEEK_STEP_OPTIONS_SEC.indexOf(
+        current as (typeof SEEK_STEP_OPTIONS_SEC)[number]
+      );
+      const nextIdx =
+        idx < 0 ? 0 : (idx + 1) % SEEK_STEP_OPTIONS_SEC.length;
+      return SEEK_STEP_OPTIONS_SEC[nextIdx]!;
+    });
   };
 
   const stepFrame = (dir: -1 | 1) => {
@@ -473,44 +554,26 @@ function VideoPlayerInner(
         />
       )}
 
-      {activePhaseType && phases.length > 0 && (
-        <div className="h-1 w-full bg-slate-800">
-          {phases.map((phase) => {
-            const left =
-              (phase.startFrame / (phases[phases.length - 1]?.endFrame || 1)) *
-              100;
-            const width =
-              ((phase.endFrame - phase.startFrame) /
-                (phases[phases.length - 1]?.endFrame || 1)) *
-              100;
-            return (
-              <div
-                key={phase.type}
-                className="absolute h-1 transition-opacity"
-                style={{
-                  left: `${left}%`,
-                  width: `${width}%`,
-                  backgroundColor: PHASE_COLORS[phase.type],
-                  opacity: phase.type === activePhaseType ? 1 : 0.3,
-                }}
-              />
-            );
-          })}
-        </div>
+      {(videoDurationSec > 0 || phases.length > 0) && (
+        <PhaseTimelineBar
+          phases={phases}
+          activePhaseType={activePhaseType}
+          currentTimeSec={currentTimeSec}
+          videoDurationSec={videoDurationSec}
+          sampleFps={sampleFps}
+          seekStepSec={seekStepSec}
+          onSeekBack={() => seekBySeconds(-seekStepSec)}
+          onSeekForward={() => seekBySeconds(seekStepSec)}
+          onCycleSeekStep={cycleSeekStep}
+        />
       )}
 
-      <div className="flex items-center gap-2 p-3 bg-slate-900/90 backdrop-blur">
-        <button
-          type="button"
-          onClick={() => stepFrame(-1)}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-        >
-          <SkipBack className="w-4 h-4" />
-        </button>
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-900/90 backdrop-blur">
         <button
           type="button"
           onClick={togglePlay}
           className="p-2 rounded-lg bg-padel-green text-black hover:opacity-90 transition-colors"
+          aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? (
             <Pause className="w-4 h-4" />
@@ -518,25 +581,52 @@ function VideoPlayerInner(
             <Play className="w-4 h-4" />
           )}
         </button>
-        <button
-          type="button"
-          onClick={() => stepFrame(1)}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+
+        <div
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60"
+          aria-label="Video time"
         >
-          <SkipForward className="w-4 h-4" />
-        </button>
+          <span className="text-xs font-mono tabular-nums text-white min-w-[3.25rem] text-right">
+            {formatVideoTime(currentTimeSec)}
+          </span>
+          <span className="text-xs text-slate-500">/</span>
+          <span className="text-xs font-mono tabular-nums text-slate-400 min-w-[3.25rem]">
+            {formatVideoTime(videoDurationSec)}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 border-l border-slate-700/70 pl-2">
+          <button
+            type="button"
+            onClick={() => stepFrame(-1)}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+            title="Previous frame"
+            aria-label="Previous frame"
+          >
+            <SkipBack className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => stepFrame(1)}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+            title="Next frame"
+            aria-label="Next frame"
+          >
+            <SkipForward className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         <button
           type="button"
           onClick={changeSpeed}
-          className="ml-2 px-2 py-1 rounded text-xs font-mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors min-w-[38px] text-center"
+          className="px-2 py-1 rounded text-xs font-mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors min-w-[38px] text-center"
         >
           {playbackRate}x
         </button>
 
-        <div className="flex-1" />
+        <div className="flex-1 min-w-[1rem]" />
 
-        <span className="text-xs text-slate-500 font-mono">
+        <span className="text-xs text-slate-500 font-mono tabular-nums">
           Frame {frames[currentFrame]?.frameIndex ?? 0}
         </span>
 
@@ -544,6 +634,7 @@ function VideoPlayerInner(
           type="button"
           onClick={() => setShowSkeleton(!showSkeleton)}
           className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          aria-label={showSkeleton ? "Hide skeleton overlay" : "Show skeleton overlay"}
         >
           {showSkeleton ? (
             <Eye className="w-4 h-4" />
@@ -635,6 +726,107 @@ function LiveSpeedDash({
       <div className="rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[10px] font-medium text-slate-400 backdrop-blur">
         {calibrated ? "Court-calibrated" : "Calibration pending"} · {racketSourceLabel}
       </div>
+    </div>
+  );
+}
+
+type PhaseTimelineBarProps = {
+  phases: SwingPhase[];
+  activePhaseType?: SwingPhaseType;
+  currentTimeSec: number;
+  videoDurationSec: number;
+  sampleFps: number;
+  seekStepSec: number;
+  onSeekBack: () => void;
+  onSeekForward: () => void;
+  onCycleSeekStep: () => void;
+};
+
+function PhaseTimelineBar({
+  phases,
+  activePhaseType,
+  currentTimeSec,
+  videoDurationSec,
+  sampleFps,
+  seekStepSec,
+  onSeekBack,
+  onSeekForward,
+  onCycleSeekStep,
+}: PhaseTimelineBarProps) {
+  const lastPhaseFrame = phases[phases.length - 1]?.endFrame ?? 0;
+  const phaseDurationSec =
+    lastPhaseFrame > 0 && sampleFps > 0 ? lastPhaseFrame / sampleFps : 0;
+  const timelineDurationSec =
+    videoDurationSec > 0 ? videoDurationSec : phaseDurationSec;
+  const playheadPct =
+    timelineDurationSec > 0
+      ? Math.max(0, Math.min(100, (currentTimeSec / timelineDurationSec) * 100))
+      : 0;
+
+  return (
+    <div className="flex items-stretch w-full bg-slate-900/95 border-y border-slate-700/60">
+      <button
+        type="button"
+        onClick={onSeekBack}
+        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+        title={`Back ${seekStepSec} seconds`}
+        aria-label={`Back ${seekStepSec} seconds`}
+      >
+        <Rewind className="w-3.5 h-3.5" />
+      </button>
+
+      <div className="relative flex-1 h-6 min-w-0">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-slate-700 overflow-hidden">
+          {phases.length > 0 ? (
+            phases.map((phase) => {
+              const denom = lastPhaseFrame || 1;
+              const left = (phase.startFrame / denom) * 100;
+              const width = ((phase.endFrame - phase.startFrame) / denom) * 100;
+              return (
+                <div
+                  key={phase.type}
+                  className="absolute top-0 h-full transition-opacity"
+                  style={{
+                    left: `${left}%`,
+                    width: `${width}%`,
+                    backgroundColor: PHASE_COLORS[phase.type],
+                    opacity: phase.type === activePhaseType ? 1 : 0.35,
+                  }}
+                />
+              );
+            })
+          ) : (
+            <div
+              className="absolute top-0 left-0 h-full bg-padel-green/50"
+              style={{ width: `${playheadPct}%` }}
+            />
+          )}
+        </div>
+        <div
+          className="absolute top-0 bottom-0 w-0.5 -ml-px bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)] pointer-events-none z-10"
+          style={{ left: `${playheadPct}%` }}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={onSeekForward}
+        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+        title={`Forward ${seekStepSec} seconds`}
+        aria-label={`Forward ${seekStepSec} seconds`}
+      >
+        <FastForward className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onCycleSeekStep}
+        className="shrink-0 px-2 text-[10px] font-mono text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors border-l border-slate-700/60"
+        title="Change skip interval"
+        aria-label={`Skip interval ${seekStepSec} seconds, click to change`}
+      >
+        {seekStepSec}s
+      </button>
     </div>
   );
 }

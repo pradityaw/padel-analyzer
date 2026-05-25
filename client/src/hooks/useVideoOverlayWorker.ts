@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FrameLandmarks } from "@shared/types";
 import type { OverlayLayerFlags } from "@shared/overlayTypes";
 import { drawOverlayFrame } from "@/lib/overlay/drawOverlay";
+import { OverlayFrameBudget } from "@/lib/overlay/overlayFrameBudget";
+import { isOverlayStressMode } from "@/lib/overlay/stressTest";
 import { resolveOverlayRenderMode } from "@/lib/overlay/overlayCapability";
 import {
   getOverlayPayloadTransferables,
@@ -54,6 +56,8 @@ export function useVideoOverlayWorker({
   const payloadRef = useRef<PackedOverlayPayload | null>(null);
   const fallbackCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const fallbackRafRef = useRef(0);
+  const forceMainThreadRef = useRef(false);
+  const frameBudgetRef = useRef(new OverlayFrameBudget());
 
   const layersRef = useRef<OverlayLayerFlags>({
     skeleton: true,
@@ -125,6 +129,7 @@ export function useVideoOverlayWorker({
     }
     workerReadyRef.current = false;
     transferredRef.current = false;
+    frameBudgetRef.current.reset();
     setUsingWorker(false);
   }, [cancelFallbackRaf]);
 
@@ -161,10 +166,16 @@ export function useVideoOverlayWorker({
         return;
       }
 
+      const degrade = frameBudgetRef.current.degradeForFrame();
+      const t0 = performance.now();
+
       drawOverlayFrame(ctx, payload, arrayIdx, w, h, {
         layers: layersRef.current,
         highlightContact: options.highlightContact,
+        degrade,
       });
+
+      frameBudgetRef.current.record(performance.now() - t0);
     },
     [getFallbackContext]
   );
@@ -236,6 +247,7 @@ export function useVideoOverlayWorker({
   const handleWorkerFailure = useCallback(
     (reason: string, err?: unknown) => {
       console.warn("[overlay-worker]", reason, err);
+      forceMainThreadRef.current = true;
       const pending = pendingPaintRef.current;
       recoverCanvasAfterTransfer();
       disposeWorker();
@@ -251,8 +263,10 @@ export function useVideoOverlayWorker({
   useEffect(() => {
     let cancelled = false;
 
+    if (isOverlayStressMode()) return;
+
     void resolveOverlayRenderMode().then((mode) => {
-      if (cancelled || mode !== "worker") return;
+      if (cancelled || forceMainThreadRef.current || mode !== "worker") return;
 
       const canvas = canvasRef.current;
       if (!canvas || transferredRef.current) return;
@@ -293,20 +307,34 @@ export function useVideoOverlayWorker({
       };
 
       try {
+        if (typeof canvas.transferControlToOffscreen !== "function") {
+          throw new Error("transferControlToOffscreen is not available");
+        }
+
         const offscreen = canvas.transferControlToOffscreen();
+        if (!(offscreen instanceof OffscreenCanvas)) {
+          throw new Error("transferControlToOffscreen did not return OffscreenCanvas");
+        }
+
         transferredRef.current = true;
         fallbackCtxRef.current = null;
-        worker.postMessage(
-          {
-            type: "init",
-            width: dimensionsRef.current.w,
-            height: dimensionsRef.current.h,
-            canvas: offscreen,
-          },
-          [offscreen]
-        );
+
+        try {
+          worker.postMessage(
+            {
+              type: "init",
+              width: dimensionsRef.current.w,
+              height: dimensionsRef.current.h,
+              canvas: offscreen,
+            },
+            [offscreen]
+          );
+        } catch (err) {
+          transferredRef.current = false;
+          throw err;
+        }
       } catch (err) {
-        handleWorkerFailure("transferControlToOffscreen failed", err);
+        handleWorkerFailure("OffscreenCanvas transfer failed", err);
       }
     });
 
@@ -325,6 +353,7 @@ export function useVideoOverlayWorker({
   // Push packed payload when frames or ball data change.
   useEffect(() => {
     payloadRef.current = packOverlayPayload(frames, ballPositions);
+    frameBudgetRef.current.reset();
     resetRenderCache();
 
     const worker = workerRef.current;

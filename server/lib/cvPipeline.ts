@@ -4,8 +4,11 @@ import path from "path";
 import type { CvPipelineInput, CvPipelineResult } from "../../shared/schema.js";
 import { cvPipelineResultSchema } from "../../shared/schema.js";
 import { getDataRoot, getUploadsDir } from "./paths.js";
+import {
+  CV_PIPELINE_DEFAULT_TIMEOUT_MS,
+} from "../../shared/config.js";
+import { terminateChildWithEscalation } from "./managedSubprocess.js";
 
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_MAX_STDOUT_BYTES = 25 * 1024 * 1024;
 const MAX_STDERR_BYTES = 64 * 1024;
 
@@ -87,7 +90,9 @@ export async function runCvPipeline(input: CvPipelineInput): Promise<CvPipelineR
     args.push("--skip-export");
   }
 
-  const timeoutMs = Number(process.env.CV_PIPELINE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
+  const timeoutMs = Number(
+    process.env.CV_PIPELINE_TIMEOUT_MS || CV_PIPELINE_DEFAULT_TIMEOUT_MS
+  );
   const maxStdoutBytes = Number(process.env.CV_PIPELINE_MAX_STDOUT_BYTES || DEFAULT_MAX_STDOUT_BYTES);
 
   return new Promise<CvPipelineResult>((resolve, reject) => {
@@ -106,7 +111,7 @@ export async function runCvPipeline(input: CvPipelineInput): Promise<CvPipelineR
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      child.kill("SIGTERM");
+      terminateChildWithEscalation(child);
       reject(new CvPipelineError("CV pipeline timed out.", "PROCESS_FAILED"));
     }, timeoutMs);
 
@@ -115,7 +120,7 @@ export async function runCvPipeline(input: CvPipelineInput): Promise<CvPipelineR
       if (stdoutBytes > maxStdoutBytes && !settled) {
         settled = true;
         clearTimeout(timer);
-        child.kill("SIGTERM");
+        terminateChildWithEscalation(child);
         reject(new CvPipelineError("CV pipeline output exceeded the size limit.", "PROCESS_FAILED"));
         return;
       }

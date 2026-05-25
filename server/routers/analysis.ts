@@ -11,6 +11,7 @@ import {
   createAnalysisInputSchema,
   detectRalliesInputSchema,
   rallyDetectionResultSchema,
+  trackingMetaSchema,
 } from "../../shared/schema.js";
 import {
   RallyDetectionError,
@@ -67,15 +68,17 @@ export const analysisRouter = router({
         readAnalysisRacketTracking(sourceJobId, result.landmarksJson),
       ]);
 
+      const trackingMeta = trackingMetaSchema.parse({
+        sourceJobId,
+        ballSampleCount: ballRaw.length,
+        racketSampleCount: racketRaw.length,
+      });
+
       return {
         ...result,
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
-        trackingMeta: {
-          sourceJobId,
-          ballSampleCount: ballRaw.length,
-          racketSampleCount: racketRaw.length,
-        },
+        trackingMeta,
       };
     }),
 

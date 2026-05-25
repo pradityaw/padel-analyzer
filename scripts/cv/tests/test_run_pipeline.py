@@ -219,4 +219,67 @@ def test_run_agent_stage_ball_payload(monkeypatch):
         "frames_processed": 10,
         "track_points": 1,
         "shot_count": 1,
+        "backend": "opencv",
     }
+
+
+def test_run_agent_stage_ball_uses_tracknet_backend(monkeypatch):
+    class CourtModule:
+        @staticmethod
+        def track_ball_and_shots_with_tracknet(
+            _video_path: str, rally_windows_path: str | None = None
+        ):
+            return {
+                "court": {"homography": None},
+                "ball_track": [{"frame_idx": 1}, {"frame_idx": 2}],
+                "shots": [],
+                "summary": {"frames_processed": 12, "track_points": 2, "shot_count": 0},
+            }
+
+        @staticmethod
+        def track_ball_and_shots(_video_path: str):
+            raise AssertionError("OpenCV fallback should not run")
+
+    monkeypatch.setitem(__import__("sys").modules, "court_mapping", CourtModule)
+    monkeypatch.setenv("PADEL_BALL_BACKEND", "tracknet")
+
+    result = run_agent_stage.run_ball_agent("match.mp4")
+
+    assert result["summary"] == {
+        "frames_processed": 12,
+        "track_points": 2,
+        "shot_count": 0,
+        "backend": "tracknet",
+    }
+
+
+def test_run_agent_stage_ball_falls_back_from_tracknet(monkeypatch, capsys):
+    class CourtModule:
+        @staticmethod
+        def track_ball_and_shots_with_tracknet(
+            _video_path: str, rally_windows_path: str | None = None
+        ):
+            raise RuntimeError("missing model")
+
+        @staticmethod
+        def track_ball_and_shots(_video_path: str):
+            return {
+                "court": {"homography": None},
+                "ball_track": [],
+                "shots": [],
+                "summary": {"frames_processed": 4, "track_points": 0, "shot_count": 0},
+            }
+
+    monkeypatch.setitem(__import__("sys").modules, "court_mapping", CourtModule)
+    monkeypatch.setenv("PADEL_BALL_BACKEND", "tracknet")
+
+    result = run_agent_stage.run_ball_agent("match.mp4")
+
+    assert result["summary"] == {
+        "frames_processed": 4,
+        "track_points": 0,
+        "shot_count": 0,
+        "backend": "opencv",
+        "backend_fallback": True,
+    }
+    assert "TrackNet backend failed" in capsys.readouterr().err

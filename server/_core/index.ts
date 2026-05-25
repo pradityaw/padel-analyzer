@@ -4,20 +4,19 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers/index.js";
 import path from "path";
 import { mkdirSync } from "fs";
-import { fileURLToPath } from "url";
 import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
+import { resolveProjectRoot } from "../lib/projectRoot.js";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
+const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
 
 mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
-app.use(express.json({ limit: "500mb" }));
+app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
 
@@ -69,22 +68,16 @@ app.use(
 
 app.use("/uploads", express.static(uploadsDir));
 
-const isProd = process.env.NODE_ENV === "production";
-
-if (isProd) {
+// Inline NODE_ENV check so esbuild can dead-code-eliminate the dev branch in production bundles.
+if (process.env.NODE_ENV === "production") {
   const publicDir = path.join(rootDir, "dist/public");
   app.use(express.static(publicDir));
-  app.get("*", (_req, res) => {
+  app.get("/*splat", (_req, res) => {
     res.sendFile(path.join(publicDir, "index.html"));
   });
 } else {
-  const { createServer: createViteServer } = await import("vite");
-  const vite = await createViteServer({
-    configFile: path.join(rootDir, "vite.config.ts"),
-    server: { middlewareMode: true },
-    appType: "spa",
-  });
-  app.use(vite.middlewares);
+  const { attachViteDevMiddleware } = await import("./viteDev.js");
+  await attachViteDevMiddleware(app, rootDir);
 }
 
 const PORT = parseInt(process.env.PORT || "3001", 10);

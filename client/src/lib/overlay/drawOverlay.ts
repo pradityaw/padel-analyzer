@@ -1,5 +1,6 @@
 import { SKELETON_CONNECTIONS } from "@shared/skeletonConnections";
 import type { Landmark } from "@shared/types";
+import type { OverlayDegradeFlags } from "./overlayFrameBudget";
 import type { OverlayLayerFlags, PackedOverlayPayload } from "@shared/overlayTypes";
 
 const REGION_COLORS: Record<string, string> = {
@@ -122,34 +123,37 @@ export function drawBallFromPacked(
   payload: PackedOverlayPayload,
   arrayIdx: number,
   width: number,
-  height: number
+  height: number,
+  options?: { skipTrail?: boolean }
 ): void {
   const ball = payload.ballPositions;
   if (!ball || arrayIdx < 0 || arrayIdx >= payload.frameCount) return;
 
-  const trailStart = Math.max(0, arrayIdx - BALL_TRAIL_LENGTH);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = BALL_TRAIL_COLOR;
-  ctx.beginPath();
-  let started = false;
+  if (!options?.skipTrail) {
+    const trailStart = Math.max(0, arrayIdx - BALL_TRAIL_LENGTH);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = BALL_TRAIL_COLOR;
+    ctx.beginPath();
+    let started = false;
 
-  for (let i = trailStart; i <= arrayIdx; i++) {
-    const x = ball[i * 2]!;
-    const y = ball[i * 2 + 1]!;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      started = false;
-      continue;
+    for (let i = trailStart; i <= arrayIdx; i++) {
+      const x = ball[i * 2]!;
+      const y = ball[i * 2 + 1]!;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        started = false;
+        continue;
+      }
+      const px = x * width;
+      const py = y * height;
+      if (!started) {
+        ctx.moveTo(px, py);
+        started = true;
+      } else {
+        ctx.lineTo(px, py);
+      }
     }
-    const px = x * width;
-    const py = y * height;
-    if (!started) {
-      ctx.moveTo(px, py);
-      started = true;
-    } else {
-      ctx.lineTo(px, py);
-    }
+    if (started) ctx.stroke();
   }
-  if (started) ctx.stroke();
 
   const cx = ball[arrayIdx * 2]!;
   const cy = ball[arrayIdx * 2 + 1]!;
@@ -166,6 +170,7 @@ export type DrawOverlayOptions = {
   layers: OverlayLayerFlags;
   highlightContact?: boolean;
   opacity?: number;
+  degrade?: OverlayDegradeFlags;
 };
 
 /** Clear canvas and draw all enabled overlay layers for the given frame index. */
@@ -180,8 +185,9 @@ export function drawOverlayFrame(
   ctx.clearRect(0, 0, width, height);
 
   if (arrayIdx < 0 || arrayIdx >= payload.frameCount) return;
+  if (options.degrade?.skipAllLayers) return;
 
-  if (options.layers.skeleton) {
+  if (options.layers.skeleton && !options.degrade?.skipSkeleton) {
     drawSkeletonFromPacked(ctx, payload, arrayIdx, width, height, {
       highlightContact: options.highlightContact,
       opacity: options.opacity,
@@ -189,6 +195,8 @@ export function drawOverlayFrame(
   }
 
   if (options.layers.ball) {
-    drawBallFromPacked(ctx, payload, arrayIdx, width, height);
+    drawBallFromPacked(ctx, payload, arrayIdx, width, height, {
+      skipTrail: options.degrade?.skipBallTrail,
+    });
   }
 }

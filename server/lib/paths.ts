@@ -22,3 +22,11 @@ export function getThumbnailsDir(): string {
 export function getLandmarksDir(): string {
   return path.join(getDataRoot(), "landmarks");
 }
+
+export function getTrackingSyncDir(): string {
+  return path.join(getDataRoot(), "tracking-sync");
+}
+
+export function getAnalysisTimingDir(): string {
+  return path.join(getDataRoot(), "analysis-timing");
+}

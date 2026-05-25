@@ -13,7 +13,7 @@ test("upload page describes server-side analysis flow", async ({ page }) => {
 test("upload processing UI can be mocked via job polling", async ({ page }) => {
   let pollCount = 0;
 
-  await page.route("**/api/trpc/mobileAnalysis.getById*", async (route) => {
+  await page.route("**/api/trpc/mobileAnalysis.getProgress*", async (route) => {
     pollCount += 1;
     const status =
       pollCount >= 2

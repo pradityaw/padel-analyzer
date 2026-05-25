@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { appendFile, mkdir } from "fs/promises";
 import path from "path";
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -10,15 +10,41 @@ import {
   type NewAnalysisJob,
 } from "../../drizzle/schema.js";
 import {
+  analysisJobDetailSchema,
+  analysisJobGetInputSchema,
+  analysisJobIdInputSchema,
   analysisJobSchema,
   createMobileAnalysisJobInputSchema,
+  trackingSyncInputSchema,
+  type TrackingSyncInput,
 } from "../../shared/schema.js";
+import { analyses } from "../../drizzle/schema.js";
+import { readAnalysisBallTracking } from "../lib/ballTracking.js";
+import { readAnalysisRacketTracking } from "../lib/racketTracking.js";
+import {
+  sanitizeBallTrackingPayload,
+  sanitizeRacketTrackingPayload,
+} from "../lib/trackingPayload.js";
 import { scheduleAnalysisJob } from "../lib/analysisJobProcessor.js";
 import {
   getAnalysisJobProgress,
   initializeAnalysisJobProgress,
 } from "../lib/analysisJobProgress.js";
-import { getUploadsDir } from "../lib/paths.js";
+import { getTrackingSyncDir } from "../lib/paths.js";
+import { assertVideoAccessible } from "../lib/videoAccess.js";
+
+function trackingSyncPath(sessionId: string): string {
+  return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
+}
+
+async function appendTrackingSync(input: TrackingSyncInput) {
+  await mkdir(getTrackingSyncDir(), { recursive: true });
+  const record = {
+    ...input,
+    receivedAt: new Date().toISOString(),
+  };
+  await appendFile(trackingSyncPath(input.sessionId), `${JSON.stringify(record)}\n`);
+}
 
 function createJobRecord(input: {
   videoFileName: string;
@@ -41,35 +67,116 @@ function createJobRecord(input: {
   return analysisJobSchema.parse({ ...created, stages });
 }
 
+function hydrateJobProgress(job: typeof analysisJobs.$inferSelect) {
+  return analysisJobSchema.parse({
+    ...job,
+    stages: getAnalysisJobProgress(job.id),
+  });
+}
+
+async function hydrateJobTracking(
+  job: {
+    id: number;
+    analysisId: number | null | undefined;
+  },
+  landmarksJson: string
+) {
+  const [ballRaw, racketRaw] = await Promise.all([
+    readAnalysisBallTracking(job.id, landmarksJson),
+    readAnalysisRacketTracking(job.id, landmarksJson),
+  ]);
+  return {
+    ballTracking: sanitizeBallTrackingPayload(ballRaw),
+    racketTracking: sanitizeRacketTrackingPayload(racketRaw),
+    trackingMeta: {
+      sourceJobId: job.id,
+      ballSampleCount: ballRaw.length,
+      racketSampleCount: racketRaw.length,
+    },
+  };
+}
+
 export const mobileAnalysisRouter = router({
   create: publicProcedure
     .input(createMobileAnalysisJobInputSchema)
     .mutation(async ({ input }) => {
-      const videoPath = path.join(getUploadsDir(), input.videoStorageKey);
-      if (!existsSync(videoPath)) {
+      try {
+        await assertVideoAccessible(input.videoStorageKey);
+      } catch (error) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Uploaded video could not be found on the server. Upload the file again.",
+            error instanceof Error
+              ? error.message
+              : "Uploaded video could not be found. Upload the file again.",
         });
       }
       return createJobRecord(input);
     }),
 
+  syncTracking: publicProcedure
+    .input(trackingSyncInputSchema)
+    .mutation(async ({ input }) => {
+      await appendTrackingSync(input);
+      return {
+        ok: true,
+        accepted: input.tuples.length,
+      };
+    }),
+
   getById: publicProcedure
-    .input(analysisJobSchema.pick({ id: true }))
+    .input(analysisJobGetInputSchema)
+    .query(async ({ input }) => {
+      const job = db
+        .select()
+        .from(analysisJobs)
+        .where(eq(analysisJobs.id, input.id))
+        .get();
+      if (!job) return null;
+
+      const base = hydrateJobProgress(job);
+
+      if (!input.includeTracking) {
+        return base;
+      }
+
+      if (job.analysisId == null) {
+        return analysisJobDetailSchema.parse({
+          ...base,
+          ballTracking: [],
+          racketTracking: [],
+          trackingMeta: {
+            sourceJobId: null,
+            ballSampleCount: 0,
+            racketSampleCount: 0,
+          },
+        });
+      }
+
+      const analysis = db
+        .select({ landmarksJson: analyses.landmarksJson })
+        .from(analyses)
+        .where(eq(analyses.id, job.analysisId))
+        .get();
+
+      const landmarksJson = analysis?.landmarksJson ?? "[]";
+      const tracking = await hydrateJobTracking(job, landmarksJson);
+
+      return analysisJobDetailSchema.parse({
+        ...base,
+        ...tracking,
+      });
+    }),
+
+  getProgress: publicProcedure
+    .input(analysisJobIdInputSchema)
     .query(({ input }) => {
       const job = db
         .select()
         .from(analysisJobs)
         .where(eq(analysisJobs.id, input.id))
         .get();
-      return job
-        ? analysisJobSchema.parse({
-            ...job,
-            stages: getAnalysisJobProgress(job.id),
-          })
-        : null;
+      return job ? hydrateJobProgress(job) : null;
     }),
 
   list: publicProcedure.query(() => {
@@ -101,12 +208,15 @@ export const mobileAnalysisRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Job not found." });
       }
 
-      const videoPath = path.join(getUploadsDir(), job.videoStorageKey);
-      if (!existsSync(videoPath)) {
+      try {
+        await assertVideoAccessible(job.videoStorageKey);
+      } catch (error) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Original video is no longer on the server. Upload the clip again.",
+            error instanceof Error
+              ? error.message
+              : "Original video is no longer available. Upload the clip again.",
         });
       }
 

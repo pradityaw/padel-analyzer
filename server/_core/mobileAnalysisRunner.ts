@@ -1,14 +1,14 @@
 import path from "path";
-import { fileURLToPath } from "url";
 import { existsSync } from "fs";
+import { resolveProjectRoot } from "../lib/projectRoot.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { analysisResultSchema } from "../../shared/schema.js";
+import { MAX_UPLOAD_BYTES, MOBILE_ANALYSIS_TIMEOUT_MS } from "../../shared/config.js";
 
 const execFileAsync = promisify(execFile);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
+const rootDir = resolveProjectRoot(import.meta.url);
 const analyzeScript = path.join(rootDir, "scripts/analyze_video.py");
 const venvPython = path.join(rootDir, ".venv/bin/python3");
 
@@ -41,7 +41,7 @@ function friendlyExecError(err: unknown): AnalysisRunnerError {
   const e = err as { code?: string; killed?: boolean; stderr?: string; message?: string };
   if (e?.killed || e?.code === "ETIMEDOUT") {
     return new AnalysisRunnerError(
-      "Analysis timed out. Try a shorter clip (under 2 minutes).",
+      "Analysis timed out. Try a shorter clip or increase MOBILE_ANALYSIS_TIMEOUT_MS.",
       "TIMEOUT"
     );
   }
@@ -65,7 +65,15 @@ function friendlyExecError(err: unknown): AnalysisRunnerError {
   );
 }
 
-export async function runMobileAnalysis(videoPath: string) {
+export type MobileAnalysisOptions = {
+  rallyWindowsPath?: string;
+  sampleFps?: number;
+};
+
+export async function runMobileAnalysis(
+  videoUri: string,
+  options: MobileAnalysisOptions = {}
+) {
   if (!existsSync(analyzeScript)) {
     throw new AnalysisRunnerError(
       "Analysis script is missing on the server (scripts/analyze_video.py).",
@@ -74,13 +82,29 @@ export async function runMobileAnalysis(videoPath: string) {
   }
 
   const pythonBin = resolvePython();
+  const args = [analyzeScript, videoUri];
+  if (options.rallyWindowsPath) {
+    args.push("--rally-windows", options.rallyWindowsPath);
+  }
+  if (options.sampleFps != null && options.sampleFps > 0) {
+    args.push("--sample-fps", String(Math.floor(options.sampleFps)));
+  }
+
   let stdout: string;
   let stderr: string;
   try {
-    const result = await execFileAsync(pythonBin, [analyzeScript, videoPath], {
+    const result = await execFileAsync(pythonBin, args, {
       cwd: rootDir,
-      timeout: 5 * 60 * 1000,
-      maxBuffer: 50 * 1024 * 1024,
+      timeout: Number(
+        process.env.MOBILE_ANALYSIS_TIMEOUT_MS ||
+          process.env.CV_PIPELINE_TIMEOUT_MS ||
+          MOBILE_ANALYSIS_TIMEOUT_MS
+      ),
+      maxBuffer: 80 * 1024 * 1024,
+      env: {
+        ...process.env,
+        PADEL_VIDEO_MAX_BYTES: String(MAX_UPLOAD_BYTES),
+      },
     });
     stdout = result.stdout;
     stderr = result.stderr;
