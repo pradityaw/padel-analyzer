@@ -355,32 +355,6 @@ export async function collectSlackMessages(opts = {}) {
       appended += 1;
       maxSeenTs = maxTs(maxSeenTs, record.slack_ts);
       await addReaction(token, channelId, record.slack_ts, silent);
-
-      const replyCount = Number(msg.reply_count) || 0;
-      const parentTs = threadParentTs(msg);
-      if (replyCount > 0 && parentTs) {
-        const repliesPage = await fetchThreadReplies({
-          token,
-          channelId,
-          parentTs,
-        });
-        for (const reply of repliesPage.messages || []) {
-          if (String(reply.ts) === parentTs) continue;
-          const replyRecord = await messageToRecord(
-            reply,
-            channelId,
-            token,
-            seen
-          );
-          if (!replyRecord) continue;
-          replyRecord.reply_to_message_id = parseFloat(parentTs);
-          seen.add(replyRecord.slack_ts);
-          appendRecord(replyRecord);
-          appended += 1;
-          maxSeenTs = maxTs(maxSeenTs, replyRecord.slack_ts);
-          await addReaction(token, channelId, replyRecord.slack_ts, silent);
-        }
-      }
     }
   } while (cursor);
 

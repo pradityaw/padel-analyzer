@@ -1,50 +1,19 @@
-# Daily Telegram feedback → Cursor cloud agent → GitHub PRs.
-# Add repo Secrets: CURSOR_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_FEEDBACK_CHAT_ID
-# Optional: TELEGRAM_ALLOWLIST_USER_IDS, FEEDBACK_REPO_URL, FEEDBACK_MODEL,
-#           FEEDBACK_MAX_MESSAGES_PER_RUN, FEEDBACK_MAX_PRS_PER_RUN
-name: Feedback triage
+# DISABLED — this repo uses Slack-only feedback triage.
+# Active workflow: .github/workflows/feedback-triage-slack.yml
+name: Feedback triage (Telegram — disabled)
 
 on:
-  schedule:
-    # ~02:00 UTC ≈ 09:00 Bangkok (UTC+7); adjust for your timezone
-    - cron: "0 2 * * *"
   workflow_dispatch: {}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  triage:
-    if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_FEEDBACK_CHAT_ID != '' }}
+  disabled:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Restore Telegram feedback state
-        uses: actions/cache@v4
-        with:
-          path: qa-artifacts/feedback
-          key: feedback-telegram-state
-          restore-keys: feedback-telegram-state
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run feedback triage
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_FEEDBACK_CHAT_ID: ${{ secrets.TELEGRAM_FEEDBACK_CHAT_ID }}
-          TELEGRAM_ALLOWLIST_USER_IDS: ${{ secrets.TELEGRAM_ALLOWLIST_USER_IDS }}
-          FEEDBACK_REPO_URL: ${{ secrets.FEEDBACK_REPO_URL }}
-          FEEDBACK_MODEL: ${{ secrets.FEEDBACK_MODEL }}
-          FEEDBACK_MAX_MESSAGES_PER_RUN: ${{ secrets.FEEDBACK_MAX_MESSAGES_PER_RUN }}
-          FEEDBACK_MAX_PRS_PER_RUN: ${{ secrets.FEEDBACK_MAX_PRS_PER_RUN }}
-        run: npm run feedback:triage
+      - name: Telegram triage disabled
+        run: |
+          echo "Telegram feedback triage is permanently disabled."
+          echo "Use Actions → Feedback triage (Slack) instead."
+          echo "See scripts/feedback-bot/README.md"
