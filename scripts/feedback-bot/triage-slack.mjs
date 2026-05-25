@@ -14,6 +14,13 @@ import { collectSlackMessages } from "./collect-slack.mjs";
 import { shouldSkipSlackRecord } from "./filter.mjs";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
 import { mergeFeedbackPr, prNumberFromUrl } from "./lib/merge-feedback-pr.mjs";
+import { parseJsonlLines } from "./jsonl.mjs";
+import {
+  resolveSlackChannelId,
+  slackApi,
+  SlackApiError,
+  slackErrorHint,
+} from "./slack.mjs";
 
 const PROMPT_PATH = resolve(
   repoRoot,
@@ -96,11 +103,14 @@ function writeState(next) {
 function loadInboxRecords() {
   if (!existsSync(INBOX_PATH)) return [];
   const text = readFileSync(INBOX_PATH, "utf8");
-  return text
-    .split(/\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
+  const { records, skipped } = parseJsonlLines(text, {
+    label: "slack-inbox.jsonl",
+    log: (msg) => console.warn(`[triage-slack] ${msg}`),
+  });
+  if (skipped > 0) {
+    console.warn(`[triage-slack] Skipped ${skipped} corrupt inbox line(s).`);
+  }
+  return records;
 }
 
 /**
@@ -215,36 +225,34 @@ function extractPrUrl(text) {
   return m ? m[0] : null;
 }
 
-async function slackApi(token, method, body = {}) {
-  const res = await fetch(`https://slack.com/api/${method}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!json.ok) {
-    throw new Error(`Slack ${method} failed: ${json.error || JSON.stringify(json)}`);
-  }
-  return json;
-}
-
 async function sendSlackSummary(token, channelId, lines) {
   const text = lines.join("\n").slice(0, 3000);
-  await slackApi(token, "chat.postMessage", {
-    channel: channelId,
-    text,
-  });
+  try {
+    await slackApi(token, "chat.postMessage", {
+      channel: channelId,
+      text,
+    });
+  } catch (e) {
+    if (e instanceof SlackApiError) {
+      throw new Error(`${e.message}. ${slackErrorHint(e.method, e.error)}`);
+    }
+    throw e;
+  }
 }
 
 async function sendSlackThreadReply(token, channelId, threadTs, text) {
-  await slackApi(token, "chat.postMessage", {
-    channel: channelId,
-    thread_ts: threadTs,
-    text: text.slice(0, 3000),
-  });
+  try {
+    await slackApi(token, "chat.postMessage", {
+      channel: channelId,
+      thread_ts: threadTs,
+      text: text.slice(0, 3000),
+    });
+  } catch (e) {
+    if (e instanceof SlackApiError) {
+      throw new Error(`${e.message}. ${slackErrorHint(e.method, e.error)}`);
+    }
+    throw e;
+  }
 }
 
 async function loadSdk() {
@@ -257,7 +265,13 @@ async function main() {
   loadFeedbackEnv();
 
   const token = process.env.SLACK_BOT_TOKEN;
-  const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+  const rawChannelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+  let channelId = rawChannelId;
+  if (token && rawChannelId) {
+    channelId = await resolveSlackChannelId(token, rawChannelId, {
+      log: (msg) => console.warn(`[triage-slack] ${msg}`),
+    });
+  }
 
   if (args.dryRun && !process.env.SLACK_BOT_TOKEN) {
     console.warn(
