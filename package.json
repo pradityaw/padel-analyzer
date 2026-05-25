@@ -28,7 +28,8 @@
     "mobile:doctor": "npm --prefix mobile run doctor",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "feedback:test-slack-utils": "node scripts/feedback-bot/test-slack-utils.mjs"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.11",
