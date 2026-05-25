@@ -18,15 +18,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Telegram feedback secrets
+        id: telegram-secrets
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_FEEDBACK_CHAT_ID: ${{ secrets.TELEGRAM_FEEDBACK_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_FEEDBACK_CHAT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping Telegram feedback triage because TELEGRAM_BOT_TOKEN or TELEGRAM_FEEDBACK_CHAT_ID is not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.telegram-secrets.outputs.enabled == 'true'
         with:
           node-version: "22"
           cache: npm
 
       - name: Install dependencies
+        if: steps.telegram-secrets.outputs.enabled == 'true'
         run: npm ci
 
       - name: Run feedback triage
+        if: steps.telegram-secrets.outputs.enabled == 'true'
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
