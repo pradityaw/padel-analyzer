@@ -10,9 +10,12 @@ Use this when splitting work across **multiple Cursor chats**, **Composer sessio
 | **A — Client / analysis UX** | UI, MediaPipe, canvas, routing | `client/src/`**, `client/index.html`, `client/public/**`                   | Upload flow, results video player, metrics UI, skeleton overlay, performance of frame loop |
 | **B — Server / data**        | API, DB, YouTube pipeline      | `server/`**, `drizzle/**`, `data/` (runtime only; don’t commit DB blobs)   | tRPC routers, SQLite schema, `youtube.ts` / `yt-dlp`, static `/uploads`                    |
 | **C — Tooling / PWA / docs** | Build, deploy, installability  | `vite.config.ts`, `package.json`, `tsconfig.json`, `README.md`, PWA assets | Service worker, manifest icons, env docs, CI scripts                                       |
+| **D — ML Models**            | ONNX models, inference libs, training scripts | `client/public/models/`, `client/src/lib/analysisPipeline.ts`, `client/src/lib/tracknet.ts`, `client/src/lib/courtCalibration.ts`, `training/` | Export/quantize ONNX models, TrackNet ball tracking, court homography, stroke classifier |
 
 
 **Shared contracts** (coordinate before parallel edits): `shared/types.ts`, `server/routers/index.ts` (router merge), `client/src/lib/trpc.ts` (client router type).
+
+**ML shared contracts** (Workstream D must agree with A + B before branching): `BallTrajectory`, `PadelStrokeType`, `CourtHomography` types in `shared/types.ts`; `analysis.ts` router additions for ball trajectory storage. See [`ML_UPGRADE_PLAN.md`](./ML_UPGRADE_PLAN.md) for full upgrade roadmap.
 
 ## Merge order (reduces conflicts)
 

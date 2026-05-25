@@ -10,8 +10,12 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch: {}
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   triage:
+    if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_FEEDBACK_CHAT_ID != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,6 +40,13 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Restore Telegram feedback state
+        uses: actions/cache@v4
+        with:
+          path: qa-artifacts/feedback
+          key: feedback-telegram-state
+          restore-keys: feedback-telegram-state
 
       - name: Install dependencies
         if: steps.telegram-secrets.outputs.enabled == 'true'

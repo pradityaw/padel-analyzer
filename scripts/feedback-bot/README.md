@@ -100,6 +100,7 @@ Adjust the cron in the workflow if you want a different local time.
 
 - **PRs are opened by the cloud agent** — by default you review and merge manually.
 - **Auto-merge:** PRs on branches `feat/feedback-*` or `cursor/feedback-*` targeting the **default branch** are squash-merged when [.github/workflows/feedback-auto-merge.yml](../../.github/workflows/feedback-auto-merge.yml) runs (`npm run typecheck` must pass). Set `FEEDBACK_AUTO_MERGE=1` and `GITHUB_TOKEN` in `.env.feedback` to merge immediately from `feedback:triage-slack` after the agent opens a PR.
+- **Expo Go live sync:** Run `npm run dev:mobile` on your Mac while testing. It starts the API + Expo with a background `git fetch` every ~15s; when a feedback PR merges, your machine pulls the default branch and reloads Metro so Expo Go shows the latest JS. After a merge from triage on the same machine, `FEEDBACK_SYNC_DEV=1` pulls immediately. Disable polling with `EXPO_SYNC_PULL=0`.
 - **Daily caps** limit Cursor API spend (`FEEDBACK_MAX_PRS_PER_RUN`, etc.).
 - **Allowlist** prevents strangers added to the group from generating PRs.
 
@@ -231,4 +232,4 @@ Workflow [.github/workflows/feedback-triage-slack.yml](../../.github/workflows/f
 - `qa-artifacts/feedback/media/` — shared with Telegram downloads
 - `.cursor-sdk-runs/feedback/*-triage-slack.jsonl` — agent run logs
 
-**Note:** GitHub Actions runners do not persist `slack-inbox.jsonl` between runs unless you add artifact/cache storage. For CI, prefer `workflow_dispatch` after messages were collected on a machine with persistent `qa-artifacts/`, or extend the workflow to upload/download state artifacts later.
+**Note:** Scheduled GitHub Actions runs restore/save `qa-artifacts/feedback/` via Actions cache (see workflow files). For local runs, state persists on disk automatically. If cache is cold, the first CI run re-scans channel history from `oldest_ts=0`.

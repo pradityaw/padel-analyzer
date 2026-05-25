@@ -2,12 +2,13 @@
  * Squash-merge a feedback PR by number (used after SDK opens a PR).
  */
 import { execFileSync } from "node:child_process";
+import { syncDevWorkspace } from "./sync-dev-workspace.mjs";
 
 /**
  * @param {string | number} prNumber
  * @param {{ dryRun?: boolean }} opts
  */
-export function mergeFeedbackPr(prNumber, opts = {}) {
+export async function mergeFeedbackPr(prNumber, opts = {}) {
   const num = String(prNumber).trim();
   if (!/^\d+$/.test(num)) {
     throw new Error(`Invalid PR number: ${prNumber}`);
@@ -35,7 +36,24 @@ export function mergeFeedbackPr(prNumber, opts = {}) {
   );
 
   console.log(`[feedback-merge] merged PR #${num}`);
-  return { merged: true, prNumber: num };
+
+  const result = { merged: true, prNumber: num };
+  if (process.env.FEEDBACK_SYNC_DEV !== "0") {
+    try {
+      result.sync = await syncDevWorkspace({
+        repoRoot: opts.repoRoot ?? process.cwd(),
+      });
+      if (result.sync?.pulled) {
+        console.log(
+          `[feedback-merge] dev workspace at ${result.sync.shortSha} — Expo Metro nudged`
+        );
+      }
+    } catch (err) {
+      result.syncError = err instanceof Error ? err.message : String(err);
+      console.warn(`[feedback-merge] dev sync failed:`, result.syncError);
+    }
+  }
+  return result;
 }
 
 /**

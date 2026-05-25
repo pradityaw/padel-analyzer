@@ -233,10 +233,15 @@ async function main() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_FEEDBACK_CHAT_ID;
 
-  if (args.dryRun && !process.env.TELEGRAM_BOT_TOKEN) {
-    console.warn(
-      "[triage] dry-run: skipping Telegram collect (set TELEGRAM_BOT_TOKEN to drain new messages)"
+  if (!token || !chatId) {
+    console.log(
+      "[triage] Skipping: TELEGRAM_BOT_TOKEN and TELEGRAM_FEEDBACK_CHAT_ID are not configured."
     );
+    return;
+  }
+
+  if (args.dryRun) {
+    console.warn("[triage] dry-run: skipping Telegram collect");
   } else {
     console.log("[triage] Running collect...");
     const collectResult = await collectMessages({ silent: true });

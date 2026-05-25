@@ -1,0 +1,13 @@
+# Python Playwright E2E agent for Padel Analyzer
+# Install:
+#   python3 -m venv .venv-e2e && source .venv-e2e/bin/activate
+#   pip install -r scripts/qa/requirements-e2e-agent.txt
+#   playwright install chromium
+#
+# Run (dev server on http://localhost:3001):
+#   export PADEL_SAMPLE_VIDEO=/path/to/sample-padel.mp4
+#   python scripts/qa/padel_e2e_agent.py --video "$PADEL_SAMPLE_VIDEO"
+#
+# Options: --base-url, --headless, --timeout-ms, --artifacts-dir
+
+playwright>=1.49.0,<2

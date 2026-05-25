@@ -6,9 +6,15 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/** macOS-only optional peer; must never be prebundled for the browser. */
+const devOnlyNativePeers = ["fsevents"];
+
 export default defineConfig({
   root: path.resolve(__dirname, "client"),
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: devOnlyNativePeers,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client/src"),
@@ -19,6 +25,7 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {
+      external: devOnlyNativePeers,
       output: {
         manualChunks: {
           "ort": ["onnxruntime-web"],

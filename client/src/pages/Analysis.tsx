@@ -1,14 +1,27 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronDown, Film, Ruler, Scissors, Trophy } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer, { type VideoPlayerHandle } from "@/components/VideoPlayer";
+import { buildFrameSyncIndex, getPhaseAtFrameIndex } from "@/lib/frameSync";
+import { tryParseJson } from "@/lib/safeJson";
 import PhaseTimeline from "@/components/PhaseTimeline";
 import MetricsPanel from "@/components/MetricsPanel";
 import ScoreCard from "@/components/ScoreCard";
 import SwingCoachingPanel from "@/components/SwingCoachingPanel";
-import type { FrameLandmarks, SwingPhase, SwingPhaseType, ShotType } from "@shared/types";
+import {
+  ballTrackingSchema,
+  racketTrackingSchema,
+} from "@shared/schema";
+import type {
+  BallTrackSample,
+  FrameLandmarks,
+  RacketTrackSample,
+  SwingPhase,
+  SwingPhaseType,
+  ShotType,
+} from "@shared/types";
 import { SHOT_TYPES, SHOT_TYPE_LABELS, SHOT_TYPE_COLORS } from "@shared/types";
 
 function ShotTypeBadge({
@@ -89,38 +102,75 @@ export default function Analysis() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
+  const [onlyRallies, setOnlyRallies] = useState(false);
+  const [courtCalibrationEnabled, setCourtCalibrationEnabled] = useState(false);
+  const videoPlayerRef = useRef<VideoPlayerHandle>(null);
 
+  const analysisId = Number(id);
   const { data, isLoading, error } = trpc.analysis.getById.useQuery(
-    { id: Number(id) },
+    { id: analysisId },
     { enabled: !!id }
   );
 
+  // Lazy rally detection — first call may spawn the Python detector (audio
+  // + motion + velocity fusion); subsequent calls hit the JSON cache.
+  const rallyQuery = trpc.analysis.getRallies.useQuery(
+    { analysisId },
+    {
+      enabled: !!id && Number.isFinite(analysisId) && analysisId > 0,
+      retry: false,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+  const rallies = rallyQuery.data?.rallies ?? [];
+  const rallyDetectionInFlight = rallyQuery.isLoading;
+  const rallyDetectionFailed = !!rallyQuery.error;
+
   const parsedData = useMemo(() => {
     if (!data) return null;
+    const phasesR = tryParseJson<SwingPhase[]>(data.phasesJson);
+    const framesR = tryParseJson<FrameLandmarks[]>(data.landmarksJson);
+    if (!phasesR.ok || !framesR.ok) return null;
+    if (!Array.isArray(phasesR.value) || !Array.isArray(framesR.value)) {
+      return null;
+    }
+    const phases = phasesR.value;
+    const frames = framesR.value;
+
+    const ballParsed = ballTrackingSchema.safeParse(data.ballTracking);
+    const racketParsed = racketTrackingSchema.safeParse(data.racketTracking);
+
     return {
-      phases: JSON.parse(data.phasesJson) as SwingPhase[],
-      frames: JSON.parse(data.landmarksJson) as FrameLandmarks[],
+      phases,
+      frames,
+      ballTracking: ballParsed.success
+        ? (ballParsed.data as BallTrackSample[])
+        : [],
+      racketTracking: racketParsed.success
+        ? (racketParsed.data as RacketTrackSample[])
+        : [],
+      frameSync: buildFrameSyncIndex(frames, data.sampleFps),
     };
+  }, [data]);
+
+  const videoUrl = useMemo(() => {
+    if (!data) return "";
+    const key =
+      data.videoStorageKey ??
+      (data.videoFileName.startsWith("yt_") ? data.videoFileName : null);
+    return key ? `/uploads/${key}` : "";
   }, [data]);
 
   const activePhase = useMemo<SwingPhaseType | undefined>(() => {
     if (!parsedData) return undefined;
     const frame = parsedData.frames[currentFrameIdx];
     if (!frame) return undefined;
-    const phase = parsedData.phases.find(
-      (p) => frame.frameIndex >= p.startFrame && frame.frameIndex <= p.endFrame
-    );
-    return phase?.type;
+    return getPhaseAtFrameIndex(parsedData.phases, frame.frameIndex)?.type;
   }, [parsedData, currentFrameIdx]);
 
-  const handleSeek = useCallback(
-    (frame: number) => {
-      if (!parsedData) return;
-      const idx = parsedData.frames.findIndex((f) => f.frameIndex >= frame);
-      if (idx >= 0) setCurrentFrameIdx(idx);
-    },
-    [parsedData]
-  );
+  const handleSeek = useCallback((frameIndex: number) => {
+    videoPlayerRef.current?.seekToFrameIndex(frameIndex);
+  }, []);
 
   if (isLoading) {
     return (
@@ -133,7 +183,11 @@ export default function Analysis() {
   if (error || !data || !parsedData) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <p className="text-red-400 mb-4">Analysis not found.</p>
+        <p className="text-red-400 mb-4">
+          {data && !parsedData
+            ? "Analysis data is corrupted or unreadable."
+            : "Analysis not found."}
+        </p>
         <button
           onClick={() => navigate("/")}
           className="text-padel-green hover:underline"
@@ -143,13 +197,6 @@ export default function Analysis() {
       </div>
     );
   }
-
-  const videoUrl = useMemo(() => {
-    const key =
-      data.videoStorageKey ??
-      (data.videoFileName.startsWith("yt_") ? data.videoFileName : null);
-    return key ? `/uploads/${key}` : "";
-  }, [data]);
 
   return (
     <motion.div
@@ -187,12 +234,54 @@ export default function Analysis() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Video panel */}
         <div className="lg:col-span-3">
+          <RallyPlaybackToggle
+            onlyRallies={onlyRallies}
+            onChange={setOnlyRallies}
+            rallyCount={rallies.length}
+            totalActiveMs={rallyQuery.data?.totalActiveMs ?? 0}
+            videoDurationMs={
+              rallyQuery.data?.durationMs ?? data.durationMs ?? 0
+            }
+            inFlight={rallyDetectionInFlight}
+            failed={rallyDetectionFailed}
+            audioAvailable={rallyQuery.data?.audioAvailable ?? false}
+          />
+          <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-padel-surface border border-padel-border">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+                <Ruler className="w-4 h-4 text-padel-green" />
+                Court calibration
+              </div>
+              <div className="text-xs text-slate-500">
+                Align 4 court corners for real-world speed math.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCourtCalibrationEnabled((enabled) => !enabled)}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors border ${
+                courtCalibrationEnabled
+                  ? "bg-padel-green text-black border-padel-green"
+                  : "bg-slate-900 text-slate-300 border-padel-border hover:text-white"
+              }`}
+            >
+              {courtCalibrationEnabled ? "Editing" : "Calibrate"}
+            </button>
+          </div>
           <VideoPlayer
+            ref={videoPlayerRef}
             videoUrl={videoUrl}
             frames={parsedData.frames}
             phases={parsedData.phases}
             sampleFps={data.sampleFps}
             onFrameChange={setCurrentFrameIdx}
+            rallies={rallies}
+            onlyRallies={onlyRallies && rallies.length > 0}
+            videoId={`${data.id}:${data.videoStorageKey ?? data.videoFileName}`}
+            courtCalibrationEnabled={courtCalibrationEnabled}
+            dominantSide={data.dominantSide}
+            ballTracking={parsedData.ballTracking}
+            racketTracking={parsedData.racketTracking}
           />
           <PhaseTimeline
             phases={parsedData.phases}
@@ -239,5 +328,110 @@ export default function Analysis() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * Compact, accessible toggle between the full source video and the
+ * "Only Rallies" highlight playback mode.
+ *
+ * - Reads the rally-detection status from props so the parent owns network
+ *   state. We never block on the detector — the toggle is visible even
+ *   while detection is in flight (just disabled).
+ * - When detection fails or the clip is too short for rallies (single-swing
+ *   uploads), the toggle is hidden so we don't tease a feature that does
+ *   nothing.
+ */
+function RallyPlaybackToggle({
+  onlyRallies,
+  onChange,
+  rallyCount,
+  totalActiveMs,
+  videoDurationMs,
+  inFlight,
+  failed,
+  audioAvailable,
+}: {
+  onlyRallies: boolean;
+  onChange: (next: boolean) => void;
+  rallyCount: number;
+  totalActiveMs: number;
+  videoDurationMs: number;
+  inFlight: boolean;
+  failed: boolean;
+  audioAvailable: boolean;
+}) {
+  if (failed) {
+    // Detection failed — likely a missing video file. Keep the surface clean.
+    return null;
+  }
+
+  if (!inFlight && rallyCount === 0) {
+    return null;
+  }
+
+  const trimRatio =
+    videoDurationMs > 0
+      ? Math.max(0, Math.min(1, 1 - totalActiveMs / videoDurationMs))
+      : 0;
+
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-padel-surface border border-padel-border">
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+          {onlyRallies ? (
+            <Scissors className="w-4 h-4 text-padel-green" />
+          ) : (
+            <Film className="w-4 h-4 text-slate-400" />
+          )}
+          Playback mode
+        </div>
+        <div className="text-xs text-slate-500">
+          {inFlight ? (
+            "Detecting rally windows…"
+          ) : (
+            <>
+              {rallyCount} rallies · {(totalActiveMs / 1000).toFixed(1)}s active
+              {videoDurationMs > 0 ? ` · saves ${Math.round(trimRatio * 100)}%` : ""}
+              {audioAvailable ? " · audio-aware" : ""}
+            </>
+          )}
+        </div>
+      </div>
+      <div
+        role="tablist"
+        aria-label="Video playback mode"
+        className="inline-flex rounded-lg border border-padel-border bg-slate-900 p-0.5"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!onlyRallies}
+          disabled={inFlight}
+          onClick={() => onChange(false)}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            !onlyRallies
+              ? "bg-slate-700 text-white"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          Full Video
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={onlyRallies}
+          disabled={inFlight || rallyCount === 0}
+          onClick={() => onChange(true)}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            onlyRallies
+              ? "bg-padel-green text-black"
+              : "text-slate-400 hover:text-slate-200"
+          } ${rallyCount === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+        >
+          Only Rallies
+        </button>
+      </div>
+    </div>
   );
 }

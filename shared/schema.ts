@@ -15,7 +15,7 @@ import {
   REFERENCE_TIERS,
   SHOT_TYPES,
 } from "./types";
-import { SAMPLE_FPS } from "./config";
+import { MAX_UPLOAD_BYTES, SAMPLE_FPS } from "./config";
 
 // ── Landmark coordinate schema ──────────────────────────────────────────────
 
@@ -30,6 +30,129 @@ export const frameLandmarksSchema = z.object({
   frameIndex: z.number().int().min(0),
   timestamp: z.number().min(0),
   landmarks: z.array(landmarkSchema).min(1),
+});
+
+export const ballTrackSampleSchema = z.tuple([
+  z.number().int().min(0),
+  z.number().finite(),
+  z.number().finite(),
+  z.number().min(0).max(1),
+]);
+
+export const ballTrackingSchema = z.array(ballTrackSampleSchema);
+
+/**
+ * Racket-head tracking sample: `[frameIndex, playerId, imageX, imageY, confidence]`.
+ *
+ * `confidence < 0.5` marks samples that were *interpolated* via the
+ * elbow→wrist extrapolation (no motion refinement); `confidence ≥ 0.5`
+ * marks samples that were refined from per-frame motion cues. The
+ * Python tracker emits one sample per visible player per processed
+ * frame; missing frames are simply absent from the array.
+ */
+export const racketTrackSampleSchema = z.tuple([
+  z.number().int().min(0),
+  z.number().int().min(0),
+  z.number().finite(),
+  z.number().finite(),
+  z.number().min(0).max(1),
+]);
+
+export const racketTrackingSchema = z.array(racketTrackSampleSchema);
+
+// ── Mobile tracking sync (client queue → server debug artifact) ───────────────
+
+export const trackingSyncPoseSchema = z.enum([
+  "detected",
+  "missing",
+  "interpolated",
+]);
+
+/**
+ * Lightweight frame-indexed tuple: `[frameIndex, imageX, imageY, poseState]`.
+ *
+ * The browser queue stores these tuples instead of full landmark arrays so
+ * mobile devices can retry sync without retaining raw videos or large JSON.
+ */
+export const trackingSyncTupleSchema = z.tuple([
+  z.number().int().min(0),
+  z.number().finite(),
+  z.number().finite(),
+  trackingSyncPoseSchema,
+]);
+
+export const trackingSyncInputSchema = z.object({
+  sessionId: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_.:-]+$/),
+  source: z.enum(["client-pose", "mobile-upload-debug"]),
+  sequence: z.number().int().min(0),
+  tuples: z.array(trackingSyncTupleSchema).min(1).max(1_000),
+  clientCreatedAt: z.string().datetime().optional(),
+});
+
+// ── Direct-to-bucket upload (presigned URL flow) ─────────────────────────────
+
+export const initiateUploadInputSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(128),
+  contentLength: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+});
+
+export const presignedSingleUploadSchema = z.object({
+  mode: z.literal("single"),
+  storageKey: z.string().min(1),
+  uploadUrl: z.string().url(),
+  method: z.literal("PUT"),
+  headers: z.record(z.string()),
+});
+
+export const presignedMultipartUploadSchema = z.object({
+  mode: z.literal("multipart"),
+  storageKey: z.string().min(1),
+  uploadId: z.string().min(1),
+  partSize: z.number().int().positive(),
+  parts: z.array(
+    z.object({
+      partNumber: z.number().int().positive(),
+      uploadUrl: z.string().url(),
+    })
+  ).min(1),
+});
+
+export const localUploadFallbackSchema = z.object({
+  mode: z.literal("local"),
+  uploadUrl: z.literal("/api/upload"),
+});
+
+export const initiateUploadResponseSchema = z.discriminatedUnion("mode", [
+  presignedSingleUploadSchema,
+  presignedMultipartUploadSchema,
+  localUploadFallbackSchema,
+]);
+
+export const completeUploadInputSchema = z.object({
+  storageKey: z.string().min(1),
+  contentLength: z.number().int().positive().max(MAX_UPLOAD_BYTES).optional(),
+  uploadId: z.string().min(1).optional(),
+  parts: z
+    .array(
+      z.object({
+        partNumber: z.number().int().positive(),
+        etag: z.string().min(1),
+      })
+    )
+    .optional(),
+});
+
+export const completeUploadResponseSchema = z.object({
+  storageKey: z.string().min(1),
+});
+
+export const uploadCapabilitiesSchema = z.object({
+  mode: z.enum(["cloud", "local"]),
 });
 
 // ── Phase metrics (angles + velocity) ───────────────────────────────────────
@@ -84,6 +207,8 @@ export const analysisResultSchema = z.object({
   dominantSide: z.enum(["left", "right"]),
   phases: z.array(swingPhaseSchema),
   frameLandmarks: z.array(frameLandmarksSchema),
+  ballTracking: ballTrackingSchema.optional(),
+  racketTracking: racketTrackingSchema.optional(),
   durationMs: z.number().min(0),
   frameCount: z.number().int().min(0),
   sampleFps: z.number().default(SAMPLE_FPS),
@@ -125,6 +250,12 @@ export const analysisListInputSchema = z.object({
   includePhasesJson: z.boolean().optional(),
 });
 
+export const analysisListResponseSchema = z.object({
+  items: z.array(analysisListItemSchema),
+  nextCursor: z.number().int().positive().nullable(),
+  hasMore: z.boolean(),
+});
+
 // ── Mobile analysis jobs (server-side processing for native clients) ─────────
 
 export const analysisJobStatusSchema = z.enum([
@@ -133,6 +264,34 @@ export const analysisJobStatusSchema = z.enum([
   "completed",
   "failed",
 ]);
+
+export const analysisJobStageIdSchema = z.enum([
+  "ingestion",
+  "courtCalibration",
+  "playerTracking",
+  "ballTrajectory",
+  "aggregation",
+]);
+
+export const analysisJobStageStatusSchema = z.enum([
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "skipped",
+]);
+
+export const analysisJobStageProgressSchema = z.object({
+  id: analysisJobStageIdSchema,
+  label: z.string().min(1),
+  status: analysisJobStageStatusSchema,
+  progress: z.number().int().min(0).max(100),
+  weight: z.number().int().min(1).max(100),
+  message: z.string().nullable().optional(),
+  startedAt: z.string().nullable().optional(),
+  completedAt: z.string().nullable().optional(),
+  errorMessage: z.string().nullable().optional(),
+});
 
 export const createMobileAnalysisJobInputSchema = z.object({
   videoFileName: z.string().min(1),
@@ -148,8 +307,32 @@ export const analysisJobSchema = z.object({
   statusMessage: z.string().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
   analysisId: z.number().int().positive().nullable().optional(),
+  stages: z.array(analysisJobStageProgressSchema).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+export const analysisJobIdInputSchema = analysisJobSchema.pick({ id: true });
+
+export const analysisJobGetInputSchema = analysisJobIdInputSchema.extend({
+  includeTracking: z.boolean().optional().default(false),
+});
+
+/** Metadata for CV tracking arrays hydrated from on-disk agent artifacts. */
+export const trackingMetaSchema = z.object({
+  sourceJobId: z.number().int().positive().nullable(),
+  ballSampleCount: z.number().int().min(0),
+  racketSampleCount: z.number().int().min(0),
+});
+
+/**
+ * Completed mobile job poll with ball/racket tracks merged from
+ * `data/analysis-agents/job-{id}.json` when `analysisId` is set.
+ */
+export const analysisJobDetailSchema = analysisJobSchema.extend({
+  ballTracking: ballTrackingSchema.default([]),
+  racketTracking: racketTrackingSchema.default([]),
+  trackingMeta: trackingMetaSchema,
 });
 
 // ── tRPC create-analysis input (what the client sends to the server) ────────
@@ -317,23 +500,115 @@ export const pairedTrainingExportSchema = z.object({
   ),
 });
 
+// ── Match CV pipeline (optional; used by server/lib/cvPipeline.ts) ───────────
+
+export const cvStatusSchema = z.enum(["pending", "running", "done", "failed"]);
+
+export const cvPipelineInputSchema = z.object({
+  videoStorageKey: z.string().optional(),
+  videoPath: z.string().optional(),
+  skipExport: z.boolean().optional(),
+});
+
+export const cvPipelineResultSchema = z.object({
+  trimmed_video_url: z.string().nullable().optional(),
+  rallies: z.array(z.unknown()).optional(),
+  summary: z.unknown().optional(),
+  raw: z.unknown().optional(),
+  capabilities: z.record(z.string(), z.unknown()).optional(),
+});
+
+// ── Rally window detection (audio + motion + velocity + shots fusion) ───────
+
+/** Aggregated cue evidence for a single rally — keep loose so we can extend safely. */
+export const rallySignalsSchema = z.record(z.string(), z.number());
+
+export const rallyWindowSchema = z.object({
+  id: z.number().int().min(0),
+  startFrame: z.number().int().min(0),
+  endFrame: z.number().int().min(0),
+  startMs: z.number().min(0),
+  endMs: z.number().min(0),
+  durationMs: z.number().min(0),
+  confidence: z.number().min(0).max(1),
+  signals: rallySignalsSchema,
+});
+
+export const rallyDetectionCapabilitiesSchema = z.object({
+  motion: z.boolean().default(false),
+  velocity: z.boolean().default(false),
+  audio: z.boolean().default(false),
+  shots: z.boolean().default(false),
+  shake: z.boolean().default(false),
+});
+
+export const rallyDetectionResultSchema = z.object({
+  analysisId: z.number().int().positive().optional(),
+  fps: z.number().min(0),
+  frameCount: z.number().int().min(0),
+  durationMs: z.number().min(0),
+  totalActiveMs: z.number().min(0),
+  totalDeadMs: z.number().min(0),
+  audioAvailable: z.boolean(),
+  capabilities: rallyDetectionCapabilitiesSchema,
+  rallies: z.array(rallyWindowSchema),
+  /** ISO timestamp of when this detection result was cached. */
+  computedAt: z.string().optional(),
+});
+
+export const detectRalliesInputSchema = z.object({
+  analysisId: z.number().int().positive(),
+  /** Force a recompute even if a cached result exists. */
+  force: z.boolean().optional(),
+});
+
 // ── TypeScript types derived from schemas ───────────────────────────────────
 
 export type LandmarkPayload = z.infer<typeof landmarkSchema>;
 export type FrameLandmarksPayload = z.infer<typeof frameLandmarksSchema>;
+export type BallTrackSample = z.infer<typeof ballTrackSampleSchema>;
+export type BallTrackingPayload = z.infer<typeof ballTrackingSchema>;
+export type RacketTrackSample = z.infer<typeof racketTrackSampleSchema>;
+export type RacketTrackingPayload = z.infer<typeof racketTrackingSchema>;
+export type TrackingSyncPose = z.infer<typeof trackingSyncPoseSchema>;
+export type TrackingSyncTuple = z.infer<typeof trackingSyncTupleSchema>;
+export type TrackingSyncInput = z.infer<typeof trackingSyncInputSchema>;
+export type InitiateUploadInput = z.infer<typeof initiateUploadInputSchema>;
+export type InitiateUploadResponse = z.infer<typeof initiateUploadResponseSchema>;
+export type CompleteUploadInput = z.infer<typeof completeUploadInputSchema>;
+export type CompleteUploadResponse = z.infer<typeof completeUploadResponseSchema>;
+export type UploadCapabilities = z.infer<typeof uploadCapabilitiesSchema>;
 export type PhaseMetricsPayload = z.infer<typeof phaseMetricsSchema>;
 export type SwingPhasePayload = z.infer<typeof swingPhaseSchema>;
 export type AnalysisResultPayload = z.infer<typeof analysisResultSchema>;
 export type CreateAnalysisInput = z.infer<typeof createAnalysisInputSchema>;
 export type AnalysisListItem = z.infer<typeof analysisListItemSchema>;
 export type AnalysisListInput = z.infer<typeof analysisListInputSchema>;
+export type AnalysisListResponse = z.infer<typeof analysisListResponseSchema>;
+export type CvStatus = z.infer<typeof cvStatusSchema>;
+export type CvPipelineInput = z.infer<typeof cvPipelineInputSchema>;
+export type CvPipelineResult = z.infer<typeof cvPipelineResultSchema>;
 export type AnalysisJobStatus = z.infer<typeof analysisJobStatusSchema>;
+export type AnalysisJobStageId = z.infer<typeof analysisJobStageIdSchema>;
+export type AnalysisJobStageStatus = z.infer<typeof analysisJobStageStatusSchema>;
+export type AnalysisJobStageProgress = z.infer<typeof analysisJobStageProgressSchema>;
+export type AnalysisJobIdInput = z.infer<typeof analysisJobIdInputSchema>;
+export type AnalysisJobGetInput = z.infer<typeof analysisJobGetInputSchema>;
 export type CreateMobileAnalysisJobInput = z.infer<
   typeof createMobileAnalysisJobInputSchema
 >;
 export type AnalysisJobPayload = z.infer<typeof analysisJobSchema>;
+export type TrackingMeta = z.infer<typeof trackingMetaSchema>;
+export type AnalysisJobDetailPayload = z.infer<typeof analysisJobDetailSchema>;
 export type AnnotationCreateInput = z.infer<typeof annotationCreateInputSchema>;
 export type AnnotationUpdateInput = z.infer<typeof annotationUpdateInputSchema>;
+export type RallySignals = z.infer<typeof rallySignalsSchema>;
+export type RallyWindow = z.infer<typeof rallyWindowSchema>;
+export type RallyDetectionCapabilities = z.infer<
+  typeof rallyDetectionCapabilitiesSchema
+>;
+export type RallyDetectionResult = z.infer<typeof rallyDetectionResultSchema>;
+export type DetectRalliesInput = z.infer<typeof detectRalliesInputSchema>;
 export type TrainingExport = z.infer<typeof trainingExportSchema>;
 export type SkillTrainingExport = z.infer<typeof skillTrainingExportSchema>;
 export type PairedTrainingExport = z.infer<typeof pairedTrainingExportSchema>;

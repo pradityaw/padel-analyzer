@@ -11,6 +11,21 @@ export type FrameLandmarks = {
   landmarks: Landmark[];
 };
 
+/** [frameIndex, imageX, imageY, confidence] from the server CV ball tracker. */
+export type BallTrackSample = [number, number, number, number];
+
+/**
+ * [frameIndex, playerId, imageX, imageY, confidence] from the server
+ * CV racket-head tracker (replaces the wrist-as-racket proxy on the
+ * client when present). `confidence < 0.5` flags samples that were
+ * interpolated via the elbow→wrist extrapolation; `confidence ≥ 0.5`
+ * flags samples that were refined from per-frame motion cues.
+ */
+export type RacketTrackSample = [number, number, number, number, number];
+
+/** Threshold above which a {@link RacketTrackSample} is considered observed (vs. interpolated). */
+export const RACKET_REFINED_CONFIDENCE_THRESHOLD = 0.5;
+
 export type SwingPhaseType =
   | "ready"
   | "backswing"
@@ -40,6 +55,14 @@ export type AnalysisResult = {
   dominantSide: "left" | "right";
   phases: SwingPhase[];
   frameLandmarks: FrameLandmarks[];
+  ballTracking?: BallTrackSample[];
+  /**
+   * Per-frame racket-head positions emitted by the Python racket
+   * tracker. Optional because older sessions (pre-Phase-2) lack the
+   * artifact — consumers must fall back to the wrist landmark when
+   * this field is missing or empty.
+   */
+  racketTracking?: RacketTrackSample[];
   durationMs: number;
   frameCount: number;
   sampleFps: number;

@@ -1,143 +1,182 @@
-import { existsSync } from "fs";
+import { appendFile, mkdir } from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import { desc, eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
 import { db } from "../db.js";
 import {
   analysisJobs,
-  analyses,
-  type NewAnalysis,
   type NewAnalysisJob,
 } from "../../drizzle/schema.js";
 import {
+  analysisJobDetailSchema,
+  analysisJobGetInputSchema,
+  analysisJobIdInputSchema,
   analysisJobSchema,
   createMobileAnalysisJobInputSchema,
+  trackingSyncInputSchema,
+  type TrackingSyncInput,
 } from "../../shared/schema.js";
-import { runMobileAnalysis } from "../_core/mobileAnalysisRunner.js";
+import { analyses } from "../../drizzle/schema.js";
+import { readAnalysisBallTracking } from "../lib/ballTracking.js";
+import { readAnalysisRacketTracking } from "../lib/racketTracking.js";
+import {
+  sanitizeBallTrackingPayload,
+  sanitizeRacketTrackingPayload,
+} from "../lib/trackingPayload.js";
+import { scheduleAnalysisJob } from "../lib/analysisJobProcessor.js";
+import {
+  getAnalysisJobProgress,
+  initializeAnalysisJobProgress,
+} from "../lib/analysisJobProgress.js";
+import { getTrackingSyncDir } from "../lib/paths.js";
+import { assertVideoAccessible } from "../lib/videoAccess.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
-const uploadsDir = path.join(rootDir, "data/uploads");
-
-async function updateJob(
-  jobId: number,
-  updates: Partial<NewAnalysisJob>
-): Promise<void> {
-  db.update(analysisJobs)
-    .set({
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(analysisJobs.id, jobId))
-    .run();
+function trackingSyncPath(sessionId: string): string {
+  return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
 }
 
-async function processMobileAnalysisJob(jobId: number): Promise<void> {
-  try {
-    const job = db
-      .select()
-      .from(analysisJobs)
-      .where(eq(analysisJobs.id, jobId))
-      .get();
+async function appendTrackingSync(input: TrackingSyncInput) {
+  await mkdir(getTrackingSyncDir(), { recursive: true });
+  const record = {
+    ...input,
+    receivedAt: new Date().toISOString(),
+  };
+  await appendFile(trackingSyncPath(input.sessionId), `${JSON.stringify(record)}\n`);
+}
 
-    if (!job) return;
+function createJobRecord(input: {
+  videoFileName: string;
+  videoStorageKey: string;
+}): ReturnType<typeof analysisJobSchema.parse> {
+  const created = db
+    .insert(analysisJobs)
+    .values({
+      videoFileName: input.videoFileName,
+      videoStorageKey: input.videoStorageKey,
+      status: "queued",
+      progress: 0,
+      statusMessage: "Queued for analysis.",
+    } satisfies NewAnalysisJob)
+    .returning()
+    .get();
 
-    await updateJob(jobId, {
-      status: "processing",
-      progress: 10,
-      statusMessage: "Preparing analysis runtime...",
-      errorMessage: null,
-    });
+  const stages = initializeAnalysisJobProgress(created.id);
+  scheduleAnalysisJob(created.id);
+  return analysisJobSchema.parse({ ...created, stages });
+}
 
-    const videoPath = path.join(uploadsDir, job.videoStorageKey);
-    if (!existsSync(videoPath)) {
-      throw new Error("Uploaded video could not be found on the server.");
-    }
+function hydrateJobProgress(job: typeof analysisJobs.$inferSelect) {
+  return analysisJobSchema.parse({
+    ...job,
+    stages: getAnalysisJobProgress(job.id),
+  });
+}
 
-    await updateJob(jobId, {
-      progress: 40,
-      statusMessage: "Extracting pose landmarks...",
-    });
-
-    const result = await runMobileAnalysis(videoPath);
-
-    await updateJob(jobId, {
-      progress: 90,
-      statusMessage: "Saving analysis...",
-    });
-
-    const newAnalysis: NewAnalysis = {
-      videoFileName: job.videoFileName,
-      videoStorageKey: job.videoStorageKey,
-      overallScore: result.overallScore,
-      dominantSide: result.dominantSide,
-      durationMs: result.durationMs,
-      frameCount: result.frameCount,
-      sampleFps: result.sampleFps,
-      phasesJson: JSON.stringify(result.phases),
-      landmarksJson: JSON.stringify(result.frameLandmarks),
-      shotType: result.shotType as NewAnalysis["shotType"],
-      shotConfidence: result.shotConfidence,
-      skillLabel: result.skillLabel as NewAnalysis["skillLabel"],
-      skillConfidence: result.skillConfidence,
-      qualityScore: result.qualityScore,
-    };
-
-    const saved = db
-      .insert(analyses)
-      .values(newAnalysis)
-      .returning()
-      .get();
-
-    await updateJob(jobId, {
-      status: "completed",
-      progress: 100,
-      statusMessage: "Analysis complete.",
-      analysisId: saved.id,
-      errorMessage: null,
-    });
-  } catch (error) {
-    await updateJob(jobId, {
-      status: "failed",
-      progress: 100,
-      statusMessage: "Analysis failed.",
-      errorMessage:
-        error instanceof Error ? error.message : "Unknown analysis failure.",
-    });
-  }
+async function hydrateJobTracking(
+  job: {
+    id: number;
+    analysisId: number | null | undefined;
+  },
+  landmarksJson: string
+) {
+  const [ballRaw, racketRaw] = await Promise.all([
+    readAnalysisBallTracking(job.id, landmarksJson),
+    readAnalysisRacketTracking(job.id, landmarksJson),
+  ]);
+  return {
+    ballTracking: sanitizeBallTrackingPayload(ballRaw),
+    racketTracking: sanitizeRacketTrackingPayload(racketRaw),
+    trackingMeta: {
+      sourceJobId: job.id,
+      ballSampleCount: ballRaw.length,
+      racketSampleCount: racketRaw.length,
+    },
+  };
 }
 
 export const mobileAnalysisRouter = router({
   create: publicProcedure
     .input(createMobileAnalysisJobInputSchema)
     .mutation(async ({ input }) => {
-      const created = db
-        .insert(analysisJobs)
-        .values({
-          videoFileName: input.videoFileName,
-          videoStorageKey: input.videoStorageKey,
-          status: "queued",
-          progress: 0,
-          statusMessage: "Queued for analysis.",
-        } satisfies NewAnalysisJob)
-        .returning()
-        .get();
+      try {
+        await assertVideoAccessible(input.videoStorageKey);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Uploaded video could not be found. Upload the file again.",
+        });
+      }
+      return createJobRecord(input);
+    }),
 
-      void processMobileAnalysisJob(created.id);
-
-      return analysisJobSchema.parse(created);
+  syncTracking: publicProcedure
+    .input(trackingSyncInputSchema)
+    .mutation(async ({ input }) => {
+      await appendTrackingSync(input);
+      return {
+        ok: true,
+        accepted: input.tuples.length,
+      };
     }),
 
   getById: publicProcedure
-    .input(analysisJobSchema.pick({ id: true }))
+    .input(analysisJobGetInputSchema)
+    .query(async ({ input }) => {
+      const job = db
+        .select()
+        .from(analysisJobs)
+        .where(eq(analysisJobs.id, input.id))
+        .get();
+      if (!job) return null;
+
+      const base = hydrateJobProgress(job);
+
+      if (!input.includeTracking) {
+        return base;
+      }
+
+      if (job.analysisId == null) {
+        return analysisJobDetailSchema.parse({
+          ...base,
+          ballTracking: [],
+          racketTracking: [],
+          trackingMeta: {
+            sourceJobId: null,
+            ballSampleCount: 0,
+            racketSampleCount: 0,
+          },
+        });
+      }
+
+      const analysis = db
+        .select({ landmarksJson: analyses.landmarksJson })
+        .from(analyses)
+        .where(eq(analyses.id, job.analysisId))
+        .get();
+
+      const landmarksJson = analysis?.landmarksJson ?? "[]";
+      const tracking = await hydrateJobTracking(job, landmarksJson);
+
+      return analysisJobDetailSchema.parse({
+        ...base,
+        ...tracking,
+      });
+    }),
+
+  getProgress: publicProcedure
+    .input(analysisJobIdInputSchema)
     .query(({ input }) => {
       const job = db
         .select()
         .from(analysisJobs)
         .where(eq(analysisJobs.id, input.id))
         .get();
-      return job ? analysisJobSchema.parse(job) : null;
+      return job ? hydrateJobProgress(job) : null;
     }),
 
   list: publicProcedure.query(() => {
@@ -147,6 +186,43 @@ export const mobileAnalysisRouter = router({
       .orderBy(desc(analysisJobs.createdAt))
       .limit(20)
       .all()
-      .map((job) => analysisJobSchema.parse(job));
+      .map((job) =>
+        analysisJobSchema.parse({
+          ...job,
+          stages: getAnalysisJobProgress(job.id),
+        })
+      );
   }),
+
+  /** Re-queue analysis for an existing upload (failed or completed jobs). */
+  retry: publicProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const job = db
+        .select()
+        .from(analysisJobs)
+        .where(eq(analysisJobs.id, input.id))
+        .get();
+
+      if (!job) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Job not found." });
+      }
+
+      try {
+        await assertVideoAccessible(job.videoStorageKey);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Original video is no longer available. Upload the clip again.",
+        });
+      }
+
+      return createJobRecord({
+        videoFileName: job.videoFileName,
+        videoStorageKey: job.videoStorageKey,
+      });
+    }),
 });

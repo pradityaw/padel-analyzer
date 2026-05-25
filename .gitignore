@@ -4,6 +4,13 @@ data/*.db
 data/uploads/
 data/thumbnails/
 data/reports/
+data/landmarks/
+data/analysis-agents/
+data/analysis-timing/
+
+# Python bytecode
+**/__pycache__/
+*.pyc
 
 # Local env / OS noise
 .env
@@ -37,3 +44,4 @@ training/data/**/*.json
 playwright-report/
 test-results/
 blob-report/
+data/rallies/

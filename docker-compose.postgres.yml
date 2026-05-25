@@ -1,0 +1,17 @@
+# Local Postgres for experimenting with a future Drizzle/pg migration.
+# Usage: docker compose -f docker-compose.postgres.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: padel
+      POSTGRES_PASSWORD: padel_dev_password
+      POSTGRES_DB: padel_analyzer
+    ports:
+      - "5432:5432"
+    volumes:
+      - padel_pg_data:/var/lib/postgresql/data
+
+volumes:
+  padel_pg_data:

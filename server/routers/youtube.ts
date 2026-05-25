@@ -2,15 +2,21 @@ import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
 import { mkdirSync, existsSync } from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { getUploadsDir } from "../lib/paths.js";
+import {
+  YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS,
+  YOUTUBE_MAX_DURATION_SEC,
+} from "../../shared/config.js";
 
-const exec = promisify(execFile);
+const execFileAsync = promisify(execFile);
+const YOUTUBE_INFO_TIMEOUT_MS = Number(
+  process.env.YOUTUBE_INFO_TIMEOUT_MS || 2 * 60 * 1000
+);
+const YOUTUBE_MAX_BUFFER_BYTES = 100 * 1024 * 1024;
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "../..");
-const uploadsDir = path.join(rootDir, "data/uploads");
+const uploadsDir = getUploadsDir();
 mkdirSync(uploadsDir, { recursive: true });
 
 const YOUTUBE_HOSTS = [
@@ -48,13 +54,29 @@ type VideoInfo = {
   uploader: string;
 };
 
+function assertWithinDurationLimit(durationSec: number): void {
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    throw new Error(
+      "Could not determine the video length. Live streams and unavailable videos are not supported."
+    );
+  }
+  if (durationSec > YOUTUBE_MAX_DURATION_SEC) {
+    throw new Error(
+      `Video too long. Please use a clip under ${YOUTUBE_MAX_DURATION_SEC / 60} minutes for analysis.`
+    );
+  }
+}
+
 async function getVideoInfo(url: string): Promise<VideoInfo> {
-  const { stdout } = await exec("yt-dlp", [
+  const { stdout } = await execFileAsync("yt-dlp", [
     "--no-warnings",
     "--dump-json",
     "--no-download",
     url,
-  ]);
+  ], {
+    maxBuffer: YOUTUBE_MAX_BUFFER_BYTES,
+    timeout: YOUTUBE_INFO_TIMEOUT_MS,
+  });
 
   const data = JSON.parse(stdout);
   return {
@@ -70,7 +92,7 @@ async function downloadVideo(
   url: string,
   outputPath: string
 ): Promise<void> {
-  await exec(
+  await execFileAsync(
     "yt-dlp",
     [
       "--no-warnings",
@@ -81,7 +103,12 @@ async function downloadVideo(
       outputPath,
       url,
     ],
-    { maxBuffer: 50 * 1024 * 1024, timeout: 120_000 }
+    {
+      maxBuffer: YOUTUBE_MAX_BUFFER_BYTES,
+      timeout: Number(
+        process.env.YOUTUBE_DOWNLOAD_TIMEOUT_MS || YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS
+      ),
+    }
   );
 }
 
@@ -90,6 +117,7 @@ export const youtubeRouter = router({
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);
+      assertWithinDurationLimit(info.duration);
 
       return {
         videoId: info.id,
@@ -104,12 +132,7 @@ export const youtubeRouter = router({
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);
-
-      if (info.duration > 300) {
-        throw new Error(
-          "Video too long. Please use a clip under 5 minutes for analysis."
-        );
-      }
+      assertWithinDurationLimit(info.duration);
 
       const safeTitle = info.title
         .replace(/[^a-zA-Z0-9_\- ]/g, "")

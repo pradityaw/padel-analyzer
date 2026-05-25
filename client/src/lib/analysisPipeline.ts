@@ -2,6 +2,12 @@ import { processVideoStream } from "./mediapipe";
 import { analyzeSwing } from "./swingAnalyzer";
 import type { AnalysisResult, FrameLandmarks } from "@shared/types";
 import type { CreateAnalysisInput } from "@shared/schema";
+import {
+  enqueueTrackingTuples,
+  flushTrackingQueue,
+  frameToTrackingTuple,
+} from "./trackingSyncQueue";
+import { uploadVideoForAnalysis } from "./mobileUpload";
 
 export type PipelineInput = {
   videoBlob: Blob;
@@ -11,11 +17,13 @@ export type PipelineInput = {
 /** Co-operative cancellation — checked between major steps and pose frames. */
 export type PipelineRunOptions = {
   signal?: AbortSignal;
+  trackingSessionId?: string;
 };
 
 export type PipelineEvent =
   | { type: "status"; message: string }
-  | { type: "pose_progress"; percent: number; frame?: FrameLandmarks };
+  | { type: "pose_progress"; percent: number; frame?: FrameLandmarks }
+  | { type: "sync_status"; message: string; pendingTuples: number };
 
 export type PipelineOutput = {
   fileName: string;
@@ -36,6 +44,19 @@ function toVideoFile(blob: Blob, fileName: string): File {
     : new File([blob], fileName, { type: "video/mp4" });
 }
 
+function poseCenter(frame: FrameLandmarks): { x: number; y: number } | null {
+  const visible = frame.landmarks.filter((lm) => lm.visibility >= 0.4);
+  if (!visible.length) return null;
+  const sum = visible.reduce(
+    (acc, lm) => ({ x: acc.x + lm.x, y: acc.y + lm.y }),
+    { x: 0, y: 0 }
+  );
+  return {
+    x: Number((sum.x / visible.length).toFixed(4)),
+    y: Number((sum.y / visible.length).toFixed(4)),
+  };
+}
+
 /**
  * End-to-end ML orchestration: optional server upload, MediaPipe pose extraction, swing analysis.
  * Yields status and per-frame pose progress; return value is {@link PipelineOutput}.
@@ -46,6 +67,8 @@ export async function* runAnalysisPipeline(
 ): AsyncGenerator<PipelineEvent, PipelineOutput> {
   const { videoBlob, fileName } = input;
   const signal = options?.signal;
+  const trackingSessionId =
+    options?.trackingSessionId ?? `client-${Date.now().toString(36)}`;
   const videoFile = toVideoFile(videoBlob, fileName);
 
   let videoStorageKey: string | undefined;
@@ -55,26 +78,48 @@ export async function* runAnalysisPipeline(
   } else {
     yield { type: "status", message: "Saving video on server..." };
     throwIfAborted(signal);
-    const fd = new FormData();
-    fd.append("file", videoFile, fileName);
-    const up = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!up.ok) {
-      const err = await up.json().catch(() => ({}));
-      throw new Error(
-        (err as { error?: string }).error ?? "Failed to save video on server"
-      );
-    }
-    const { storageKey } = (await up.json()) as { storageKey: string };
-    videoStorageKey = storageKey;
+    videoStorageKey = await uploadVideoForAnalysis(videoFile, { signal });
   }
 
   yield { type: "status", message: "Processing frames with AI pose detection..." };
   throwIfAborted(signal);
 
   const poseGen = processVideoStream(videoFile, { signal });
+  let trackingSequence = 0;
+  let trackingBatch: ReturnType<typeof frameToTrackingTuple>[] = [];
   let poseStep = await poseGen.next();
   while (!poseStep.done) {
     const chunk = poseStep.value;
+    if (chunk.frame) {
+      const center = poseCenter(chunk.frame);
+      if (center) {
+        trackingBatch.push(
+          frameToTrackingTuple(
+            chunk.frame.frameIndex,
+            center.x,
+            center.y,
+            "detected"
+          )
+        );
+      }
+    }
+    if (trackingBatch.length >= 60) {
+      const syncStatus = await enqueueTrackingTuples({
+        sessionId: trackingSessionId,
+        source: "client-pose",
+        sequence: trackingSequence,
+        tuples: trackingBatch,
+      });
+      trackingSequence += 1;
+      trackingBatch = [];
+      yield {
+        type: "sync_status",
+        message: navigator.onLine
+          ? "Tracking data queued for sync."
+          : "Offline: tracking data cached on this device.",
+        pendingTuples: syncStatus.pendingTuples,
+      };
+    }
     yield {
       type: "pose_progress",
       percent: chunk.percent,
@@ -83,6 +128,32 @@ export async function* runAnalysisPipeline(
     poseStep = await poseGen.next();
   }
   const { frames, qualityWarning } = poseStep.value;
+
+  if (trackingBatch.length > 0) {
+    const syncStatus = await enqueueTrackingTuples({
+      sessionId: trackingSessionId,
+      source: "client-pose",
+      sequence: trackingSequence,
+      tuples: trackingBatch,
+    });
+    yield {
+      type: "sync_status",
+      message: navigator.onLine
+        ? "Tracking data queued for sync."
+        : "Offline: tracking data cached on this device.",
+      pendingTuples: syncStatus.pendingTuples,
+    };
+  }
+
+  const flushed = await flushTrackingQueue();
+  yield {
+    type: "sync_status",
+    message:
+      flushed.pendingTuples > 0
+        ? "Tracking sync will retry when the connection recovers."
+        : "Tracking data synced.",
+    pendingTuples: flushed.pendingTuples,
+  };
 
   yield {
     type: "status",

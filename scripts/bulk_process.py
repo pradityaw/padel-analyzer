@@ -27,12 +27,27 @@ from mediapipe.tasks.python import vision
 
 # ── Landmark extraction ──────────────────────────────────────────────
 
-def extract_landmarks(video_path: str, sample_fps: int = 15) -> list[dict]:
+def extract_landmarks(
+    video_path: str,
+    sample_fps: int = 15,
+    rally_windows_path: str | None = None,
+) -> list[dict]:
     """Extract pose landmarks from video using MediaPipe Pose Landmarker.
 
     Returns list of FrameLandmarks matching the app's TypeScript format:
     { frameIndex, timestamp, landmarks: [{x, y, z, visibility}, ...] }
     """
+    rally_cfg = None
+    if rally_windows_path:
+        try:
+            from rally_windows import load_rally_windows
+
+            rally_cfg = load_rally_windows(rally_windows_path)
+            if rally_cfg is not None and rally_cfg.sample_fps > 0:
+                sample_fps = rally_cfg.sample_fps
+        except Exception as exc:
+            print(f"  Warning: could not load rally windows ({exc}); processing full clip.", file=sys.stderr)
+
     # Download model if not cached
     model_path = Path(__file__).parent / "pose_landmarker_full.task"
     if not model_path.exists():
@@ -72,6 +87,10 @@ def extract_landmarks(video_path: str, sample_fps: int = 15) -> list[dict]:
 
         if frame_idx % frame_interval == 0:
             timestamp_ms = int((frame_idx / video_fps) * 1000)
+            timestamp_sec = timestamp_ms / 1000.0
+            if rally_cfg is not None and not rally_cfg.timestamp_in_active_rally(timestamp_sec):
+                frame_idx += 1
+                continue
 
             # Convert to MediaPipe image
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
