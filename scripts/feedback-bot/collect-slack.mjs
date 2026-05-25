@@ -289,22 +289,11 @@ export async function collectSlackMessages(opts = {}) {
     if (fetchedThreads.has(threadTs)) return;
     fetchedThreads.add(threadTs);
 
-    let repliesPage;
-    try {
-      repliesPage = await slackApi(token, "conversations.replies", {
-        channel: channelId,
-        ts: threadTs,
-        limit: 200,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!silent) {
-        console.warn(
-          `[collect-slack] conversations.replies skipped for ts=${threadTs}: ${msg}`
-        );
-      }
-      return;
-    }
+    const repliesPage = await fetchThreadReplies({
+      token,
+      channelId,
+      parentTs: threadTs,
+    });
 
     for (const reply of repliesPage.messages || []) {
       if (String(reply.ts) === threadTs) continue;
@@ -358,6 +347,7 @@ export async function collectSlackMessages(opts = {}) {
       appended += 1;
       maxSeenTs = maxTs(maxSeenTs, record.slack_ts);
       await addReaction(token, channelId, record.slack_ts, silent);
+
     }
   } while (cursor);
 
