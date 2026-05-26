@@ -107,10 +107,18 @@ const VIDEO_FILENAME_RE =
   /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv)$/i;
 
 function isLikelyVideoFile(f: File): boolean {
+  // Prefer filename: mobile OS pickers often send empty MIME, octet-stream, or
+  // vendor-specific labels (e.g. application/mp4) that fail a strict video/* check.
+  if (VIDEO_FILENAME_RE.test(f.name)) return true;
   if (f.type.startsWith("video/")) return true;
-  const isGenericMime =
-    f.type === "" || f.type === "application/octet-stream";
-  return isGenericMime && VIDEO_FILENAME_RE.test(f.name);
+  if (
+    f.type === "application/mp4" ||
+    f.type === "application/quicktime" ||
+    f.type === "application/x-matroska"
+  ) {
+    return true;
+  }
+  return false;
 }
 
 const STEPS = [
@@ -783,6 +791,12 @@ export default function Upload() {
                   }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
+                  onClick={(e) => {
+                    // Explicit open: some WebViews / Framer-motion labels miss native label→input activation.
+                    if (e.target === inputRef.current) return;
+                    e.preventDefault();
+                    inputRef.current?.click();
+                  }}
                   className={cn(
                     "relative block cursor-pointer border-2 border-dashed rounded-xl p-12 text-center transition-all",
                     dragOver
