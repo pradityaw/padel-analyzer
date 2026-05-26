@@ -385,6 +385,21 @@ async function uploadMultipartToCloud(
   return completed.storageKey;
 }
 
+/** POST to `/api/upload` — prefer streaming for memory, fall back to XHR when fetch/duplex fails. */
+async function uploadViaLocalMultipartEndpoint(
+  file: File,
+  options: UploadOptions
+): Promise<string> {
+  if (supportsStreamingRequestBody()) {
+    try {
+      return await uploadWithStreamingFetch(file, options);
+    } catch {
+      // Streaming multipart + duplex fetch can fail against some proxies or multer; XHR + FormData is widely supported.
+    }
+  }
+  return uploadWithXhr(file, options);
+}
+
 async function uploadToCloudStorage(
   file: File,
   options: UploadOptions
@@ -401,10 +416,7 @@ async function uploadToCloudStorage(
   });
 
   if (plan.mode === "local") {
-    if (supportsStreamingRequestBody()) {
-      return uploadWithStreamingFetch(file, options);
-    }
-    return uploadWithXhr(file, options);
+    return uploadViaLocalMultipartEndpoint(file, options);
   }
 
   if (plan.mode === "single") {
@@ -423,10 +435,7 @@ async function uploadToLocalServer(
   file: File,
   options: UploadOptions
 ): Promise<string> {
-  if (supportsStreamingRequestBody()) {
-    return uploadWithStreamingFetch(file, options);
-  }
-  return uploadWithXhr(file, options);
+  return uploadViaLocalMultipartEndpoint(file, options);
 }
 
 /**
