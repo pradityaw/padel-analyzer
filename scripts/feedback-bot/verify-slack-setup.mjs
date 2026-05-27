@@ -73,12 +73,16 @@ async function main() {
   const info = await slackApi(token, "conversations.info", {
     channel: channelId,
   }, { throwOnError: false });
-  if (!info.ok) {
-    console.error(`[verify-slack] conversations.info failed: ${info.error}`);
-    console.error(`[verify-slack] ${slackErrorHint("conversations.info", info.error)}`);
-    process.exit(1);
+
+  let channelLabel = channelId;
+  if (info.ok) {
+    channelLabel = info.channel?.name || channelId;
+    console.log(`[verify-slack] Channel: #${channelLabel}`);
+  } else {
+    console.warn(
+      `[verify-slack] conversations.info unavailable (${info.error}); verifying via conversations.history`
+    );
   }
-  console.log(`[verify-slack] Channel: #${info.channel?.name || channelId}`);
 
   const history = await slackApi(token, "conversations.history", {
     channel: channelId,
@@ -90,6 +94,18 @@ async function main() {
     process.exit(1);
   }
   console.log("[verify-slack] conversations.history OK");
+
+  if (!info.ok) {
+    const list = await slackApi(token, "conversations.list", {
+      types: "public_channel,private_channel",
+      limit: 200,
+      exclude_archived: true,
+    }, { throwOnError: false });
+    const match = (list.channels || []).find((ch) => ch.id === channelId);
+    if (match?.name) {
+      console.log(`[verify-slack] Channel (via list): #${match.name}`);
+    }
+  }
 
   const allowlist = process.env.SLACK_ALLOWLIST_USER_IDS;
   if (allowlist?.trim()) {
