@@ -104,7 +104,7 @@ class UploadErrorBoundary extends Component<
 }
 
 const VIDEO_FILENAME_RE =
-  /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv)$/i;
+  /\.(mp4|m4v|mov|qt|webm|mkv|avi|mts|m2ts|mpg|mpeg|wmv|3gp|3g2|ts|f4v|ogv)$/i;
 
 function isLikelyVideoFile(f: File): boolean {
   // Prefer filename: mobile OS pickers often send empty MIME, octet-stream, or
@@ -540,7 +540,9 @@ export default function Upload() {
 
   const handleFile = useCallback((f: File) => {
     if (!isLikelyVideoFile(f)) {
-      setError("Please upload a video file (.mp4, .mov, .webm)");
+      setError(
+        "That file does not look like a video (need a known extension such as .mp4, .mov, or .3gp, or a video/* type from your device)."
+      );
       return;
     }
     if (f.size > MAX_UPLOAD_BYTES) {
@@ -809,12 +811,13 @@ export default function Upload() {
                     Drop your video here or click to browse
                   </p>
                   <p className="text-sm text-slate-500">
-                    .mp4, .mov, .webm — up to {MAX_UPLOAD_MB} MB
+                    .mp4, .mov, .webm, phone clips (.3gp) — up to {MAX_UPLOAD_MB}{" "}
+                    MB
                   </p>
                   <input
                     ref={inputRef}
                     type="file"
-                    accept="video/*,.mp4,.mov,.webm,.m4v,.mkv"
+                    accept="video/*,.mp4,.mov,.webm,.m4v,.mkv,.3gp,.3g2,.avi,.mts,.m2ts"
                     aria-label="Choose video file"
                     className="sr-only"
                     onChange={(e) => {
