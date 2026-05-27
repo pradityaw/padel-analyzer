@@ -39,6 +39,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Upload UI smoke (Playwright)
+        run: npx playwright test e2e/upload-job-ui.spec.ts
+
       - name: Squash-merge feedback PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -51,4 +51,4 @@ Informal feedback in Slack/Telegram is collected separately (`scripts/feedback-b
 
 | ID | Title | Severity | Triage | Reported |
 |----|-------|----------|--------|----------|
-| — | *(none yet)* | | | |
+| — | Upload video (Slack burst-1779203975) — fixed in PR #13 | Sev-2 | verify | 2026-05-26 |

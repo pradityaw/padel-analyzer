@@ -195,7 +195,11 @@ npm run feedback:collect-slack   # safe — no Cursor API spend
 npm run feedback:dry-run-slack   # safe — bundles only, no PRs
 npm run feedback:triage-slack    # costs Cursor API; may open GitHub PR(s)
 npm run feedback:test-slack-utils # local validation for Slack helpers / JSONL parsing
+npm run feedback:post-slack-retest   # thread reply after a merged upload fix (PR #13)
+npm run feedback:pin-slack-template  # post bug-report template to channel (pin in Slack UI)
 ```
+
+Tester message templates: [`docs/feedback-slack-templates.md`](../../docs/feedback-slack-templates.md).
 
 Copy [`.env.feedback.example`](../../.env.feedback.example) to `.env.feedback` and set keys. For testing, use `FEEDBACK_MAX_PRS_PER_RUN=1` and `FEEDBACK_MAX_MESSAGES_PER_RUN=20`.
 
