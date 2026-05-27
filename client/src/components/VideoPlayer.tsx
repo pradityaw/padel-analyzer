@@ -6,6 +6,7 @@ import {
   useCallback,
   useMemo,
   useImperativeHandle,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Play,
@@ -373,8 +374,9 @@ function VideoPlayerInner(
     }
   };
 
-  const seekBySeconds = useCallback(
-    (deltaSec: number) => {
+  /** Absolute seek; pauses so only-rally snap does not override manual skips while scrubbing. */
+  const seekPlaybackToSeconds = useCallback(
+    (targetTimeSec: number) => {
       const video = videoRef.current;
       if (!video) return;
 
@@ -382,14 +384,17 @@ function VideoPlayerInner(
       setPlaying(false);
       cancelFrameLoop();
 
-      const duration =
+      const durationCap =
         Number.isFinite(video.duration) && video.duration > 0
           ? video.duration
-          : videoDurationSec;
-      const nextTime = Math.max(
-        0,
-        Math.min(duration > 0 ? duration : Infinity, video.currentTime + deltaSec)
-      );
+          : videoDurationSec > 0
+            ? videoDurationSec
+            : 0;
+
+      const nextTime =
+        durationCap > 0
+          ? Math.max(0, Math.min(durationCap, targetTimeSec))
+          : Math.max(0, targetTimeSec);
 
       video.currentTime = nextTime;
       resetSyncCache();
@@ -403,6 +408,15 @@ function VideoPlayerInner(
       syncToCurrentTime,
       videoDurationSec,
     ]
+  );
+
+  const seekBySeconds = useCallback(
+    (deltaSec: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+      seekPlaybackToSeconds(video.currentTime + deltaSec);
+    },
+    [seekPlaybackToSeconds]
   );
 
   const cycleSeekStep = () => {
@@ -565,6 +579,7 @@ function VideoPlayerInner(
           onSeekBack={() => seekBySeconds(-seekStepSec)}
           onSeekForward={() => seekBySeconds(seekStepSec)}
           onCycleSeekStep={cycleSeekStep}
+          onTimelineSeek={seekPlaybackToSeconds}
         />
       )}
 
@@ -740,6 +755,8 @@ type PhaseTimelineBarProps = {
   onSeekBack: () => void;
   onSeekForward: () => void;
   onCycleSeekStep: () => void;
+  /** Click or drag along the timeline to jump playback (paused). */
+  onTimelineSeek?: (timeSec: number) => void;
 };
 
 function PhaseTimelineBar({
@@ -752,6 +769,7 @@ function PhaseTimelineBar({
   onSeekBack,
   onSeekForward,
   onCycleSeekStep,
+  onTimelineSeek,
 }: PhaseTimelineBarProps) {
   const lastPhaseFrame = phases[phases.length - 1]?.endFrame ?? 0;
   const phaseDurationSec =
@@ -762,6 +780,36 @@ function PhaseTimelineBar({
     timelineDurationSec > 0
       ? Math.max(0, Math.min(100, (currentTimeSec / timelineDurationSec) * 100))
       : 0;
+
+  const scrubFromClientX = (bar: HTMLElement, clientX: number): void => {
+    if (!onTimelineSeek || timelineDurationSec <= 0) return;
+    const rect = bar.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onTimelineSeek(ratio * timelineDurationSec);
+  };
+
+  const onTimelinePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!onTimelineSeek || timelineDurationSec <= 0) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const bar = e.currentTarget;
+    scrubFromClientX(bar, e.clientX);
+    const onMove = (ev: PointerEvent) => {
+      scrubFromClientX(bar, ev.clientX);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
+  const trackInteractable =
+    Boolean(onTimelineSeek) && timelineDurationSec > 0;
 
   return (
     <div className="flex items-stretch w-full bg-slate-900/95 border-y border-slate-700/60">
@@ -775,7 +823,10 @@ function PhaseTimelineBar({
         <Rewind className="w-3.5 h-3.5" />
       </button>
 
-      <div className="relative flex-1 h-6 min-w-0">
+      <div
+        className={`relative flex-1 h-6 min-w-0 ${trackInteractable ? "cursor-pointer touch-none" : ""}`}
+        onPointerDown={trackInteractable ? onTimelinePointerDown : undefined}
+      >
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-slate-700 overflow-hidden">
           {phases.length > 0 ? (
             phases.map((phase) => {

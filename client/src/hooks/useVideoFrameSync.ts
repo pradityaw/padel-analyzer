@@ -72,6 +72,8 @@ export function useVideoFrameSync({
     if (!list || list.length === 0) return;
     const video = videoRef.current;
     if (!video) return;
+    /** User scrubbed/skipped while paused — do not snap away from dead time. */
+    if (video.paused) return;
 
     const { current, next } = locateRallyForTime(list, video.currentTime);
     if (current) return;
