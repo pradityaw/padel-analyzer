@@ -26,10 +26,11 @@ jobs:
           cache: npm
 
       - name: Restore Slack feedback artifacts
-        uses: actions/cache@v4
+        id: slack-feedback-cache
+        uses: actions/cache/restore@v4
         with:
           path: qa-artifacts/feedback
-          key: slack-feedback-${{ github.repository }}-${{ runner.os }}-v1
+          key: slack-feedback-${{ github.repository }}-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             slack-feedback-${{ github.repository }}-${{ runner.os }}-
 
@@ -56,3 +57,10 @@ jobs:
           FEEDBACK_MAX_MESSAGES_PER_RUN: ${{ secrets.FEEDBACK_MAX_MESSAGES_PER_RUN }}
           FEEDBACK_MAX_PRS_PER_RUN: ${{ secrets.FEEDBACK_MAX_PRS_PER_RUN }}
         run: npm run feedback:triage-slack
+
+      - name: Save Slack feedback artifacts
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: qa-artifacts/feedback
+          key: slack-feedback-${{ github.repository }}-${{ runner.os }}-${{ github.run_id }}

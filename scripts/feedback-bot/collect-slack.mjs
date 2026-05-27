@@ -16,6 +16,12 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { shouldSkipSlackRecord } from "./filter.mjs";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
+import {
+  resolveSlackChannelId,
+  slackApi,
+  SlackApiError,
+  slackErrorHint,
+} from "./slack.mjs";
 
 const FEEDBACK_DIR = resolve(repoRoot, "qa-artifacts/feedback");
 const STATE_PATH = resolve(FEEDBACK_DIR, "slack-state.json");
@@ -106,22 +112,6 @@ function compareTs(a, b) {
 
 function maxTs(a, b) {
   return compareTs(a, b) >= 0 ? a : b;
-}
-
-async function slackApi(token, method, body = {}) {
-  const res = await fetch(`https://slack.com/api/${method}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!json.ok) {
-    throw new Error(`Slack ${method} failed: ${json.error || JSON.stringify(json)}`);
-  }
-  return json;
 }
 
 async function downloadSlackFile(token, url, destAbsPath) {
@@ -270,12 +260,17 @@ export async function collectSlackMessages(opts = {}) {
   loadFeedbackEnv();
   const silent = !!opts.silent;
   const token = process.env.SLACK_BOT_TOKEN;
-  const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
-  if (!token || !channelId) {
+  const rawChannelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+  if (!token || !rawChannelId) {
     throw new Error(
       "Set SLACK_BOT_TOKEN and SLACK_FEEDBACK_CHANNEL_ID (see scripts/feedback-bot/README.md)"
     );
   }
+  const channelId = await resolveSlackChannelId(token, rawChannelId, {
+    log: (msg) => {
+      if (!silent) console.warn(`[collect-slack] ${msg}`);
+    },
+  });
 
   mkdirSync(FEEDBACK_DIR, { recursive: true });
   mkdirSync(MEDIA_DIR, { recursive: true });
@@ -294,22 +289,11 @@ export async function collectSlackMessages(opts = {}) {
     if (fetchedThreads.has(threadTs)) return;
     fetchedThreads.add(threadTs);
 
-    let repliesPage;
-    try {
-      repliesPage = await slackApi(token, "conversations.replies", {
-        channel: channelId,
-        ts: threadTs,
-        limit: 200,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!silent) {
-        console.warn(
-          `[collect-slack] conversations.replies skipped for ts=${threadTs}: ${msg}`
-        );
-      }
-      return;
-    }
+    const repliesPage = await fetchThreadReplies({
+      token,
+      channelId,
+      parentTs: threadTs,
+    });
 
     for (const reply of repliesPage.messages || []) {
       if (String(reply.ts) === threadTs) continue;
@@ -334,7 +318,15 @@ export async function collectSlackMessages(opts = {}) {
     };
     if (cursor) body.cursor = cursor;
 
-    const page = await slackApi(token, "conversations.history", body);
+    let page;
+    try {
+      page = await slackApi(token, "conversations.history", body);
+    } catch (e) {
+      if (e instanceof SlackApiError) {
+        throw new Error(`${e.message}. ${slackErrorHint(e.method, e.error)}`);
+      }
+      throw e;
+    }
     const messages = page.messages || [];
     cursor = page.response_metadata?.next_cursor;
 
@@ -355,6 +347,7 @@ export async function collectSlackMessages(opts = {}) {
       appended += 1;
       maxSeenTs = maxTs(maxSeenTs, record.slack_ts);
       await addReaction(token, channelId, record.slack_ts, silent);
+
     }
   } while (cursor);
 

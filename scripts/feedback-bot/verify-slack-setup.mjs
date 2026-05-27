@@ -7,21 +7,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadFeedbackEnv, repoRoot } from "./env.mjs";
+import {
+  resolveSlackChannelId,
+  slackApi,
+  slackErrorHint,
+} from "./slack.mjs";
 
 const COLLECT_PATH = resolve(repoRoot, "scripts/feedback-bot/collect-slack.mjs");
-
-async function slackApi(token, method, body = {}) {
-  const res = await fetch(`https://slack.com/api/${method}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  return json;
-}
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -55,50 +47,49 @@ async function main() {
   if (!ok) process.exit(1);
 
   const token = process.env.SLACK_BOT_TOKEN;
-  const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+  let channelId;
+  try {
+    channelId = await resolveSlackChannelId(token, process.env.SLACK_FEEDBACK_CHANNEL_ID, {
+      log: (msg) => console.warn(`[verify-slack] ${msg}`),
+    });
+  } catch (err) {
+    console.error(
+      `[verify-slack] Invalid SLACK_FEEDBACK_CHANNEL_ID: ${
+        err instanceof Error ? err.message : err
+      }`
+    );
+    process.exit(1);
+  }
 
-  const auth = await slackApi(token, "auth.test");
+  const auth = await slackApi(token, "auth.test", {}, { throwOnError: false });
   if (!auth.ok) {
     console.error(`[verify-slack] auth.test failed: ${auth.error}`);
+    console.error(`[verify-slack] ${slackErrorHint("auth.test", auth.error)}`);
     process.exit(1);
   }
   console.log(`[verify-slack] Slack bot: ${auth.user} @ ${auth.team}`);
-
-  const trimmedChannelId = String(channelId).trim();
-  let channelName = trimmedChannelId;
+  console.log(`[verify-slack] Channel ID shape: ${channelId[0]}... (${channelId.length} chars)`);
 
   const info = await slackApi(token, "conversations.info", {
-    channel: trimmedChannelId,
-  });
-  if (info.ok) {
-    channelName = info.channel?.name || channelName;
-  } else {
-    const history = await slackApi(token, "conversations.history", {
-      channel: trimmedChannelId,
-      limit: 1,
-    });
-    if (!history.ok) {
-      console.error(
-        `[verify-slack] Channel access failed: conversations.info=${info.error}, conversations.history=${history.error}`
-      );
-      console.error(
-        "[verify-slack] Is the bot invited to the channel? Channel ID correct?"
-      );
-      process.exit(1);
-    }
-
-    const list = await slackApi(token, "conversations.list", {
-      types: "public_channel,private_channel",
-      limit: 200,
-      exclude_archived: true,
-    });
-    const match = (list.channels || []).find((ch) => ch.id === trimmedChannelId);
-    if (match?.name) channelName = match.name;
-    console.warn(
-      `[verify-slack] conversations.info unavailable (${info.error}); verified via conversations.history`
-    );
+    channel: channelId,
+  }, { throwOnError: false });
+  if (!info.ok) {
+    console.error(`[verify-slack] conversations.info failed: ${info.error}`);
+    console.error(`[verify-slack] ${slackErrorHint("conversations.info", info.error)}`);
+    process.exit(1);
   }
-  console.log(`[verify-slack] Channel: #${channelName}`);
+  console.log(`[verify-slack] Channel: #${info.channel?.name || channelId}`);
+
+  const history = await slackApi(token, "conversations.history", {
+    channel: channelId,
+    limit: 1,
+  }, { throwOnError: false });
+  if (!history.ok) {
+    console.error(`[verify-slack] conversations.history failed: ${history.error}`);
+    console.error(`[verify-slack] ${slackErrorHint("conversations.history", history.error)}`);
+    process.exit(1);
+  }
+  console.log("[verify-slack] conversations.history OK");
 
   const allowlist = process.env.SLACK_ALLOWLIST_USER_IDS;
   if (allowlist?.trim()) {

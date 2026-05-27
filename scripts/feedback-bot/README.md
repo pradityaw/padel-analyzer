@@ -149,7 +149,12 @@ curl -s -H "Authorization: Bearer xoxb-YOUR_TOKEN" \
   | python3 -m json.tool | grep -A2 '"name": "padel'
 ```
 
-Set `SLACK_FEEDBACK_CHANNEL_ID` to that `C...` value.
+Set `SLACK_FEEDBACK_CHANNEL_ID` to the raw conversation ID only:
+
+- Public channel: `C...`
+- Private channel: `G...`
+
+The scripts also tolerate a copied Slack `/archives/C...` URL or `<#C...|name>` mention, but repository secrets should store the raw ID. Do not store `#channel-name`, the channel display name, or a generic Slack client URL.
 
 ### 6. Allowlist (recommended)
 
@@ -175,13 +180,26 @@ If unset, all human messages in the channel are ingested.
 
 Add these to **`.env.feedback`** alongside Telegram vars if you use both.
 
+Validate the Slack/Cursor setup before spending Cursor runs:
+
+```bash
+npm run feedback:verify-slack
+```
+
+If the verifier reports `conversations.info failed: invalid_arguments`, the Slack token is valid but the channel value is not usable by Slack's API. Reset `SLACK_FEEDBACK_CHANNEL_ID` to the raw `C...` or `G...` ID from Slack channel details, invite the bot to that channel, then rerun the verifier.
+
 ## Slack commands
 
 ```bash
 npm run feedback:collect-slack   # safe — no Cursor API spend
 npm run feedback:dry-run-slack   # safe — bundles only, no PRs
 npm run feedback:triage-slack    # costs Cursor API; may open GitHub PR(s)
+npm run feedback:test-slack-utils # local validation for Slack helpers / JSONL parsing
+npm run feedback:post-slack-retest   # thread reply after a merged upload fix (PR #13)
+npm run feedback:pin-slack-template  # post bug-report template to channel (pin in Slack UI)
 ```
+
+Tester message templates: [`docs/feedback-slack-templates.md`](../../docs/feedback-slack-templates.md).
 
 Copy [`.env.feedback.example`](../../.env.feedback.example) to `.env.feedback` and set keys. For testing, use `FEEDBACK_MAX_PRS_PER_RUN=1` and `FEEDBACK_MAX_MESSAGES_PER_RUN=20`.
 
