@@ -186,7 +186,9 @@ Validate the Slack/Cursor setup before spending Cursor runs:
 npm run feedback:verify-slack
 ```
 
-If the verifier reports `conversations.info failed: invalid_arguments`, the Slack token is valid but the channel value is not usable by Slack's API. Reset `SLACK_FEEDBACK_CHANNEL_ID` to the raw `C...` or `G...` ID from Slack channel details, invite the bot to that channel, then rerun the verifier.
+If the verifier reports `conversations.info unavailable (invalid_arguments); verifying via conversations.history`, this can be tolerated: some Slack workspaces reject `conversations.info` while `conversations.history` still works for collection/triage. Treat this as healthy when the verifier also prints `conversations.history OK`.
+
+Treat it as a real configuration issue only when `conversations.history` fails too. In that case, reset `SLACK_FEEDBACK_CHANNEL_ID` to the raw `C...` or `G...` ID from Slack channel details, invite the bot to that channel, then rerun the verifier.
 
 ## Slack commands
 

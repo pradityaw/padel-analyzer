@@ -11,6 +11,7 @@ import {
   resolveSlackChannelId,
   slackApi,
   slackErrorHint,
+  verifySlackChannelAccess,
 } from "./slack.mjs";
 
 const COLLECT_PATH = resolve(repoRoot, "scripts/feedback-bot/collect-slack.mjs");
@@ -70,41 +71,20 @@ async function main() {
   console.log(`[verify-slack] Slack bot: ${auth.user} @ ${auth.team}`);
   console.log(`[verify-slack] Channel ID shape: ${channelId[0]}... (${channelId.length} chars)`);
 
-  const info = await slackApi(token, "conversations.info", {
-    channel: channelId,
-  }, { throwOnError: false });
-
-  let channelLabel = channelId;
-  if (info.ok) {
-    channelLabel = info.channel?.name || channelId;
-    console.log(`[verify-slack] Channel: #${channelLabel}`);
-  } else {
-    console.warn(
-      `[verify-slack] conversations.info unavailable (${info.error}); verifying via conversations.history`
-    );
-  }
-
-  const history = await slackApi(token, "conversations.history", {
-    channel: channelId,
-    limit: 1,
-  }, { throwOnError: false });
-  if (!history.ok) {
-    console.error(`[verify-slack] conversations.history failed: ${history.error}`);
-    console.error(`[verify-slack] ${slackErrorHint("conversations.history", history.error)}`);
-    process.exit(1);
-  }
-  console.log("[verify-slack] conversations.history OK");
-
-  if (!info.ok) {
-    const list = await slackApi(token, "conversations.list", {
-      types: "public_channel,private_channel",
-      limit: 200,
-      exclude_archived: true,
-    }, { throwOnError: false });
-    const match = (list.channels || []).find((ch) => ch.id === channelId);
-    if (match?.name) {
-      console.log(`[verify-slack] Channel (via list): #${match.name}`);
+  try {
+    const access = await verifySlackChannelAccess(token, channelId, {
+      log: (msg) => console.warn(msg),
+    });
+    if (access.infoError) {
+      console.log(`[verify-slack] conversations.history OK`);
+      console.log(`[verify-slack] Channel (via list): #${access.channelLabel}`);
+    } else {
+      console.log(`[verify-slack] Channel: #${access.channelLabel}`);
     }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[verify-slack] ${message}`);
+    process.exit(1);
   }
 
   const allowlist = process.env.SLACK_ALLOWLIST_USER_IDS;

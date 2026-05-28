@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { parseJsonlLines } from "./jsonl.mjs";
-import { normalizeSlackChannelId, slackErrorHint } from "./slack.mjs";
+import {
+  normalizeSlackChannelId,
+  slackErrorHint,
+  verifySlackChannelAccess,
+} from "./slack.mjs";
 
 const cases = [
   ["C1234567890", "C1234567890"],
@@ -51,5 +55,59 @@ assert.match(
   /raw Slack conversation ID/
 );
 assert.match(slackErrorHint("conversations.history", "not_in_channel"), /Invite/);
+
+const originalFetch = globalThis.fetch;
+async function runWithMockedFetch(mockImpl, fn) {
+  globalThis.fetch = mockImpl;
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+await runWithMockedFetch(async (_url, init) => {
+  const body = JSON.parse(init.body);
+  if (body.channel === "C1234567890" && body.limit === undefined) {
+    return { json: async () => ({ ok: false, error: "invalid_arguments" }) };
+  }
+  if (body.channel === "C1234567890" && body.limit === 1) {
+    return { json: async () => ({ ok: true, messages: [] }) };
+  }
+  if (body.types === "public_channel,private_channel") {
+    return {
+      json: async () => ({
+        ok: true,
+        channels: [{ id: "C1234567890", name: "live-feedback-sdk" }],
+      }),
+    };
+  }
+  throw new Error(`Unexpected Slack API payload: ${JSON.stringify(body)}`);
+}, async () => {
+  const warnings = [];
+  const result = await verifySlackChannelAccess("xoxb-test", "C1234567890", {
+    log: (msg) => warnings.push(msg),
+  });
+  assert.equal(result.infoError, "invalid_arguments");
+  assert.equal(result.channelLabel, "live-feedback-sdk");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /verifying via conversations\.history/);
+});
+
+await runWithMockedFetch(async (_url, init) => {
+  const body = JSON.parse(init.body);
+  if (body.channel === "C1234567890" && body.limit === undefined) {
+    return { json: async () => ({ ok: false, error: "invalid_arguments" }) };
+  }
+  if (body.channel === "C1234567890" && body.limit === 1) {
+    return { json: async () => ({ ok: false, error: "not_in_channel" }) };
+  }
+  throw new Error(`Unexpected Slack API payload: ${JSON.stringify(body)}`);
+}, async () => {
+  await assert.rejects(
+    () => verifySlackChannelAccess("xoxb-test", "C1234567890"),
+    /conversations\.history failed: not_in_channel/
+  );
+});
 
 console.log("[feedback:test-slack-utils] OK");

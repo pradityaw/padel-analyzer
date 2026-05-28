@@ -133,3 +133,70 @@ export async function resolveSlackChannelId(token, raw, opts = {}) {
     );
   }
 }
+
+/**
+ * Verify channel access for triage preflight.
+ * conversations.info can fail on some workspaces even when history works.
+ * @param {string} token
+ * @param {string} channelId
+ * @param {{ log?: (msg: string) => void }} [opts]
+ * @returns {Promise<{ channelLabel: string; infoError: string | null }>}
+ */
+export async function verifySlackChannelAccess(token, channelId, opts = {}) {
+  const log = opts.log || (() => {});
+
+  const info = await slackApi(
+    token,
+    "conversations.info",
+    { channel: channelId },
+    { throwOnError: false }
+  );
+
+  if (info.ok) {
+    return {
+      channelLabel: info.channel?.name || channelId,
+      infoError: null,
+    };
+  }
+
+  log(
+    `[verify-slack] conversations.info unavailable (${info.error}); verifying via conversations.history`
+  );
+
+  const history = await slackApi(
+    token,
+    "conversations.history",
+    {
+      channel: channelId,
+      limit: 1,
+    },
+    { throwOnError: false }
+  );
+  if (!history.ok) {
+    throw new Error(
+      `conversations.history failed: ${history.error}. ${slackErrorHint(
+        "conversations.history",
+        history.error
+      )}`
+    );
+  }
+
+  let channelLabel = channelId;
+  const list = await slackApi(
+    token,
+    "conversations.list",
+    {
+      types: "public_channel,private_channel",
+      limit: 200,
+      exclude_archived: true,
+    },
+    { throwOnError: false }
+  );
+  const match = (list.channels || []).find((ch) => ch.id === channelId);
+  if (match?.name) channelLabel = match.name;
+
+  return {
+    channelLabel,
+    infoError: info.error || "unknown_error",
+  };
+}
