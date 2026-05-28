@@ -1,0 +1,52 @@
+---
+description: Physical iOS device verification via agent-device CLI (Swing Vision reference app)
+alwaysApply: false
+globs:
+  - docs/AGENT_DEVICE*.md
+  - scripts/agent-device*.sh
+---
+
+# agent-device (physical iPhone)
+
+Use **agent-device** only for app/device automation on a physical iPhone (or simulator). Read [docs/AGENT_DEVICE_SETUP.md](mdc:docs/AGENT_DEVICE_SETUP.md) before first run.
+
+## Bootstrap (every session)
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+agent-device --version
+agent-device help workflow
+agent-device devices --platform ios
+```
+
+If `agent-device` is missing in the agent terminal but installed globally elsewhere, resolve the absolute binary path from a normal shell; do not assume the agent `PATH` matches the user shell.
+
+## Operating loop
+
+`open -> snapshot -i -> act -> re-snapshot -> verify -> close`
+
+- Exploration: current refs (`@e3`) from `snapshot -i`.
+- Durable replay: selectors (`label="…"`, `id="…"`).
+- One `--session`: keep mutating commands serial.
+- MCP (`agent-device mcp`) is **discovery-only** — automation runs in the integrated terminal, not via MCP tools.
+
+## Help topics
+
+| Task | Command |
+|------|---------|
+| Workflow | `agent-device help workflow` |
+| Exploratory QA | `agent-device help dogfood` |
+| Stop QA run | `./scripts/stop-agent-device-qa.sh` |
+| Logs / crashes | `agent-device help debugging` |
+| React Native | `agent-device help react-native` |
+
+## Guardrails
+
+- Do not run `npx -y agent-device@latest` unattended; use the globally installed or project-pinned CLI.
+- Do not bypass login, passcode, payments, or privacy prompts — stop and ask the user.
+- Capture screenshots, logs, recordings, and `.ad` replay scripts only when they add evidence; store under `docs/agent-device-artifacts/`.
+- Physical iPhone recording is best-effort (not guaranteed 60 FPS); `open` the app before `record start`.
+
+## Reference app
+
+Swing Vision smoke: [docs/AGENT_DEVICE_SMOKE.md](mdc:docs/AGENT_DEVICE_SMOKE.md) and `scripts/agent-device-swing-vision-smoke.sh`.

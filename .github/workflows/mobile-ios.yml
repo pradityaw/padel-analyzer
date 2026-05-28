@@ -1,0 +1,64 @@
+name: Mobile iOS Native QA
+
+on:
+  push:
+    paths:
+      - "mobile/**"
+      - "scripts/**"
+      - ".github/workflows/mobile-ios.yml"
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "scripts/**"
+      - ".github/workflows/mobile-ios.yml"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch: {}
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+  IOS_DESTINATION: platform=iOS Simulator,name=iPhone 16
+
+jobs:
+  ios-native-qa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm ci --prefix mobile
+
+      - name: Check iOS prerequisites
+        run: bash ./scripts/check-ios-prereqs.sh
+
+      - name: Expo prebuild (iOS)
+        run: npm run mobile:ios:prebuild
+
+      - name: CocoaPods install
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Setup native iOS test targets
+        run: npm run mobile:ios:setup-tests
+
+      - name: xcodebuild clean + build
+        run: npm run mobile:ios:build
+
+      - name: xcodebuild test
+        run: npm run mobile:ios:test

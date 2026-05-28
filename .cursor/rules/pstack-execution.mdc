@@ -1,0 +1,32 @@
+---
+description: Route non-trivial implementation through pstack (/poteto-mode) while respecting workstream boundaries
+alwaysApply: true
+---
+
+# Pstack execution
+
+Read [AGENTS.md](mdc:AGENTS.md) (workstreams, merge order) and [docs/PSTACK_USAGE.md](mdc:docs/PSTACK_USAGE.md) when starting implementation work.
+
+## Routing
+
+- **Scope first:** `@pm-developer` or the agent brief in AGENTS.md — not `/poteto-mode`.
+- **Implement:** `/poteto-mode <task>` for any non-trivial code change, bug fix, perf work, or refactor.
+- **Cross-boundary changes:** `/architect` before coding (see [architect.mdc](mdc:.cursor/rules/architect.mdc)).
+- **After planning:** use the global `model-recommender` skill for model choice; do not duplicate pstack principle text here.
+
+## Workstream discipline
+
+- Stay in the assigned workstream slice (A / B / C / D / S). See [padel-multi-agent.mdc](mdc:.cursor/rules/padel-multi-agent.mdc).
+- Spawn implementation subagents with `subagent_type: "poteto-agent"`, not `generalPurpose`.
+- Merge order: shared types → server → client.
+
+## Verification
+
+- UI / overlay: `control-ui` (cursor-team-kit).
+- CLI / scripts / CV pipeline: `control-cli` (cursor-team-kit).
+- Before commit: `/deslop`.
+- After opening a PR: `/babysit`.
+
+## Plugins required
+
+`pstack` and `cursor-team-kit` must be enabled (Cursor Settings → Plugins). Install with `/add-plugin pstack` if missing.
