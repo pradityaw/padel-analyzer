@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "./config";
 import { trpc } from "./trpc";
+import type { CourtCornersPayload } from "./courtCorners";
+import type { RecordMode } from "./recordMode";
 import type {
   AnalysisDetail,
   AnalysisJob,
@@ -113,6 +115,8 @@ export async function uploadVideoAsset(input: UploadVideoInput) {
 export async function createMobileAnalysisJob(input: {
   videoFileName: string;
   videoStorageKey: string;
+  courtCorners?: CourtCornersPayload;
+  mode?: RecordMode;
 }) {
   return (await trpc.mutation("mobileAnalysis.create", input)) as AnalysisJob;
 }

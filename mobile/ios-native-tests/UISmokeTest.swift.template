@@ -1,0 +1,10 @@
+import XCTest
+
+final class __UI_TARGET_NAME__: XCTestCase {
+  func testLaunchesApp() {
+    let app = XCUIApplication()
+    app.launch()
+
+    XCTAssertEqual(app.state, .runningForeground)
+  }
+}

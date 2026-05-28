@@ -1,6 +1,16 @@
+import type { CourtCornersPayload } from "./courtCorners";
+import type { RecordMode } from "./recordMode";
+
 export type RootStackParamList = {
   Home: undefined;
-  Record: undefined;
+  Setup: undefined;
+  Record:
+    | {
+        mode?: RecordMode;
+        courtCorners?: CourtCornersPayload;
+        alignedInWizard?: boolean;
+      }
+    | undefined;
   Upload: undefined;
   History: undefined;
   Compare: { analysisIdA?: number; analysisIdB?: number } | undefined;

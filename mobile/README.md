@@ -65,6 +65,60 @@ npm run mobile:start
 npm run mobile:typecheck
 ```
 
+## iOS native warning noise (Expo prebuild-safe)
+
+To reduce third-party warning noise in Debug simulator builds, this app enables a config plugin at `mobile/plugins/withPodfileWarningSuppressions.js` via `app.json`.
+
+- It patches the generated `ios/Podfile` `post_install` block during `expo prebuild`.
+- It applies warning suppression at the Pods project level (`GCC_WARN_INHIBIT_ALL_WARNINGS`, `SWIFT_SUPPRESS_WARNINGS`, plus `-Wno-nonportable-include-path`) to reduce third-party warning noise.
+- It does **not** disable warnings on the app target (`PadelAnalyzerMobile`), so app-source warnings still surface normally.
+
+Run a clean iOS native regenerate when needed:
+
+```bash
+npm run ios:prebuild:clean
+```
+
+Remaining warnings are mostly emitted while compiling app target sources that include third-party headers, or upstream warnings outside pod-target build settings control.
+
+## Native iOS build & CI
+
+`mobile/ios` is a generated Expo prebuild output and is intentionally not committed. Regenerate it whenever native config/plugins change.
+
+From the repo root:
+
+```bash
+npm run mobile:ios:prebuild      # expo prebuild --platform ios
+npm run mobile:ios:setup-tests   # add unit/UI test targets to generated xcodeproj
+npm run mobile:ios:build         # xcodebuild clean + build (Debug simulator)
+npm run mobile:ios:test          # xcodebuild test (also runs setup hook if present)
+npm run mobile:ios:qa            # prebuild + setup-tests + build + test
+```
+
+Equivalent commands are available from `mobile/package.json` as `ios:prebuild`, `ios:setup-tests`, `ios:build`, `ios:test`, and `ios:qa`.
+
+Test source templates live in `mobile/ios-native-tests/` and are applied into generated `mobile/ios/` by `mobile/scripts/setup-ios-test-targets.mjs`.
+
+CI mirrors the same flow in `.github/workflows/mobile-ios.yml`:
+
+1. `npm ci` (root and `mobile/`)
+2. `expo prebuild --platform ios`
+3. `pod install`
+4. `setup-ios-test-targets.mjs`
+5. `xcodebuild clean build`
+6. `xcodebuild test` (fails if no tests are executed)
+
+### Always-on Expo Go (physical device)
+
+From the repo root, keep API + Metro running in the background:
+
+```bash
+npm run daemon:start
+npm run daemon:status
+```
+
+See [../docs/EXPO_GO_ALWAYS_ON.md](../docs/EXPO_GO_ALWAYS_ON.md) for `.env` (avoid `localhost` on a real phone), firewall, and `daemon:startup` / `daemon:save` after reboot.
+
 ## Server-side analysis dependency
 
 The backend job runner calls:
