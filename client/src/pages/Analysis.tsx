@@ -21,8 +21,14 @@ import type {
   SwingPhase,
   SwingPhaseType,
   ShotType,
+  RecordMode,
 } from "@shared/types";
-import { SHOT_TYPES, SHOT_TYPE_LABELS, SHOT_TYPE_COLORS } from "@shared/types";
+import {
+  RECORD_MODE_LABELS,
+  SHOT_TYPES,
+  SHOT_TYPE_LABELS,
+  SHOT_TYPE_COLORS,
+} from "@shared/types";
 
 function ShotTypeBadge({
   shotType,
@@ -219,6 +225,9 @@ export default function Analysis() {
             <p className="text-xs text-slate-500">
               {new Date(data.createdAt).toLocaleDateString()} —{" "}
               {data.dominantSide === "right" ? "Right" : "Left"}-handed
+              {data.mode && data.mode in RECORD_MODE_LABELS
+                ? ` · ${RECORD_MODE_LABELS[data.mode as RecordMode]}`
+                : ""}
             </p>
           </div>
         </div>
