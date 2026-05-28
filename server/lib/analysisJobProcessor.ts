@@ -115,7 +115,11 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     const result = await runParallelAnalysisOrchestration(
       videoPath,
       (stageId, patch, statusMessage) =>
-        updateStage(jobId, stageId, patch, statusMessage)
+        updateStage(jobId, stageId, patch, statusMessage),
+      {
+        courtCornersJson: job.courtCornersJson,
+        recordMode: job.mode,
+      }
     );
     timer.mark("orchestration-done", {
       rallyWindows: result.rallyWindows?.windows.length ?? 0,
@@ -169,6 +173,8 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       skillLabel: result.swing.skillLabel as NewAnalysis["skillLabel"],
       skillConfidence: result.swing.skillConfidence,
       qualityScore: result.swing.qualityScore,
+      courtCornersJson: job.courtCornersJson,
+      mode: job.mode,
     };
 
     const saved = db.insert(analyses).values(newAnalysis).returning().get();

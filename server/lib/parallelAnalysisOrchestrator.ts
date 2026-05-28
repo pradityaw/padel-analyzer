@@ -3,6 +3,12 @@ import type {
   AnalysisJobStageProgress,
   AnalysisResultPayload,
 } from "../../shared/schema.js";
+import { recordModeSchema } from "../../shared/schema.js";
+import type { RecordMode } from "../../shared/types.js";
+import {
+  removeCourtCornersOverrideDir,
+  writeCourtCornersOverrideFile,
+} from "./courtCornersOverride.js";
 import { MIN_FRAMES_FOR_PHASES } from "../../shared/config.js";
 import {
   AnalysisRunnerError,
@@ -46,6 +52,70 @@ export type ParallelAnalysisResult = {
   };
   rallyWindows?: RallyWindowsPayload;
 };
+
+export type ParallelAnalysisOptions = {
+  courtCornersJson?: string | null;
+  recordMode?: RecordMode;
+};
+
+function shouldUseFullVideoForMode(mode: RecordMode): boolean {
+  return mode === "serve_practice" || mode === "drill";
+}
+
+function rallyPayloadForMode(
+  detection: Awaited<ReturnType<typeof detectRalliesOrFullVideo>>,
+  recordMode: RecordMode
+): RallyWindowsPayload {
+  const base = buildRallyWindowsPayload(detection);
+  if (!shouldUseFullVideoForMode(recordMode)) {
+    return base;
+  }
+  const durationSec =
+    detection.durationMs > 0
+      ? detection.durationMs / 1000
+      : base.windows.length > 0
+        ? Math.max(...base.windows.map((w) => w.endSec))
+        : 0;
+  if (durationSec <= 0) {
+    return base;
+  }
+  return {
+    ...base,
+    paddingSec: 0,
+    windows: [{ startSec: 0, endSec: durationSec }],
+  };
+}
+
+async function runCourtCalibrationStage(
+  videoPath: string,
+  courtCornersJson: string | null | undefined,
+  report: StageReporter
+): Promise<unknown> {
+  const override = await writeCourtCornersOverrideFile(courtCornersJson);
+  try {
+    const extraArgs =
+      override != null ? ["--court-corners", override.filePath] : undefined;
+    return await runSoftReportedStage(
+      "courtCalibration",
+      {
+        running: override
+          ? "Agent A is applying your court alignment corners."
+          : "Agent A is calibrating court boundaries and homography.",
+        completed: "Agent A calibrated court geometry.",
+      },
+      report,
+      () =>
+        runCvAgentStage("court", videoPath, {
+          extraArgs,
+        }),
+      courtCalibrationFallback
+    );
+  } finally {
+    if (override != null) {
+      await removeCourtCornersOverrideDir(override.dir);
+    }
+  }
+}
 
 async function runReportedStage<T>(
   stageId: AnalysisJobStageId,
@@ -149,8 +219,11 @@ async function detectRalliesOrFullVideo(videoPath: string) {
 
 export async function runParallelAnalysisOrchestration(
   videoPath: string,
-  report: StageReporter
+  report: StageReporter,
+  options: ParallelAnalysisOptions = {}
 ): Promise<ParallelAnalysisResult> {
+  const recordMode = recordModeSchema.parse(options.recordMode ?? "match");
+  const courtCornersJson = options.courtCornersJson ?? null;
   await report(
     "ingestion",
     {
@@ -162,31 +235,30 @@ export async function runParallelAnalysisOrchestration(
     "Preparing video..."
   );
 
+  const rallyMessage = shouldUseFullVideoForMode(recordMode)
+    ? "Using full clip (serve practice / drill mode)."
+    : "Detecting active rally windows (trimming dead time).";
+
   await report(
     "ingestion",
     {
       status: "running",
       progress: 35,
-      message: "Detecting active rally windows (trimming dead time).",
+      message: rallyMessage,
       errorMessage: null,
     },
-    "Detecting rallies..."
+    shouldUseFullVideoForMode(recordMode) ? "Preparing full clip..." : "Detecting rallies..."
   );
 
   const rallyDetectionPromise = detectRalliesOrFullVideo(videoPath);
-  const courtPromise = runSoftReportedStage(
-    "courtCalibration",
-    {
-      running: "Agent A is calibrating court boundaries and homography.",
-      completed: "Agent A calibrated court geometry.",
-    },
-    report,
-    () => runCvAgentStage("court", videoPath),
-    courtCalibrationFallback
+  const courtPromise = runCourtCalibrationStage(
+    videoPath,
+    courtCornersJson,
+    report
   );
 
   const rallyDetection = await rallyDetectionPromise;
-  const rallyPayload = buildRallyWindowsPayload(rallyDetection);
+  const rallyPayload = rallyPayloadForMode(rallyDetection, recordMode);
   const rallyWindowsPath = await writeRallyWindowsFile(rallyPayload);
   const activeSec = activeDurationSec(rallyPayload);
 

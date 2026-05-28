@@ -23,16 +23,62 @@ from run_pipeline import to_json_safe
 from video_source import is_remote_video_uri, open_video_source
 
 
-def run_court_agent(video_path: str) -> dict[str, Any]:
+def _load_manual_court_points(
+    video_path: str, court_corners_path: str | None
+) -> list[tuple[float, float]] | None:
+    if not court_corners_path:
+        return None
+    with open(court_corners_path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("court corners file must be a JSON object")
+    corners = payload.get("corners")
+    if not isinstance(corners, list) or len(corners) != 4:
+        raise ValueError("court corners file must contain exactly four corners")
+    points: list[tuple[float, float]] = []
+    for corner in corners:
+        if not isinstance(corner, dict):
+            raise ValueError("each corner must be an object with x and y")
+        points.append((float(corner["x"]), float(corner["y"])))
+    if not payload.get("normalized"):
+        return points
+
+    import cv2
+
+    capture = cv2.VideoCapture(str(video_path))
+    if not capture.isOpened():
+        raise FileNotFoundError(f"Video file does not exist: {video_path}")
+    frame_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+    frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+    capture.release()
+    if frame_width <= 0 or frame_height <= 0:
+        raise RuntimeError("Could not read video dimensions for court corner scaling")
+    return [
+        (point[0] * frame_width, point[1] * frame_height) for point in points
+    ]
+
+
+def run_court_agent(
+    video_path: str, court_corners_path: str | None = None
+) -> dict[str, Any]:
     import court_mapping
 
-    court = court_mapping.build_court_homography(video_path)
+    manual_points = _load_manual_court_points(video_path, court_corners_path)
+    config = None
+    if manual_points is not None:
+        config = court_mapping.CourtMappingConfig(manual_court_points=manual_points)
+    court = (
+        court_mapping.build_court_homography(video_path, config)
+        if config is not None
+        else court_mapping.build_court_homography(video_path)
+    )
     return {
         "agent": "courtCalibration",
         "court": court,
         "summary": {
             "confidence": float(court.get("confidence", 0.0) or 0.0),
             "has_homography": court.get("homography") is not None,
+            "manual_corners": manual_points is not None,
         },
     }
 
@@ -257,6 +303,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="JSON file with active rally windows for ball tracking.",
     )
+    parser.add_argument(
+        "--court-corners",
+        dest="court_corners",
+        default=None,
+        help="JSON file with normalized or pixel court corners (mobile capture overlay).",
+    )
     return parser.parse_args()
 
 
@@ -268,7 +320,7 @@ def main() -> int:
         with open_video_source(args.video_path) as video_path:
             with redirect_stdout(sys.stderr):
                 if args.stage == "court":
-                    payload = run_court_agent(video_path)
+                    payload = run_court_agent(video_path, args.court_corners)
                 elif args.stage == "ball":
                     payload = run_ball_agent(video_path, args.rally_windows)
                 else:

@@ -14,7 +14,9 @@ import {
   analysisJobGetInputSchema,
   analysisJobIdInputSchema,
   analysisJobSchema,
+  courtCornersInputSchema,
   createMobileAnalysisJobInputSchema,
+  recordModeSchema,
   trackingSyncInputSchema,
   type TrackingSyncInput,
 } from "../../shared/schema.js";
@@ -49,12 +51,17 @@ async function appendTrackingSync(input: TrackingSyncInput) {
 function createJobRecord(input: {
   videoFileName: string;
   videoStorageKey: string;
+  courtCornersJson?: string | null;
+  mode?: string;
 }): ReturnType<typeof analysisJobSchema.parse> {
+  const mode = recordModeSchema.parse(input.mode ?? "match");
   const created = db
     .insert(analysisJobs)
     .values({
       videoFileName: input.videoFileName,
       videoStorageKey: input.videoStorageKey,
+      courtCornersJson: input.courtCornersJson ?? null,
+      mode,
       status: "queued",
       progress: 0,
       statusMessage: "Queued for analysis.",
@@ -111,7 +118,15 @@ export const mobileAnalysisRouter = router({
               : "Uploaded video could not be found. Upload the file again.",
         });
       }
-      return createJobRecord(input);
+      const courtCornersJson = input.courtCorners
+        ? JSON.stringify(courtCornersInputSchema.parse(input.courtCorners))
+        : null;
+      return createJobRecord({
+        videoFileName: input.videoFileName,
+        videoStorageKey: input.videoStorageKey,
+        courtCornersJson,
+        mode: input.mode,
+      });
     }),
 
   syncTracking: publicProcedure
@@ -223,6 +238,8 @@ export const mobileAnalysisRouter = router({
       return createJobRecord({
         videoFileName: job.videoFileName,
         videoStorageKey: job.videoStorageKey,
+        courtCornersJson: job.courtCornersJson,
+        mode: job.mode,
       });
     }),
 });
