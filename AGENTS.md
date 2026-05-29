@@ -72,3 +72,30 @@ Depends on: <merged PRs or none>
 - **Match existing patterns** in the same folder (imports, tRPC usage, Tailwind).
 - **Don’t commit** `data/*.db` or large uploads; they’re gitignored by design.
 
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Start command | Default URL | Notes |
+|---------|--------------|-------------|-------|
+| Dev server (Express + Vite HMR) | `npm run dev` | `http://localhost:3001` | Serves both API and client |
+
+Single-process dev: `npm run dev` starts Express (tRPC API + file uploads) with Vite dev middleware attached for the React client. No separate frontend process needed.
+
+### Key commands reference
+
+- **Typecheck:** `npm run typecheck`
+- **Build:** `npm run build`
+- **Python CV tests:** `.venv/bin/python3 -m pytest scripts/cv/tests -q`
+- **Contract tests:** `npm run test:contracts`
+- **CV doctor (verify pipeline deps):** `npm run cv:doctor`
+- **DB push (after schema changes):** `npx drizzle-kit push`
+
+### Non-obvious caveats
+
+- The Python venv at `.venv/` is used by the CV pipeline. The `cv:doctor` script auto-detects `.venv/bin/python3` if present. The server spawns `python3` for CV processing; set `CV_PYTHON_BIN` env var to override the Python path.
+- SQLite DB lives at `./data/padel.db` (auto-created by drizzle-kit push). The `data/` directory is gitignored.
+- `yt-dlp` and `ffmpeg` must be on `PATH` for the YouTube import feature; these are pre-installed in Cloud VMs.
+- The `tracknet-v2.onnx` model is not committed (needs separate training/download); the CV pipeline falls back to OpenCV-based ball tracking without it.
+- `tsconfig.json` excludes several files from type-checking (Login, Home page, auth routes); these are WIP files with known type issues.
+- `python3.12-venv` apt package is required to create the `.venv` -- it is not pre-installed on the base Ubuntu image.
