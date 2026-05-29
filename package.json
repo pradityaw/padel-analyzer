@@ -12,6 +12,7 @@
     "qa:browser": "playwright test --config playwright.config.ts",
     "qa:mvp": "npm run typecheck && npm run build && npm run qa:browser",
     "test:contracts": "tsx scripts/qa/analysis-contract.test.ts && tsx scripts/qa/object-storage.test.ts",
+    "test:game": "tsx shared/game/sim/world.test.ts && tsx scripts/qa/game-live-match.test.ts",
     "test:court-calibration": "tsx scripts/qa/court-calibration.test.ts",
     "test:overlay-frame-budget": "tsx scripts/qa/overlay-frame-budget.test.ts",
     "test:mobile-ball-tracking": "tsx mobile/scripts/ball-tracking.test.ts",
@@ -82,6 +83,7 @@
     "superjson": "^2.2.2",
     "tailwind-merge": "^3.0.2",
     "wouter": "^3.7.1",
+    "ws": "^8.21.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -94,6 +96,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.4.1",
     "drizzle-kit": "^0.30.5",
     "esbuild": "^0.25.2",

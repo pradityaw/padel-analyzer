@@ -90,6 +90,44 @@ export const proBenchmarks = sqliteTable(
   ]
 );
 
+// ── Arena Royale (multiplayer battle game) ───────────────────────────────────
+
+/**
+ * A battle session lobby. Live match state lives in-memory on the server
+ * (see server/game/matchRegistry.ts); only the lobby row and final results are
+ * persisted. `status` tracks the lobby lifecycle for the join screen.
+ */
+export const gameSessions = sqliteTable("game_sessions", {
+  code: text("code").primaryKey(),
+  status: text("status", {
+    enum: ["lobby", "playing", "over"],
+  })
+    .notNull()
+    .default("lobby"),
+  hostName: text("host_name"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  endedAt: text("ended_at"),
+});
+
+/** Final standings for a finished session (one row per session). */
+export const gameResults = sqliteTable("game_results", {
+  code: text("code").primaryKey(),
+  winnerName: text("winner_name"),
+  /** JSON-encoded ResultEntry[] (placement, kills, name). */
+  resultsJson: text("results_json").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  endedAt: text("ended_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export type GameSession = typeof gameSessions.$inferSelect;
+export type NewGameSession = typeof gameSessions.$inferInsert;
+export type GameResultRow = typeof gameResults.$inferSelect;
+export type NewGameResultRow = typeof gameResults.$inferInsert;
+
 export type Analysis = typeof analyses.$inferSelect;
 export type NewAnalysis = typeof analyses.$inferInsert;
 export type AnalysisJob = typeof analysisJobs.$inferSelect;

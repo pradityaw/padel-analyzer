@@ -5,6 +5,7 @@ import { appRouter } from "../routers/index.js";
 import path from "path";
 import { mkdirSync } from "fs";
 import { createUploadHandler } from "./upload.js";
+import { attachGameWebSocketServer } from "../game/wsServer.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
@@ -88,6 +89,9 @@ const server = app.listen(PORT, LISTEN_HOST, () => {
     `Padel Analyzer listening on ${LISTEN_HOST}:${PORT} (browser: http://localhost:${PORT})`,
   );
 });
+
+// Arena Royale realtime channel shares the HTTP server (path: /game).
+attachGameWebSocketServer(server);
 
 server.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {

@@ -5,6 +5,7 @@ import { annotationRouter } from "./annotation.js";
 import { proCompareRouter } from "./proCompare.js";
 import { mobileAnalysisRouter } from "./mobileAnalysis.js";
 import { objectStorageRouter } from "./objectStorage.js";
+import { gameRouter } from "./game.js";
 
 export const appRouter = router({
   analysis: analysisRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   proCompare: proCompareRouter,
   mobileAnalysis: mobileAnalysisRouter,
   objectStorage: objectStorageRouter,
+  game: gameRouter,
 });
 
 export type AppRouter = typeof appRouter;
