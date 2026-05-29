@@ -41,6 +41,12 @@ fi
 app_project="$(basename "$(ls -d "$IOS_DIR"/*.xcodeproj | head -1)" .xcodeproj)"
 scheme="${IOS_SCHEME:-$app_project}"
 
+# Debug UI tests load JS from Metro; start it when not already running (e.g. GitHub Actions).
+# shellcheck source=scripts/ios-metro-for-tests.sh
+source "$ROOT_DIR/scripts/ios-metro-for-tests.sh"
+ensure_metro_for_ui_tests "$MOBILE_DIR"
+trap stop_metro_if_started EXIT
+
 echo "Testing scheme: $scheme"
 echo "Destination: $IOS_DESTINATION"
 xcodebuild \

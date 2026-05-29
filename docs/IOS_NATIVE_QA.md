@@ -19,3 +19,4 @@ npm run mobile:ios:test
 - `xcodebuild clean build` succeeds on `platform=iOS Simulator,name=iPhone 16` (or overridden `IOS_DESTINATION`).
 - `xcodebuild test` runs at least one test; script fails with a clear error when zero tests execute.
 - If present, `mobile/scripts/setup-ios-test-targets.mjs` runs before tests.
+- `scripts/ios-test.sh` starts Metro on `:8081` when it is not already running so Debug UI smoke tests can load JS (CI and local).

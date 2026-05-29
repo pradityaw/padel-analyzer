@@ -106,7 +106,7 @@ CI mirrors the same flow in `.github/workflows/mobile-ios.yml`:
 3. `pod install`
 4. `setup-ios-test-targets.mjs`
 5. `xcodebuild clean build`
-6. `xcodebuild test` (fails if no tests are executed)
+6. `xcodebuild test` (starts Metro on `:8081` when needed, then runs UI smoke tests; fails if no tests are executed)
 
 ### Always-on Expo Go (physical device)
 
