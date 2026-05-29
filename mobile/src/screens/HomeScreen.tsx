@@ -153,6 +153,15 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.primaryButtonText}>Analyze your swing</Text>
               </Pressable>
               <Pressable
+                onPress={() => navigation.navigate("GameMenu")}
+                style={({ pressed }) => [
+                  styles.recordButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.recordButtonText}>🎮 Play Arena Royale</Text>
+              </Pressable>
+              <Pressable
                 onPress={() =>
                   navigation.navigate("Analysis", { analysisId: DEMO_ANALYSIS_ID })
                 }

@@ -61,3 +61,12 @@ export function usesHttpToPrivateLanBaseUrl(): boolean {
 /** Set when refreshing Expo — visible on Home in dev to confirm latest bundle. */
 export const DEV_BUILD_STAMP =
   process.env.EXPO_PUBLIC_DEV_BUILD_STAMP?.trim() || "unknown";
+
+/**
+ * WebSocket endpoint for the Arena Royale realtime channel. Derives ws:// or
+ * wss:// from the configured API base URL so it follows the same host/port.
+ */
+export function getGameWebSocketUrl(): string {
+  const wsBase = API_BASE_URL.replace(/^http/, "ws");
+  return `${wsBase}/game`;
+}

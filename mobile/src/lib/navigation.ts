@@ -9,4 +9,8 @@ export type RootStackParamList = {
   Login: undefined;
   JobStatus: { jobId: number };
   Analysis: { analysisId: number };
+  // Arena Royale (multiplayer battle game)
+  GameMenu: undefined;
+  LocalGame: undefined;
+  OnlineGame: { code: string; name: string };
 };

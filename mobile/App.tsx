@@ -1,6 +1,11 @@
 import "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { NavigationContainer, DarkTheme } from "@react-navigation/native";
+import * as Linking from "expo-linking";
+import {
+  NavigationContainer,
+  DarkTheme,
+  type LinkingOptions,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,7 +20,19 @@ import PrivacyScreen from "./src/screens/PrivacyScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import JobStatusScreen from "./src/screens/JobStatusScreen";
 import AnalysisScreen from "./src/screens/AnalysisScreen";
+import GameMenuScreen from "./src/game/screens/GameMenuScreen";
+import GameScreen from "./src/game/screens/GameScreen";
+import OnlineGameScreen from "./src/game/screens/OnlineGameScreen";
 import type { RootStackParamList } from "./src/lib/navigation";
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [Linking.createURL("/")],
+  config: {
+    screens: {
+      OnlineGame: "join/:code",
+    },
+  },
+};
 
 if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
   void import("@sentry/react-native")
@@ -51,7 +68,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={theme}>
+          <NavigationContainer theme={theme} linking={linking}>
             <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
@@ -109,6 +126,21 @@ export default function App() {
                 name="Analysis"
                 component={AnalysisScreen}
                 options={{ title: "Analysis" }}
+              />
+              <Stack.Screen
+                name="GameMenu"
+                component={GameMenuScreen}
+                options={{ title: "Arena Royale" }}
+              />
+              <Stack.Screen
+                name="LocalGame"
+                component={GameScreen}
+                options={{ title: "Arena Royale", headerShown: false }}
+              />
+              <Stack.Screen
+                name="OnlineGame"
+                component={OnlineGameScreen}
+                options={{ title: "Arena Royale", headerShown: false }}
               />
             </Stack.Navigator>
           </NavigationContainer>

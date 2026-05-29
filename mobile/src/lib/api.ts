@@ -204,3 +204,21 @@ export async function logout() {
 export async function listProComparisons() {
   return (await trpc.query("proCompare.list")) as ProComparison[];
 }
+
+// ── Arena Royale (multiplayer battle game) ───────────────────────────────────
+
+/** Create a new battle lobby and return the shareable room code. */
+export async function createGameSession() {
+  return (await trpc.mutation("game.createSession", undefined)) as {
+    code: string;
+  };
+}
+
+/** Validate a room code before opening the realtime WebSocket. */
+export async function checkGameSession(code: string) {
+  return (await trpc.query("game.checkSession", { code })) as {
+    exists: boolean;
+    joinable: boolean;
+    reason: "ok" | "not_found" | "full" | "started";
+  };
+}
