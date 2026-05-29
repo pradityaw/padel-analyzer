@@ -1,17 +1,94 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Tennis Neon x Nike — design tokens
+   Nike design language (pill geometry, extreme type contrast, flat surfaces,
+   8px spacing + 48px section rhythm, restrained accent) ported onto the dark
+   Tennis Neon palette. Full spec: docs/DESIGN_SYSTEM.md
+--------------------------------------------------------------------------- */
 @theme {
+  /* Brand palette */
   --color-padel-green: #a3e635;
+  --color-padel-green-deep: #84cc16;
   --color-padel-court: #1a5632;
   --color-padel-gold: #f59e0b;
   --color-padel-dark: #0f172a;
   --color-padel-surface: #1e293b;
   --color-padel-border: #334155;
+
+  /* Hairline — Nike's only "depth" cue */
+  --color-hairline: #334155;
+  --color-hairline-soft: #1e293b;
+
+  /* Text ramp (slate) */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+
+  /* Radius scale — Nike pill geometry; no sharp-cornered buttons */
+  --radius-button: 9999px;
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  /* Spacing — 8px base, 48px section rhythm */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 18px;
+  --space-xl: 24px;
+  --space-xxl: 30px;
+  --space-section: 48px;
+  --space-card: 20px;
+
+  /* Typography — extreme contrast: quiet UI sans + towering display tier */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bebas Neue", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Nike display tier — uppercase, tight, billboard-scale headlines */
+.display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+  font-weight: 400;
+}
+
+/* Accent focus ring (used across interactive elements) */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-padel-green);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
 }
 
 .shimmer-bar {
@@ -28,6 +105,7 @@
 
 body {
   min-height: 100dvh;
+  font-family: var(--font-sans);
 }
 
 ::-webkit-scrollbar {

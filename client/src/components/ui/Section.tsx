@@ -21,7 +21,7 @@ export function Section({
 }: SectionProps) {
   return (
     <section
-      className={cn("py-16 md:py-24", className)}
+      className={cn("py-[var(--space-section)] md:py-24", className)}
       {...props}
     >
       <div
@@ -38,7 +38,7 @@ export function Section({
               </p>
             ) : null}
             {title ? (
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+              <h2 className="display text-4xl sm:text-5xl text-white mb-3">
                 {title}
               </h2>
             ) : null}
