@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import HomeScreen from "./src/screens/HomeScreen";
 import UploadScreen from "./src/screens/UploadScreen";
 import RecordScreen from "./src/screens/RecordScreen";
+import SetupWizardScreen from "./src/screens/SetupWizardScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import CompareScreen from "./src/screens/CompareScreen";
 import ProCompareScreen from "./src/screens/ProCompareScreen";
@@ -69,6 +70,11 @@ export default function App() {
                 name="Upload"
                 component={UploadScreen}
                 options={{ title: "Upload" }}
+              />
+              <Stack.Screen
+                name="Setup"
+                component={SetupWizardScreen}
+                options={{ title: "Record setup" }}
               />
               <Stack.Screen
                 name="Record"

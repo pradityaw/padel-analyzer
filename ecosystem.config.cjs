@@ -12,6 +12,7 @@ module.exports = {
       interpreter: "none",
       env: {
         NODE_ENV: "development",
+        HOST: "0.0.0.0",
         PORT: "3001",
       },
       watch: false,
@@ -29,6 +30,7 @@ module.exports = {
         CI: "1",
         RCT_METRO_PORT: "8081",
         EXPO_PUBLIC_API_PORT: "3001",
+        EXPO_SYNC_PULL: "0",
       },
       autorestart: true,
       max_restarts: 50,

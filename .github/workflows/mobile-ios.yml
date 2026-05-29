@@ -1,0 +1,75 @@
+name: Mobile iOS Native QA
+
+on:
+  push:
+    paths:
+      - "mobile/**"
+      - "scripts/**"
+      - ".github/workflows/mobile-ios.yml"
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "scripts/**"
+      - ".github/workflows/mobile-ios.yml"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: mobile-ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-native-qa:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm ci --prefix mobile
+
+      - name: Check iOS prerequisites
+        run: bash ./scripts/check-ios-prereqs.sh
+
+      - name: Expo prebuild (iOS)
+        run: npm run mobile:ios:prebuild
+
+      - name: CocoaPods install
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Setup native iOS test targets
+        run: npm run mobile:ios:setup-tests
+
+      - name: Resolve iOS simulator destination
+        run: bash ./scripts/resolve-ios-simulator-destination.sh
+
+      - name: xcodebuild clean + build
+        run: npm run mobile:ios:build
+
+      - name: xcodebuild test
+        run: npm run mobile:ios:test

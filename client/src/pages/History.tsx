@@ -22,8 +22,17 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import ScoreCard from "@/components/ScoreCard";
-import type { ShotType } from "@shared/types";
-import { SHOT_TYPE_LABELS, SHOT_TYPE_COLORS } from "@shared/types";
+import type { RecordMode, ShotType } from "@shared/types";
+import {
+  RECORD_MODE_LABELS,
+  SHOT_TYPE_LABELS,
+  SHOT_TYPE_COLORS,
+} from "@shared/types";
+
+function recordModeLabel(mode: string | null | undefined): string | null {
+  if (!mode || !(mode in RECORD_MODE_LABELS)) return null;
+  return RECORD_MODE_LABELS[mode as RecordMode];
+}
 
 export default function History() {
   const [, navigate] = useLocation();
@@ -302,6 +311,11 @@ export default function History() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
+                      {recordModeLabel(a.mode) ? (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-600">
+                          {recordModeLabel(a.mode)}
+                        </span>
+                      ) : null}
                       {a.shotType && (
                         <span
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"

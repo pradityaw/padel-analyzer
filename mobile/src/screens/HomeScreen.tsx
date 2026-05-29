@@ -135,13 +135,24 @@ export default function HomeScreen({ navigation }: Props) {
 
             <View style={styles.ctaRow}>
               <Pressable
-                onPress={() => navigation.navigate("Record")}
+                onPress={() => navigation.navigate("Setup")}
                 style={({ pressed }) => [
                   styles.recordButton,
                   pressed && styles.buttonPressed,
                 ]}
               >
                 <Text style={styles.recordButtonText}>Record a swing</Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  navigation.navigate("Record", { alignedInWizard: true })
+                }
+                style={({ pressed }) => [
+                  styles.skipWizardLink,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.skipWizardText}>Skip setup → camera</Text>
               </Pressable>
               <Pressable
                 onPress={() => navigation.navigate("Upload")}
@@ -153,6 +164,9 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.primaryButtonText}>Analyze your swing</Text>
               </Pressable>
               <Pressable
+                testID="home-see-sample-analysis"
+                accessibilityRole="button"
+                accessibilityLabel="See sample analysis"
                 onPress={() =>
                   navigation.navigate("Analysis", { analysisId: DEMO_ANALYSIS_ID })
                 }
@@ -337,6 +351,15 @@ const styles = StyleSheet.create({
     color: "#a3e635",
     fontWeight: "700",
     fontSize: 16,
+  },
+  skipWizardLink: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  skipWizardText: {
+    color: "#94a3b8",
+    fontSize: 13,
+    fontWeight: "600",
   },
   sectionTitle: {
     color: "#f8fafc",

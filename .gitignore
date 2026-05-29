@@ -34,6 +34,24 @@ data/*.db-shm
 # QA run output
 qa-artifacts/
 
+# agent-device physical iPhone smoke (keep SMOKE_NOTES.md in repo)
+docs/agent-device-artifacts/*
+!docs/agent-device-artifacts/
+!docs/agent-device-artifacts/.gitkeep
+!docs/agent-device-artifacts/SMOKE_NOTES.md
+!docs/agent-device-artifacts/flow/
+docs/agent-device-artifacts/flow/*
+!docs/agent-device-artifacts/flow/FLOW_SUMMARY.md
+!docs/agent-device-artifacts/flow/FLOW_LOG.md
+
+# Generated mobile/native artifacts
+mobile/.build/
+mobile/mobile/
+mobile/ios/build/
+
+# Local competitive-analysis scratch exports
+dubz swing vision agent testing/
+
 training/checkpoints/
 training/data/*.json
 training/data/**/*.json

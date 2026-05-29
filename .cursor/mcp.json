@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "agent-device",
+      "args": ["mcp"]
+    },
+    "XcodeBuildMCP": {
+      "command": "npx",
+      "args": ["-y", "xcodebuildmcp@latest", "mcp"]
+    }
+  }
+}

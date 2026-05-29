@@ -1,0 +1,74 @@
+import XCTest
+
+final class __UI_TARGET_NAME__: XCTestCase {
+  private var app: XCUIApplication!
+
+  override func setUpWithError() throws {
+    continueAfterFailure = false
+    app = XCUIApplication()
+  }
+
+  func testLaunchesApp() {
+    app.launch()
+    XCTAssertEqual(app.state, .runningForeground)
+  }
+
+  /// Requires Metro on :8081 for Debug builds (same as manual dev workflow).
+  func testOpensSampleAnalysis() {
+    app.launch()
+
+    XCTAssertTrue(
+      app.navigationBars["Padel Analyzer"].waitForExistence(timeout: 120),
+      "Home screen should load from Metro before interacting"
+    )
+
+    dismissDevWarningBannerIfPresent()
+
+    let sampleCta = sampleAnalysisButton()
+    XCTAssertTrue(
+      sampleCta.waitForExistence(timeout: 15),
+      "Home screen should expose See sample analysis"
+    )
+    sampleCta.tap()
+
+    XCTAssertTrue(
+      app.navigationBars["Analysis"].waitForExistence(timeout: 15),
+      "Should navigate to Analysis stack screen"
+    )
+
+    XCTAssertTrue(
+      app.staticTexts["Sample swing (demo)"].waitForExistence(timeout: 10),
+      "Demo analysis title should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Demo skeleton replay (no video)"].exists,
+      "Demo skeleton overlay label should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Phase breakdown"].exists,
+      "Phase breakdown section should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["79"].exists,
+      "Demo overall score should render in header"
+    )
+  }
+
+  private func dismissDevWarningBannerIfPresent() {
+    let close = app.buttons.matching(
+      NSPredicate(format: "label CONTAINS[c] 'close' OR label == '×'")
+    ).firstMatch
+    if close.waitForExistence(timeout: 2), close.isHittable {
+      close.tap()
+    }
+  }
+
+  private func sampleAnalysisButton() -> XCUIElement {
+    let byTestId = app.buttons["home-see-sample-analysis"]
+    if byTestId.exists {
+      return byTestId
+    }
+    let byLabel = NSPredicate(format: "label == %@", "See sample analysis")
+    return app.descendants(matching: .any).matching(byLabel).firstMatch
+  }
+}
