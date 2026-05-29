@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, createTrpcClient } from "./lib/trpc";
 import App from "./App";
+import "@fontsource-variable/inter";
+import "@fontsource/bebas-neue/400.css";
 import "./index.css";
 
 function Root() {

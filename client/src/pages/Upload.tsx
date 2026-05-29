@@ -697,8 +697,8 @@ export default function Upload() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
       >
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-padel-green to-emerald-400 bg-clip-text text-transparent">
-          Analyze Your Padel Swing
+        <h1 className="display text-5xl sm:text-6xl mb-4 text-white">
+          Analyze Your <span className="text-padel-green">Padel Swing</span>
         </h1>
         <p className="text-slate-400 text-lg max-w-xl mx-auto">
           Upload a video or paste a YouTube link. Analysis runs on the server

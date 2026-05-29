@@ -35,7 +35,6 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-hidden border-b border-padel-border">
-      <div className="absolute inset-0 bg-gradient-to-b from-padel-green/5 via-transparent to-transparent pointer-events-none" />
       <div className="max-w-6xl mx-auto px-4 py-16 md:py-24">
         <motion.div
           className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center"
@@ -52,12 +51,10 @@ export default function Hero() {
             </motion.p>
             <motion.h1
               variants={item}
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-5"
+              className="display text-5xl sm:text-6xl lg:text-7xl mb-5 text-white"
             >
               See your padel swing{" "}
-              <span className="bg-gradient-to-r from-padel-green to-emerald-400 bg-clip-text text-transparent">
-                like a pro coach
-              </span>
+              <span className="text-padel-green">like a pro coach</span>
             </motion.h1>
             <motion.p
               variants={item}

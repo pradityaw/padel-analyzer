@@ -2,7 +2,7 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-xl border", {
+const cardVariants = cva("rounded-[var(--radius-card)] border", {
   variants: {
     variant: {
       default: "bg-padel-surface border-padel-border",

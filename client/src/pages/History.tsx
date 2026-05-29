@@ -89,7 +89,7 @@ export default function History() {
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3 min-w-0">
           <Clock className="w-6 h-6 text-padel-green shrink-0" />
-          <h1 className="text-2xl font-bold truncate">Sessions</h1>
+          <h1 className="display text-3xl sm:text-4xl truncate">Sessions</h1>
         </div>
         <button
           type="button"

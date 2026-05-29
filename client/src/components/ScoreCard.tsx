@@ -90,8 +90,8 @@ export default function ScoreCard({ score, label, size = "lg" }: Props) {
         className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       >
         <span
-          className="font-bold tabular-nums leading-none"
-          style={{ fontSize: size === "lg" ? 38 : 16, color }}
+          className={size === "lg" ? "display tabular-nums leading-none" : "font-bold tabular-nums leading-none"}
+          style={{ fontSize: size === "lg" ? 52 : 16, color }}
         >
           {displayScore}
         </span>
