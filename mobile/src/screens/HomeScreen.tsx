@@ -164,6 +164,9 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.primaryButtonText}>Analyze your swing</Text>
               </Pressable>
               <Pressable
+                testID="home-see-sample-analysis"
+                accessibilityRole="button"
+                accessibilityLabel="See sample analysis"
                 onPress={() =>
                   navigation.navigate("Analysis", { analysisId: DEMO_ANALYSIS_ID })
                 }

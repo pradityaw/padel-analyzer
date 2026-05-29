@@ -17,13 +17,18 @@ final class __UI_TARGET_NAME__: XCTestCase {
   func testOpensSampleAnalysis() {
     app.launch()
 
+    XCTAssertTrue(
+      app.navigationBars["Padel Analyzer"].waitForExistence(timeout: 60),
+      "Home screen should load from Metro before interacting"
+    )
+
     dismissDevWarningBannerIfPresent()
 
-    let sampleCta = app.buttons["See sample analysis"]
-    if !sampleCta.waitForExistence(timeout: 30) {
-      scrollUntilVisible(sampleCta, maxSwipes: 4)
-    }
-    XCTAssertTrue(sampleCta.exists, "Home screen should expose See sample analysis")
+    let sampleCta = sampleAnalysisButton()
+    XCTAssertTrue(
+      sampleCta.waitForExistence(timeout: 15),
+      "Home screen should expose See sample analysis"
+    )
     sampleCta.tap()
 
     XCTAssertTrue(
@@ -44,8 +49,8 @@ final class __UI_TARGET_NAME__: XCTestCase {
       "Phase breakdown section should render"
     )
     XCTAssertTrue(
-      app.staticTexts["contact"].exists,
-      "Demo phases include contact phase"
+      app.staticTexts["79"].exists,
+      "Demo overall score should render in header"
     )
   }
 
@@ -58,11 +63,12 @@ final class __UI_TARGET_NAME__: XCTestCase {
     }
   }
 
-  private func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int) {
-    var swipes = 0
-    while !element.exists, swipes < maxSwipes {
-      app.swipeUp()
-      swipes += 1
+  private func sampleAnalysisButton() -> XCUIElement {
+    let byTestId = app.buttons["home-see-sample-analysis"]
+    if byTestId.exists {
+      return byTestId
     }
+    let byLabel = NSPredicate(format: "label == %@", "See sample analysis")
+    return app.descendants(matching: .any).matching(byLabel).firstMatch
   }
 }
