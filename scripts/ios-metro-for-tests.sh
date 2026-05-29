@@ -15,11 +15,28 @@ metro_is_running() {
   curl -sf "$(metro_status_url)" 2>/dev/null | grep -q 'packager-status:running'
 }
 
+warm_metro_ios_bundle() {
+  local port="$1"
+  local urls=(
+    "http://127.0.0.1:${port}/index.bundle?platform=ios&dev=true&minify=false"
+    "http://127.0.0.1:${port}/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true&minify=false"
+  )
+  for url in "${urls[@]}"; do
+    if curl -sf "$url" -o /dev/null --max-time 180; then
+      echo "Pre-warmed iOS bundle via ${url}"
+      return 0
+    fi
+  done
+  echo "WARN: Could not pre-warm iOS bundle; UI tests may be slower on cold CI runners."
+  return 0
+}
+
 ensure_metro_for_ui_tests() {
   local mobile_dir="$1"
 
   if metro_is_running; then
     echo "Metro already running on :${METRO_PORT}"
+    warm_metro_ios_bundle "$METRO_PORT"
     return 0
   fi
 
@@ -40,6 +57,7 @@ ensure_metro_for_ui_tests() {
   while (( SECONDS < deadline )); do
     if metro_is_running; then
       echo "Metro ready ($(metro_status_url))."
+      warm_metro_ios_bundle "$METRO_PORT"
       return 0
     fi
     if ! kill -0 "$METRO_PID" 2>/dev/null; then

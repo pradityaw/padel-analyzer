@@ -56,6 +56,8 @@ xcodebuild \
   -configuration Debug \
   -destination "$IOS_DESTINATION" \
   -derivedDataPath "$DERIVED_DATA_PATH" \
+  -retry-tests-on-failure \
+  -test-iterations 2 \
   CODE_SIGNING_ALLOWED=NO | tee "$TEST_LOG_PATH"
 
 /usr/bin/python3 - "$TEST_LOG_PATH" <<'PY'

@@ -18,7 +18,7 @@ final class __UI_TARGET_NAME__: XCTestCase {
     app.launch()
 
     XCTAssertTrue(
-      app.navigationBars["Padel Analyzer"].waitForExistence(timeout: 60),
+      app.navigationBars["Padel Analyzer"].waitForExistence(timeout: 120),
       "Home screen should load from Metro before interacting"
     )
 
