@@ -5,7 +5,7 @@ import type {
   CompleteUploadInput,
   InitiateUploadResponse,
 } from "@shared/schema";
-import { MAX_UPLOAD_BYTES } from "@shared/config";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@shared/config";
 
 type UploadProgress = {
   loadedBytes: number;
@@ -26,6 +26,49 @@ type UploadResponse = {
 type RequestInitWithDuplex = RequestInit & { duplex?: "half" };
 
 const CRLF = "\r\n";
+
+/**
+ * Mirrors `mobile/src/lib/api.ts` so web uploads surface the same actionable
+ * errors when gateways return HTML/text or JSON bodies omit `error`.
+ */
+function describeUploadFailure(
+  status: number,
+  rawBody: string,
+  jsonError?: string,
+): string {
+  const fromJson = jsonError?.trim();
+  if (fromJson) return fromJson;
+
+  const trimmed = rawBody.trim();
+  if (trimmed.length > 0) {
+    if (/<!DOCTYPE\b|<html\b/i.test(trimmed)) {
+      return `Upload endpoint returned HTML (HTTP ${status}) instead of JSON—often a proxy, auth page, or wrong API origin. Serve the SPA and POST /api/upload on the same host, or check reverse‑proxy timeouts and upload size limits.`;
+    }
+    const snippet = trimmed
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .slice(0, 280);
+    if (snippet.length > 0) {
+      return `Upload failed (HTTP ${status}): ${snippet}${trimmed.length > 280 ? "…" : ""}`;
+    }
+  }
+
+  switch (status) {
+    case 400:
+      return "Upload rejected: no usable video reached the server. Try another clip, browser, or use YouTube.";
+    case 413:
+      return `Video exceeds the upload limit (${MAX_UPLOAD_MB} MB). Trim or re-encode the clip, then retry.`;
+    case 502:
+    case 503:
+    case 504:
+      return "Server or gateway unavailable. Is the analyzer running? If uploads go through nginx, verify its client_max_body_size matches the analyzer limit.";
+    default:
+      if (!Number.isFinite(status) || status === 0) {
+        return "Network blocked or aborted the upload. Check connection, HTTPS errors, VPN, ad blockers, and that /api/upload is reachable.";
+      }
+      return `Upload failed (HTTP ${status}). Check Wi‑Fi, firewall, VPN, same-origin routing to /api, then retry.`;
+  }
+}
 
 let trpcClient: ReturnType<typeof createTRPCProxyClient<AppRouter>> | null =
   null;
@@ -128,14 +171,30 @@ function createStreamingMultipartBody(
 }
 
 async function parseUploadResponse(response: Response): Promise<string> {
+  const raw = await response.text().catch(() => "");
+  let jsonError: string | undefined;
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      (err as { error?: string }).error ?? "Failed to save video on server"
-    );
+    try {
+      const parsed = JSON.parse(raw) as { error?: unknown };
+      if (typeof parsed.error === "string" && parsed.error) jsonError = parsed.error;
+    } catch {
+      /* plain text / HTML proxy page */
+    }
+    throw new Error(describeUploadFailure(response.status, raw, jsonError));
   }
-  const body = (await response.json()) as UploadResponse;
-  return body.storageKey;
+  try {
+    const body = JSON.parse(raw) as Partial<UploadResponse>;
+    if (typeof body.storageKey === "string" && body.storageKey) return body.storageKey;
+    throw new Error(
+      raw.trim().length === 0
+        ? "Upload returned an empty body. Check proxies and routing to /api/upload."
+        : "Upload succeeded but the server reply had no storage key.",
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("storage key")) throw err;
+    if (err instanceof Error && err.message.includes("empty body")) throw err;
+    throw new Error(describeUploadFailure(response.status, raw));
+  }
 }
 
 async function uploadWithStreamingFetch(
@@ -153,13 +212,14 @@ async function uploadWithStreamingFetch(
     },
     duplex: "half",
   } as RequestInitWithDuplex);
+  const storageKey = await parseUploadResponse(response);
   options.onProgress?.({
     loadedBytes: file.size,
     totalBytes: file.size,
     percent: 100,
     mode: "stream",
   });
-  return parseUploadResponse(response);
+  return storageKey;
 }
 
 function uploadWithXhr(file: File, options: UploadOptions): Promise<string> {
@@ -192,27 +252,45 @@ function uploadWithXhr(file: File, options: UploadOptions): Promise<string> {
 
     xhr.onload = () => {
       options.signal?.removeEventListener("abort", abort);
+      const raw = xhr.responseText ?? "";
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let jsonError: string | undefined;
+        try {
+          const parsed = JSON.parse(raw || "{}") as { error?: unknown };
+          if (typeof parsed.error === "string" && parsed.error)
+            jsonError = parsed.error;
+        } catch {
+          /* proxy HTML / plaintext */
+        }
+        reject(new Error(describeUploadFailure(xhr.status, raw, jsonError)));
+        return;
+      }
       try {
-        const body = JSON.parse(xhr.responseText || "{}") as Partial<UploadResponse> & {
-          error?: string;
-        };
-        if (xhr.status < 200 || xhr.status >= 300) {
-          reject(new Error(body.error ?? "Failed to save video on server"));
+        const body = JSON.parse(raw || "{}") as Partial<UploadResponse>;
+        if (typeof body.storageKey === "string" && body.storageKey) {
+          resolve(body.storageKey);
           return;
         }
-        if (!body.storageKey) {
-          reject(new Error("Upload completed without a storage key."));
-          return;
-        }
-        resolve(body.storageKey);
+        reject(
+          new Error(
+            raw.trim().length === 0
+              ? "Upload returned an empty body. Check proxies and routing to /api/upload."
+              : "Upload succeeded but the server reply had no storage key.",
+          ),
+        );
+        return;
       } catch {
-        reject(new Error("Upload response was not valid JSON."));
+        reject(new Error(describeUploadFailure(xhr.status, raw)));
       }
     };
 
     xhr.onerror = () => {
       options.signal?.removeEventListener("abort", abort);
-      reject(new Error("Network error while uploading video."));
+      reject(
+        new Error(
+          describeUploadFailure(0, "", undefined),
+        ),
+      );
     };
     xhr.onabort = () => {
       options.signal?.removeEventListener("abort", abort);
