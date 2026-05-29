@@ -1,10 +1,68 @@
 import XCTest
 
 final class __UI_TARGET_NAME__: XCTestCase {
+  private var app: XCUIApplication!
+
+  override func setUpWithError() throws {
+    continueAfterFailure = false
+    app = XCUIApplication()
+  }
+
   func testLaunchesApp() {
-    let app = XCUIApplication()
+    app.launch()
+    XCTAssertEqual(app.state, .runningForeground)
+  }
+
+  /// Requires Metro on :8081 for Debug builds (same as manual dev workflow).
+  func testOpensSampleAnalysis() {
     app.launch()
 
-    XCTAssertEqual(app.state, .runningForeground)
+    dismissDevWarningBannerIfPresent()
+
+    let sampleCta = app.buttons["See sample analysis"]
+    if !sampleCta.waitForExistence(timeout: 30) {
+      scrollUntilVisible(sampleCta, maxSwipes: 4)
+    }
+    XCTAssertTrue(sampleCta.exists, "Home screen should expose See sample analysis")
+    sampleCta.tap()
+
+    XCTAssertTrue(
+      app.navigationBars["Analysis"].waitForExistence(timeout: 15),
+      "Should navigate to Analysis stack screen"
+    )
+
+    XCTAssertTrue(
+      app.staticTexts["Sample swing (demo)"].waitForExistence(timeout: 10),
+      "Demo analysis title should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Demo skeleton replay (no video)"].exists,
+      "Demo skeleton overlay label should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Phase breakdown"].exists,
+      "Phase breakdown section should render"
+    )
+    XCTAssertTrue(
+      app.staticTexts["contact"].exists,
+      "Demo phases include contact phase"
+    )
+  }
+
+  private func dismissDevWarningBannerIfPresent() {
+    let close = app.buttons.matching(
+      NSPredicate(format: "label CONTAINS[c] 'close' OR label == '×'")
+    ).firstMatch
+    if close.waitForExistence(timeout: 2), close.isHittable {
+      close.tap()
+    }
+  }
+
+  private func scrollUntilVisible(_ element: XCUIElement, maxSwipes: Int) {
+    var swipes = 0
+    while !element.exists, swipes < maxSwipes {
+      app.swipeUp()
+      swipes += 1
+    }
   }
 }
