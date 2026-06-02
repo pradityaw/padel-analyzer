@@ -14,7 +14,7 @@ import { Video, ResizeMode } from "expo-av";
 import Svg, { Line, Circle, Rect } from "react-native-svg";
 import SectionCard from "../components/SectionCard";
 import { getAnalysisById, getCvStatus, triggerCvPipeline } from "../lib/api";
-import { resolveUploadUrl } from "../lib/mediaUrl";
+import { buildVideoPlaybackUrl, resolveUploadUrl } from "../lib/mediaUrl";
 import {
   getDemoAnalysisDetail,
   isDemoAnalysisId,
@@ -262,7 +262,7 @@ export default function AnalysisScreen({ route }: Props) {
       return resolveUploadUrl(cvResult.trimmed_video_url);
     }
     if (analysis.videoStorageKey) {
-      return resolveUploadUrl(`/uploads/${analysis.videoStorageKey}`);
+      return resolveUploadUrl(buildVideoPlaybackUrl(analysis.videoStorageKey));
     }
     return null;
   }, [
