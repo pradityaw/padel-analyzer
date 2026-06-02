@@ -94,8 +94,9 @@ Single-process dev: `npm run dev` starts Express (tRPC API + file uploads) with 
 ### Non-obvious caveats
 
 - The Python venv at `.venv/` is used by the CV pipeline. The `cv:doctor` script auto-detects `.venv/bin/python3` if present. The server spawns `python3` for CV processing; set `CV_PYTHON_BIN` env var to override the Python path.
-- SQLite DB lives at `./data/padel.db` (auto-created by drizzle-kit push). The `data/` directory is gitignored.
-- `yt-dlp` and `ffmpeg` must be on `PATH` for the YouTube import feature; these are pre-installed in Cloud VMs.
+- SQLite DB lives at `./data/padel.db`. The `data/` directory is gitignored and **must exist** before `npm run db:push` (the dev server creates it on boot; run `mkdir -p data` for a fresh clone).
+- `ffmpeg` is on `PATH` in Cloud VMs. **`yt-dlp` is not always pre-installed`** — install via the Dockerfile pattern (`curl` to `/usr/local/bin/yt-dlp`) or `pip install yt-dlp` if you need YouTube import; `npm run cv:doctor` reports whether it is found.
+- **First-time Python CV setup:** `sudo apt-get install -y python3.12-venv`, then `python3 -m venv .venv && .venv/bin/pip install -r scripts/cv/requirements.txt` (plus `scripts/requirements-server-analysis.txt` for server/mobile analysis jobs).
 - The `tracknet-v2.onnx` model is not committed (needs separate training/download); the CV pipeline falls back to OpenCV-based ball tracking without it.
 - `tsconfig.json` excludes several files from type-checking (Login, Home page, auth routes); these are WIP files with known type issues.
 - `python3.12-venv` apt package is required to create the `.venv` -- it is not pre-installed on the base Ubuntu image.
