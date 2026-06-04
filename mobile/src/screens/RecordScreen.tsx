@@ -19,11 +19,16 @@ import {
 import {
   createDefaultCourtCorners,
   loadSavedCourtCorners,
+  normalizeCourtCornersForApi,
   saveCourtCorners,
   type CourtCornersPayload,
 } from "../lib/courtCorners";
 import type { RootStackParamList } from "../lib/navigation";
-import { RECORD_MODE_LABELS, type RecordMode } from "../lib/recordMode";
+import {
+  RECORD_MODE_LABELS,
+  saveLastRecordMode,
+  type RecordMode,
+} from "../lib/recordMode";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
 type RecordRoute = RouteProp<RootStackParamList, "Record">;
@@ -58,7 +63,7 @@ export default function RecordScreen({ navigation }: Props) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
-  const [recordMode] = useState<RecordMode>(() => route.params?.mode ?? "match");
+  const [recordMode] = useState<RecordMode>(() => route.params?.mode ?? "rally");
   const [courtCorners, setCourtCorners] = useState<CourtCornersPayload>(() =>
     route.params?.courtCorners ?? createDefaultCourtCorners()
   );
@@ -137,11 +142,11 @@ export default function RecordScreen({ navigation }: Props) {
       setError(err instanceof Error ? err.message : "Permission required.");
       return;
     }
-    const payload: CourtCornersPayload = {
+    const payload = normalizeCourtCornersForApi({
       ...courtCorners,
       previewWidth: previewSize.width || courtCorners.previewWidth,
       previewHeight: previewSize.height || courtCorners.previewHeight,
-    };
+    });
     await saveCourtCorners(payload);
     setCourtCorners(payload);
     setHasCourtAlignment(true);
@@ -216,9 +221,12 @@ export default function RecordScreen({ navigation }: Props) {
         name: `swing-${Date.now()}.mp4`,
         mimeType: "video/mp4",
       });
+      await saveLastRecordMode(recordMode);
       const job = await createMobileAnalysisJob({
         ...uploaded,
-        courtCorners: hasCourtAlignment ? courtCorners : undefined,
+        courtCorners: hasCourtAlignment
+          ? normalizeCourtCornersForApi(courtCorners)
+          : undefined,
         mode: recordMode,
       });
       navigation.replace("JobStatus", { jobId: job.id });

@@ -58,3 +58,19 @@ export async function loadSavedCourtCorners(): Promise<CourtCornersPayload | nul
 export async function saveCourtCorners(payload: CourtCornersPayload): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
+
+/** Round layout dims so server Zod (`z.number().int().positive()`) accepts the payload. */
+export function normalizeCourtCornersForApi(
+  payload: CourtCornersPayload
+): CourtCornersPayload {
+  const normalized: CourtCornersPayload = {
+    corners: payload.corners.map((c) => ({ x: c.x, y: c.y })) as CourtCornersPayload["corners"],
+  };
+  if (payload.previewWidth != null && payload.previewWidth > 0) {
+    normalized.previewWidth = Math.max(1, Math.round(payload.previewWidth));
+  }
+  if (payload.previewHeight != null && payload.previewHeight > 0) {
+    normalized.previewHeight = Math.max(1, Math.round(payload.previewHeight));
+  }
+  return normalized;
+}

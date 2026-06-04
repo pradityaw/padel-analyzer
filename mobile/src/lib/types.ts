@@ -48,6 +48,8 @@ export type AnalysisPhase = {
 /** [frameIndex, imageX, imageY, confidence] from server CV ball tracker. */
 export type BallTrackSample = [number, number, number, number];
 
+import type { RecordMode } from "./recordMode";
+
 export type AnalysisJob = {
   id: number;
   videoFileName: string;
@@ -57,6 +59,7 @@ export type AnalysisJob = {
   statusMessage?: string | null;
   errorMessage?: string | null;
   analysisId?: number | null;
+  mode?: RecordMode;
   stages?: AnalysisJobStageProgress[];
   createdAt: string;
   updatedAt: string;
@@ -87,6 +90,7 @@ export type AnalysisSummary = {
   poseDetectionRate?: number | null;
   cameraAngle?: string | null;
   captureMetadataJson?: string | null;
+  mode?: RecordMode | null;
 };
 
 export type CvStatus = "pending" | "running" | "done" | "failed";

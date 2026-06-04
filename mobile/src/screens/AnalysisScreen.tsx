@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Video, ResizeMode } from "expo-av";
 import Svg, { Line, Circle, Rect } from "react-native-svg";
+import RecordModeBadge from "../components/RecordModeBadge";
 import SectionCard from "../components/SectionCard";
 import { getAnalysisById, getCvStatus, triggerCvPipeline } from "../lib/api";
 import { resolveUploadUrl } from "../lib/mediaUrl";
@@ -290,22 +291,38 @@ export default function AnalysisScreen({ route }: Props) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <SectionCard
-        title={analysis.videoFileName}
-        subtitle={new Date(analysis.createdAt).toLocaleString()}
-        right={<Text style={styles.score}>{analysis.overallScore}</Text>}
-      >
+      <View style={styles.headerBlock}>
+        <Text style={styles.eyebrow}>SWING ANALYSIS</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle} numberOfLines={2}>
+              {analysis.videoFileName}
+            </Text>
+            <Text style={styles.metaText}>
+              {new Date(analysis.createdAt).toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.scoreWrap}>
+            <Text style={styles.scoreLabel}>SCORE</Text>
+            <Text style={styles.score}>{analysis.overallScore}</Text>
+          </View>
+        </View>
         <Text style={styles.metaText}>
           {analysis.dominantSide}-handed • {analysis.frameCount} frames •{" "}
           {formatDuration(analysis.durationMs)}
         </Text>
-        {analysis.shotType ? (
-          <Text style={styles.badge}>Shot: {analysis.shotType}</Text>
-        ) : null}
-        {analysis.skillLabel ? (
-          <Text style={styles.badge}>
-            Skill: {analysis.skillLabel} ({analysis.qualityScore ?? 0})
-          </Text>
+        {analysis.mode || analysis.shotType || analysis.skillLabel ? (
+          <View style={styles.badgeRow}>
+            <RecordModeBadge mode={analysis.mode} />
+            {analysis.shotType ? (
+              <Text style={styles.badge}>Shot: {analysis.shotType}</Text>
+            ) : null}
+            {analysis.skillLabel ? (
+              <Text style={styles.badge}>
+                Skill: {analysis.skillLabel} ({analysis.qualityScore ?? 0})
+              </Text>
+            ) : null}
+          </View>
         ) : null}
         {showBallTrackingUnavailable ? (
           <Text style={styles.trackingHint}>
@@ -313,6 +330,9 @@ export default function AnalysisScreen({ route }: Props) {
             Racket speed is web-only in this beta.
           </Text>
         ) : null}
+      </View>
+
+      <View style={styles.videoSection}>
         {replayUrl ? (
           <View style={styles.videoWrap} onLayout={onVideoLayout}>
             <Video
@@ -450,7 +470,7 @@ export default function AnalysisScreen({ route }: Props) {
             No video file is linked to this analysis for in-app replay.
           </Text>
         )}
-      </SectionCard>
+      </View>
 
       <SectionCard title="Phase breakdown" subtitle="Scores per swing phase">
         {phases.length === 0 ? (
@@ -564,10 +584,53 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
+  headerBlock: {
+    gap: 10,
+  },
+  eyebrow: {
+    color: "#a3e635",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  headerTitle: {
+    color: "#f8fafc",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  scoreWrap: {
+    alignItems: "flex-end",
+  },
+  scoreLabel: {
+    color: "#64748b",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
   score: {
     color: "#a3e635",
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: "800",
+    lineHeight: 36,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  videoSection: {
+    gap: 8,
   },
   metaText: {
     color: "#94a3b8",

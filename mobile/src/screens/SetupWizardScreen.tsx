@@ -12,6 +12,7 @@ import CourtAlignmentOverlay from "../components/CourtAlignmentOverlay";
 import {
   createDefaultCourtCorners,
   loadSavedCourtCorners,
+  normalizeCourtCornersForApi,
   saveCourtCorners,
   type CourtCornersPayload,
 } from "../lib/courtCorners";
@@ -20,6 +21,7 @@ import {
   RECORD_MODE_HINTS,
   RECORD_MODE_LABELS,
   RECORD_MODES,
+  saveLastRecordMode,
   type RecordMode,
 } from "../lib/recordMode";
 
@@ -86,18 +88,19 @@ export default function SetupWizardScreen({ navigation }: Props) {
 
   const goNext = async () => {
     if (step === "align") {
-      const alignedCorners = {
+      const alignedCorners = normalizeCourtCornersForApi({
         ...corners,
         previewWidth: previewSize.width || corners.previewWidth,
         previewHeight: previewSize.height || corners.previewHeight,
-      };
+      });
       await saveCourtCorners(alignedCorners);
       setCorners(alignedCorners);
     }
     if (stepIndex >= STEPS.length - 1) {
+      await saveLastRecordMode(mode);
       navigation.replace("Record", {
         mode,
-        courtCorners: corners,
+        courtCorners: normalizeCourtCornersForApi(corners),
         alignedInWizard: true,
       });
       return;
@@ -121,6 +124,7 @@ export default function SetupWizardScreen({ navigation }: Props) {
   };
 
   const skipToRecord = () => {
+    void saveLastRecordMode(mode);
     navigation.replace("Record", { mode });
   };
 

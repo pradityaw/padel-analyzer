@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import RecordModeBadge from "../components/RecordModeBadge";
 import SectionCard from "../components/SectionCard";
 import { getMobileAnalysisJob, retryMobileAnalysisJob } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
@@ -74,6 +75,7 @@ export default function JobStatusScreen({ route, navigation }: Props) {
 
           {job ? (
             <>
+              <RecordModeBadge mode={job.mode} />
               <Text style={styles.statusText}>
                 {job.statusMessage || "Working..."}
               </Text>

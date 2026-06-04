@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import NavGrid from "../components/NavGrid";
+import RecordModeBadge from "../components/RecordModeBadge";
 import SectionCard from "../components/SectionCard";
 import SkeletonPreview from "../components/SkeletonPreview";
 import {
@@ -32,6 +33,7 @@ import {
 } from "../lib/swingVideoPickers";
 import { DEMO_ANALYSIS_ID } from "../lib/sampleAnalysis";
 import type { RootStackParamList } from "../lib/navigation";
+import { loadLastRecordMode } from "../lib/recordMode";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -73,7 +75,8 @@ export default function HomeScreen({ navigation }: Props) {
       setError(null);
       try {
         const uploaded = await uploadVideoAsset(input);
-        const job = await createMobileAnalysisJob(uploaded);
+        const mode = await loadLastRecordMode();
+        const job = await createMobileAnalysisJob({ ...uploaded, mode });
         navigation.navigate("JobStatus", { jobId: job.id });
       } catch (err) {
         setError(
@@ -144,9 +147,11 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.recordButtonText}>Record a swing</Text>
               </Pressable>
               <Pressable
-                onPress={() =>
-                  navigation.navigate("Record", { alignedInWizard: true })
-                }
+                onPress={() => {
+                  void loadLastRecordMode().then((mode) =>
+                    navigation.navigate("Record", { alignedInWizard: true, mode })
+                  );
+                }}
                 style={({ pressed }) => [
                   styles.skipWizardLink,
                   pressed && styles.buttonPressed,
@@ -266,9 +271,12 @@ export default function HomeScreen({ navigation }: Props) {
               {item.dominantSide}-handed • {item.frameCount} frames •{" "}
               {formatDuration(item.durationMs)}
             </Text>
-            {item.shotType ? (
-              <Text style={styles.badge}>{item.shotType}</Text>
-            ) : null}
+            <View style={styles.badgeRow}>
+              <RecordModeBadge mode={item.mode} />
+              {item.shotType ? (
+                <Text style={styles.badge}>{item.shotType}</Text>
+              ) : null}
+            </View>
           </Pressable>
         )}
         ListEmptyComponent={
@@ -477,9 +485,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
   badge: {
     alignSelf: "flex-start",
-    marginTop: 4,
     backgroundColor: "#a3e63522",
     color: "#d9f99d",
     paddingHorizontal: 10,
