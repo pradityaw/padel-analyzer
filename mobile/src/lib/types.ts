@@ -1,3 +1,5 @@
+import type { RecordMode } from "./recordMode";
+
 export type AnalysisJobStatus =
   | "queued"
   | "processing"
@@ -47,8 +49,6 @@ export type AnalysisPhase = {
 
 /** [frameIndex, imageX, imageY, confidence] from server CV ball tracker. */
 export type BallTrackSample = [number, number, number, number];
-
-import type { RecordMode } from "./recordMode";
 
 export type AnalysisJob = {
   id: number;

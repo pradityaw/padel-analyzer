@@ -47,5 +47,9 @@ export async function loadLastRecordMode(): Promise<RecordMode> {
 }
 
 export async function saveLastRecordMode(mode: RecordMode): Promise<void> {
-  await AsyncStorage.setItem(LAST_MODE_KEY, mode);
+  try {
+    await AsyncStorage.setItem(LAST_MODE_KEY, mode);
+  } catch {
+    /* non-critical — must not block upload or navigation */
+  }
 }
