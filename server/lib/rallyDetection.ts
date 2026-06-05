@@ -16,7 +16,6 @@
  */
 
 import { spawn } from "child_process";
-import { existsSync } from "fs";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { tmpdir } from "os";
@@ -27,7 +26,8 @@ import { rallyDetectionResultSchema } from "../../shared/schema.js";
 import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
-import { getDataRoot, getUploadsDir } from "./paths.js";
+import { getDataRoot } from "./paths.js";
+import { resolveVideoUriForProcessing } from "./videoAccess.js";
 import {
   RALLY_DETECTION_DEFAULT_TIMEOUT_MS,
 } from "../../shared/config.js";
@@ -61,11 +61,6 @@ function rallyCachePath(analysisId: number): string {
 
 function rallyDetectorScript(): string {
   return path.resolve(process.cwd(), "scripts", "cv", "rally_detector.py");
-}
-
-function isInsidePath(parent: string, candidate: string): boolean {
-  const relative = path.relative(parent, candidate);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 type RawRally = {
@@ -177,20 +172,28 @@ function snakeToCamel(payload: RawPayload, analysisId?: number): RallyDetectionR
   return rallyDetectionResultSchema.parse(result);
 }
 
-function resolveAnalysisVideoPath(
-  analysis: { videoStorageKey: string | null; videoFileName: string }
-): string | null {
-  const uploadsDir = path.resolve(getUploadsDir());
-  const candidate = analysis.videoStorageKey ?? analysis.videoFileName;
+/**
+ * Resolves an analysis video reference to a local path for the Python rally detector.
+ * Cloud object keys are downloaded once into the processing cache (same as analysis jobs).
+ */
+export async function resolveVideoPathForRallyDetection(
+  storageKeyOrFileName: string | null | undefined
+): Promise<string | null> {
+  const candidate = storageKeyOrFileName?.trim();
   if (!candidate) return null;
   if (path.isAbsolute(candidate)) {
-    // Defensive: never trust an absolute path stored in the DB row.
-    return null;
+    throw new RallyDetectionError(
+      "Invalid video reference on analysis record.",
+      "VIDEO_NOT_FOUND"
+    );
   }
-  const resolved = path.resolve(uploadsDir, candidate);
-  if (!isInsidePath(uploadsDir, resolved)) return null;
-  if (!existsSync(resolved)) return null;
-  return resolved;
+  try {
+    return await resolveVideoUriForProcessing(candidate);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Video could not be resolved.";
+    throw new RallyDetectionError(message, "VIDEO_NOT_FOUND");
+  }
 }
 
 async function readCache(analysisId: number): Promise<RallyDetectionResult | null> {
@@ -360,7 +363,9 @@ export async function detectRalliesForAnalysis(
       );
     }
 
-    const videoPath = resolveAnalysisVideoPath(row);
+    const videoPath = await resolveVideoPathForRallyDetection(
+      row.videoStorageKey ?? row.videoFileName
+    );
     if (!videoPath) {
       // Some swing-clip analyses have no associated long-form video. Return
       // an empty (but cacheable) result so the UI can render the toggle as
