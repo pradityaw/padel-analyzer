@@ -2,6 +2,7 @@ import { processVideoStream } from "./mediapipe";
 import { analyzeSwing } from "./swingAnalyzer";
 import type { AnalysisResult, FrameLandmarks } from "@shared/types";
 import type { CreateAnalysisInput } from "@shared/schema";
+import { inferQualityWarning } from "@shared/poseQuality";
 import {
   enqueueTrackingTuples,
   flushTrackingQueue,
@@ -193,6 +194,9 @@ export function pipelineOutputToCreateAnalysisInput(
     skillLabel: r.skillLabel,
     skillConfidence: r.skillConfidence,
     qualityScore: r.qualityScore,
+    qualityWarning:
+      output.qualityWarning ??
+      inferQualityWarning(r.frameLandmarks),
   };
 }
 

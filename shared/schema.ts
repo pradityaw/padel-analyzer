@@ -26,6 +26,8 @@ export const landmarkSchema = z.object({
   visibility: z.number().min(0).max(1),
 });
 
+export const qualityWarningSchema = z.enum(["low_detection"]);
+
 export const frameLandmarksSchema = z.object({
   frameIndex: z.number().int().min(0),
   timestamp: z.number().min(0),
@@ -217,6 +219,7 @@ export const analysisResultSchema = z.object({
   skillLabel: qualityBandSchema.optional(),
   skillConfidence: z.number().min(0).max(1).optional(),
   qualityScore: z.number().min(0).max(100).optional(),
+  qualityWarning: qualityWarningSchema.optional(),
 });
 
 // ── Analysis list (metadata-only; no heavy JSON columns) ───────────────────
@@ -238,6 +241,7 @@ export const analysisListItemSchema = z.object({
   skillLabel: qualityBandSchema.nullable().optional(),
   skillConfidence: z.number().nullable().optional(),
   qualityScore: z.number().nullable().optional(),
+  qualityWarning: qualityWarningSchema.nullable().optional(),
   /** Only present when `includePhasesJson` was requested on list. */
   phasesJson: z.string().optional(),
 });
@@ -373,6 +377,7 @@ export const createAnalysisInputSchema = z.object({
   skillLabel: qualityBandSchema.optional(),
   skillConfidence: z.number().min(0).max(1).optional(),
   qualityScore: z.number().min(0).max(100).optional(),
+  qualityWarning: qualityWarningSchema.optional(),
 });
 
 // ── Annotation inputs ────────────────────────────────────────────────────────

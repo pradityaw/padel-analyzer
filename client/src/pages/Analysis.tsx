@@ -1,7 +1,16 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Film, Ruler, Scissors, Trophy } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ChevronDown,
+  Film,
+  Ruler,
+  Scissors,
+  Trophy,
+  X,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import VideoPlayer, { type VideoPlayerHandle } from "@/components/VideoPlayer";
 import { buildFrameSyncIndex, getPhaseAtFrameIndex } from "@/lib/frameSync";
@@ -104,6 +113,7 @@ export default function Analysis() {
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
   const [onlyRallies, setOnlyRallies] = useState(false);
   const [courtCalibrationEnabled, setCourtCalibrationEnabled] = useState(false);
+  const [lowDetectionDismissed, setLowDetectionDismissed] = useState(false);
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
 
   const analysisId = Number(id);
@@ -125,6 +135,13 @@ export default function Analysis() {
   const rallies = rallyQuery.data?.rallies ?? [];
   const rallyDetectionInFlight = rallyQuery.isLoading;
   const rallyDetectionFailed = !!rallyQuery.error;
+
+  const showLowDetectionBanner =
+    data?.qualityWarning === "low_detection" && !lowDetectionDismissed;
+
+  useEffect(() => {
+    setLowDetectionDismissed(false);
+  }, [analysisId]);
 
   const parsedData = useMemo(() => {
     if (!data) return null;
@@ -205,6 +222,36 @@ export default function Analysis() {
       exit={{ opacity: 0 }}
       className="max-w-7xl mx-auto px-4 py-6"
     >
+      {showLowDetectionBanner ? (
+        <div
+          role="status"
+          className="mb-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm"
+        >
+          <AlertTriangle
+            className="w-5 h-5 shrink-0 text-amber-400 mt-0.5"
+            aria-hidden
+          />
+          <div className="flex-1 min-w-0 text-left">
+            <p className="font-medium text-amber-200">
+              Low pose detection quality
+            </p>
+            <p className="text-slate-400 mt-0.5">
+              Fewer frames had a clear body lock-in than ideal. Scores and tips
+              may be less reliable — use a clearer side angle and lighting if
+              you re-record.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Dismiss low detection notice"
+            className="p-1 rounded-lg hover:bg-white/10 text-slate-400 shrink-0"
+            onClick={() => setLowDetectionDismissed(true)}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : null}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
