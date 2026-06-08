@@ -5,6 +5,7 @@ import { router, publicProcedure } from "../_core/trpc.js";
 import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import {
+  analysisGetByIdInputSchema,
   analysisListInputSchema,
   analysisListItemSchema,
   analysisListResponseSchema,
@@ -25,6 +26,7 @@ import {
   sanitizeBallTrackingPayload,
   sanitizeRacketTrackingPayload,
 } from "../lib/trackingPayload.js";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 
 const listSelectBase = {
   id: analyses.id,
@@ -53,7 +55,7 @@ export const analysisRouter = router({
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.number().int().positive() }))
+    .input(analysisGetByIdInputSchema)
     .query(async ({ input }) => {
       const result = db
         .select()
@@ -62,10 +64,11 @@ export const analysisRouter = router({
         .get();
       if (!result) return null;
 
+      const storedLandmarksJson = result.landmarksJson;
       const sourceJobId = resolveCompletedJobIdForAnalysis(input.id);
       const [ballRaw, racketRaw] = await Promise.all([
-        readAnalysisBallTracking(sourceJobId, result.landmarksJson),
-        readAnalysisRacketTracking(sourceJobId, result.landmarksJson),
+        readAnalysisBallTracking(sourceJobId, storedLandmarksJson),
+        readAnalysisRacketTracking(sourceJobId, storedLandmarksJson),
       ]);
 
       const trackingMeta = trackingMetaSchema.parse({
@@ -74,8 +77,13 @@ export const analysisRouter = router({
         racketSampleCount: racketRaw.length,
       });
 
+      const { landmarksJson: _storedLandmarks, ...analysisRow } = result;
+
       return {
-        ...result,
+        ...analysisRow,
+        ...(input.includeLandmarks
+          ? { landmarksJson: resolveLandmarksJson(result) }
+          : {}),
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
         trackingMeta,

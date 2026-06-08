@@ -134,9 +134,10 @@ export async function listRecentAnalyses() {
 }
 
 export async function getAnalysisById(analysisId: number) {
-  return (await trpc.query("analysis.getById", { id: analysisId })) as
-    | AnalysisDetail
-    | null;
+  return (await trpc.query("analysis.getById", {
+    id: analysisId,
+    includeLandmarks: true,
+  })) as AnalysisDetail | null;
 }
 
 export async function getCvStatus(analysisId: number) {

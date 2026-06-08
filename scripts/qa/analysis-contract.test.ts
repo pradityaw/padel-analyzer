@@ -3,6 +3,7 @@
  * Run: npm run test:contracts
  */
 import {
+  analysisGetByIdInputSchema,
   analysisListResponseSchema,
   analysisListItemSchema,
   analysisJobDetailSchema,
@@ -32,6 +33,21 @@ function assert(name: string, fn: () => void) {
     process.exitCode = 1;
   }
 }
+
+assert("analysisGetByIdInputSchema defaults includeLandmarks to false", () => {
+  const shell = analysisGetByIdInputSchema.parse({ id: 42 });
+  if (shell.includeLandmarks !== false) {
+    throw new Error("includeLandmarks should default to false");
+  }
+
+  const withLandmarks = analysisGetByIdInputSchema.parse({
+    id: 42,
+    includeLandmarks: true,
+  });
+  if (!withLandmarks.includeLandmarks) {
+    throw new Error("includeLandmarks true should round-trip");
+  }
+});
 
 assert("analysisListResponseSchema accepts paginated shape", () => {
   const payload = analysisListResponseSchema.parse({

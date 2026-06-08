@@ -256,6 +256,12 @@ export const analysisListResponseSchema = z.object({
   hasMore: z.boolean(),
 });
 
+export const analysisGetByIdInputSchema = z.object({
+  id: z.number().int().positive(),
+  /** When true, response includes the full `landmarksJson` blob. Default false. */
+  includeLandmarks: z.boolean().optional().default(false),
+});
+
 // ── Mobile analysis jobs (server-side processing for native clients) ─────────
 
 export const analysisJobStatusSchema = z.enum([
@@ -585,6 +591,7 @@ export type CreateAnalysisInput = z.infer<typeof createAnalysisInputSchema>;
 export type AnalysisListItem = z.infer<typeof analysisListItemSchema>;
 export type AnalysisListInput = z.infer<typeof analysisListInputSchema>;
 export type AnalysisListResponse = z.infer<typeof analysisListResponseSchema>;
+export type AnalysisGetByIdInput = z.infer<typeof analysisGetByIdInputSchema>;
 export type CvStatus = z.infer<typeof cvStatusSchema>;
 export type CvPipelineInput = z.infer<typeof cvPipelineInputSchema>;
 export type CvPipelineResult = z.infer<typeof cvPipelineResultSchema>;
