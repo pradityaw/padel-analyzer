@@ -4,6 +4,7 @@ import {
   type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 import type { FrameLandmarks, Landmark } from "@shared/types";
+import { LOW_POSE_DETECTION_RATE } from "@shared/config";
 
 let landmarker: PoseLandmarker | null = null;
 
@@ -169,7 +170,9 @@ export async function* processVideoStream(
 
   const detectionRatio = framesWithPose / totalFrames;
   const qualityWarning =
-    detectionRatio < 0.35 ? ("low_detection" as const) : undefined;
+    detectionRatio < LOW_POSE_DETECTION_RATE
+      ? ("low_detection" as const)
+      : undefined;
 
   return { frames, qualityWarning };
 }

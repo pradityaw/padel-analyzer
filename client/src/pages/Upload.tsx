@@ -8,7 +8,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload as UploadIcon,
@@ -43,6 +43,14 @@ import {
   probeVideoFileDuration,
   type ProcessingTimeEstimate,
 } from "@/lib/processingTimeEstimate";
+import {
+  clearActiveJob,
+  inferJobSource,
+  readStoredActiveJob,
+  resolveResumeJobId,
+  saveActiveJob,
+  syncJobDeepLink,
+} from "@/lib/activeAnalysisJob";
 
 type Stage =
   | "idle"
@@ -411,6 +419,8 @@ function MobileProcessingProgress({
 
 export default function Upload() {
   const [, navigate] = useLocation();
+  const search = useSearch();
+  const utils = trpc.useUtils();
   const [tab, setTab] = useState<Tab>("upload");
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<File | null>(null);
@@ -439,6 +449,7 @@ export default function Upload() {
   );
   const [elapsedSec, setElapsedSec] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resumeCheckedRef = useRef(false);
 
   const createJob = trpc.mobileAnalysis.create.useMutation();
   const retryJob = trpc.mobileAnalysis.retry.useMutation();
@@ -467,6 +478,68 @@ export default function Upload() {
   }, []);
 
   useEffect(() => {
+    if (resumeCheckedRef.current) return;
+    resumeCheckedRef.current = true;
+
+    const resumeJobId = resolveResumeJobId(search);
+    if (resumeJobId == null) return;
+
+    void (async () => {
+      const job = await utils.mobileAnalysis.getProgress.fetch({
+        id: resumeJobId,
+      });
+      if (!job) {
+        clearActiveJob();
+        syncJobDeepLink(null);
+        return;
+      }
+
+      if (job.status === "completed" && job.analysisId) {
+        clearActiveJob();
+        syncJobDeepLink(null);
+        navigate(`/analysis/${job.analysisId}`);
+        return;
+      }
+
+      if (job.status === "failed") {
+        setJobId(job.id);
+        setFailedJobId(job.id);
+        setStage("error");
+        setProgress(job.progress);
+        setProgressMsg(job.statusMessage ?? "Analysis failed.");
+        setError(
+          job.errorMessage ??
+            "Analysis failed on the server. Check that Python and MediaPipe are installed."
+        );
+        syncJobDeepLink(job.id);
+        return;
+      }
+
+      if (job.status === "queued" || job.status === "processing") {
+        const stored = readStoredActiveJob();
+        const source = stored?.source ?? inferJobSource(job.videoFileName);
+        setTab(source);
+        setJobId(job.id);
+        setStage("processing");
+        setProgress(job.progress);
+        setUploadProgress(100);
+        setProgressMsg(job.statusMessage ?? "Resuming server analysis...");
+        setProcessingStartedAt(
+          stored?.processingStartedAt ?? Date.parse(job.createdAt)
+        );
+        saveActiveJob({
+          jobId: job.id,
+          videoFileName: job.videoFileName,
+          processingStartedAt:
+            stored?.processingStartedAt ?? Date.parse(job.createdAt),
+          source,
+        });
+        syncJobDeepLink(job.id);
+      }
+    })();
+  }, [search, utils, navigate]);
+
+  useEffect(() => {
     const job = jobQuery.data;
     if (!job || stage !== "processing") return;
 
@@ -474,6 +547,8 @@ export default function Upload() {
     setProgressMsg(job.statusMessage ?? "Working...");
 
     if (job.status === "completed" && job.analysisId) {
+      clearActiveJob();
+      syncJobDeepLink(null);
       setStage("done");
       navigate(`/analysis/${job.analysisId}`);
     }
@@ -521,7 +596,11 @@ export default function Upload() {
   const resetError = () => setError("");
 
   const startAnalysisJob = useCallback(
-    async (videoFileName: string, videoStorageKey: string) => {
+    async (
+      videoFileName: string,
+      videoStorageKey: string,
+      startedAtOverride?: number
+    ) => {
       setStage("processing");
       setProgress(0);
       setUploadProgress(100);
@@ -534,8 +613,18 @@ export default function Upload() {
         videoStorageKey,
       });
       setJobId(job.id);
+      const startedAt =
+        startedAtOverride ?? processingStartedAt ?? Date.now();
+      setProcessingStartedAt(startedAt);
+      saveActiveJob({
+        jobId: job.id,
+        videoFileName,
+        processingStartedAt: startedAt,
+        source: tab,
+      });
+      syncJobDeepLink(job.id);
     },
-    [createJob]
+    [createJob, processingStartedAt, tab]
   );
 
   const handleFile = useCallback((f: File) => {
@@ -576,8 +665,9 @@ export default function Upload() {
         source: "upload",
         fileSizeMb: file.size / (1024 * 1024),
       });
+      const startedAt = Date.now();
       setProcessingEstimate(estimate);
-      setProcessingStartedAt(Date.now());
+      setProcessingStartedAt(startedAt);
       setStage("processing");
       setProgress(0);
       setUploadProgress(0);
@@ -595,7 +685,7 @@ export default function Upload() {
           );
         },
       });
-      await startAnalysisJob(file.name, storageKey);
+      await startAnalysisJob(file.name, storageKey, startedAt);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Analysis failed.");
@@ -625,20 +715,21 @@ export default function Upload() {
       return;
     }
     try {
+      const startedAt = Date.now();
       setProcessingEstimate(
         estimateProcessingTime({
           durationSec: ytInfo.durationSeconds,
           source: "youtube",
         })
       );
-      setProcessingStartedAt(Date.now());
+      setProcessingStartedAt(startedAt);
       setStage("processing");
       setProgress(0);
       setUploadProgress(100);
       setUploadMode(null);
       setProgressMsg("Downloading video from YouTube...");
       const result = await downloadYt.mutateAsync({ url: ytUrl.trim() });
-      await startAnalysisJob(result.fileName, result.fileName);
+      await startAnalysisJob(result.fileName, result.fileName, startedAt);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Analysis failed.");
@@ -656,13 +747,24 @@ export default function Upload() {
       const job = await retryJob.mutateAsync({ id: failedJobId });
       setJobId(job.id);
       setFailedJobId(null);
+      const startedAt = Date.now();
+      setProcessingStartedAt(startedAt);
+      saveActiveJob({
+        jobId: job.id,
+        videoFileName: job.videoFileName,
+        processingStartedAt: startedAt,
+        source: tab,
+      });
+      syncJobDeepLink(job.id);
     } catch (err) {
       setStage("error");
       setError(err instanceof Error ? err.message : "Could not retry analysis.");
     }
-  }, [failedJobId, retryJob]);
+  }, [failedJobId, retryJob, tab]);
 
   const reset = () => {
+    clearActiveJob();
+    syncJobDeepLink(null);
     setStage("idle");
     setFile(null);
     setFileDurationSec(null);

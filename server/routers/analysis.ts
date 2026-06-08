@@ -42,6 +42,7 @@ const listSelectBase = {
   skillLabel: analyses.skillLabel,
   skillConfidence: analyses.skillConfidence,
   qualityScore: analyses.qualityScore,
+  qualityWarning: analyses.qualityWarning,
 } as const;
 
 export const analysisRouter = router({

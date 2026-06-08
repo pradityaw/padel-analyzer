@@ -57,6 +57,9 @@ export const CONTACT_ZONE_FRAMES = 3;
 /** Minimum frames required to attempt phase detection. */
 export const MIN_FRAMES_FOR_PHASES = 10;
 
+/** Below this pose detection rate, analyses are flagged `low_detection`. */
+export const LOW_POSE_DETECTION_RATE = 0.35;
+
 // ── ONNX classifier ────────────────────────────────────────────────────────
 
 export const ONNX_MAX_FRAMES = 64;

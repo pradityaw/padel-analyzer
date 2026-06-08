@@ -25,6 +25,7 @@ import {
   writePipelineTimingArtifact,
 } from "./pipelineTiming.js";
 import { isAgentStageSoftFailure } from "./agentStageFallbacks.js";
+import { inferQualityWarning } from "../../shared/poseQuality.js";
 
 async function updateJob(
   jobId: number,
@@ -169,6 +170,7 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       skillLabel: result.swing.skillLabel as NewAnalysis["skillLabel"],
       skillConfidence: result.swing.skillConfidence,
       qualityScore: result.swing.qualityScore,
+      qualityWarning: inferQualityWarning(result.swing.frameLandmarks),
     };
 
     const saved = db.insert(analyses).values(newAnalysis).returning().get();
