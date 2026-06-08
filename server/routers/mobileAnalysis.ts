@@ -32,6 +32,7 @@ import {
 } from "../lib/analysisJobProgress.js";
 import { getTrackingSyncDir } from "../lib/paths.js";
 import { assertVideoAccessible } from "../lib/videoAccess.js";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 
 function trackingSyncPath(sessionId: string): string {
   return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
@@ -154,12 +155,17 @@ export const mobileAnalysisRouter = router({
       }
 
       const analysis = db
-        .select({ landmarksJson: analyses.landmarksJson })
+        .select({
+          landmarksJson: analyses.landmarksJson,
+          landmarksPath: analyses.landmarksPath,
+        })
         .from(analyses)
         .where(eq(analyses.id, job.analysisId))
         .get();
 
-      const landmarksJson = analysis?.landmarksJson ?? "[]";
+      const landmarksJson = analysis
+        ? resolveLandmarksJson(analysis)
+        : "[]";
       const tracking = await hydrateJobTracking(job, landmarksJson);
 
       return analysisJobDetailSchema.parse({

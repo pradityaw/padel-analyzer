@@ -25,6 +25,10 @@ import {
   writePipelineTimingArtifact,
 } from "./pipelineTiming.js";
 import { isAgentStageSoftFailure } from "./agentStageFallbacks.js";
+import {
+  LANDMARKS_INLINE_PLACEHOLDER,
+  persistAnalysisLandmarks,
+} from "./landmarksStorage.js";
 
 async function updateJob(
   jobId: number,
@@ -154,6 +158,8 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
         ? `Analysis complete (${warnings.join("; ")}).`
         : "Analysis complete.";
 
+    const landmarksJson = JSON.stringify(result.swing.frameLandmarks);
+
     const newAnalysis: NewAnalysis = {
       videoFileName: job.videoFileName,
       videoStorageKey: job.videoStorageKey,
@@ -163,7 +169,8 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       frameCount: result.swing.frameCount,
       sampleFps: result.swing.sampleFps,
       phasesJson: JSON.stringify(result.swing.phases),
-      landmarksJson: JSON.stringify(result.swing.frameLandmarks),
+      landmarksJson: LANDMARKS_INLINE_PLACEHOLDER,
+      landmarksPath: null,
       shotType: result.swing.shotType as NewAnalysis["shotType"],
       shotConfidence: result.swing.shotConfidence,
       skillLabel: result.swing.skillLabel as NewAnalysis["skillLabel"],
@@ -171,7 +178,23 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       qualityScore: result.swing.qualityScore,
     };
 
-    const saved = db.insert(analyses).values(newAnalysis).returning().get();
+    const saved = db.transaction((tx) => {
+      const inserted = tx
+        .insert(analyses)
+        .values(newAnalysis)
+        .returning()
+        .get();
+      const landmarksPath = persistAnalysisLandmarks(
+        inserted.id,
+        landmarksJson
+      );
+      return tx
+        .update(analyses)
+        .set({ landmarksPath })
+        .where(eq(analyses.id, inserted.id))
+        .returning()
+        .get();
+    });
 
     await updateStage(
       jobId,
