@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HeatmapPlayer } from "@shared/types";
+import { UI } from "@/lib/uiColors";
 
 type Props = {
   players: HeatmapPlayer[];
@@ -17,7 +18,7 @@ function heatColor(value: number, baseRgb: [number, number, number]): string {
 
 function parseHex(hex: string): [number, number, number] {
   const normalized = hex.replace("#", "");
-  if (normalized.length !== 6) return [163, 230, 53];
+  if (normalized.length !== 6) return [91, 140, 255];
   const r = parseInt(normalized.slice(0, 2), 16);
   const g = parseInt(normalized.slice(2, 4), 16);
   const b = parseInt(normalized.slice(4, 6), 16);
@@ -51,9 +52,9 @@ export default function CourtHeatmapOverlay({
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
 
-    ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = UI.paper;
     ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = "#334155";
+    ctx.strokeStyle = UI.rule;
     ctx.lineWidth = 2;
     ctx.strokeRect(8, 8, width - 16, height - 16);
     ctx.beginPath();
@@ -86,7 +87,7 @@ export default function CourtHeatmapOverlay({
 
   if (withHeatmaps.length === 0) {
     return (
-      <p className="text-sm text-slate-500">No player heatmap data for this match.</p>
+      <p className="text-sm text-muted-2">No player heatmap data for this match.</p>
     );
   }
 
@@ -96,7 +97,7 @@ export default function CourtHeatmapOverlay({
         ref={canvasRef}
         width={320}
         height={640}
-        className="w-full max-w-xs mx-auto rounded-lg border border-padel-border bg-slate-900"
+        className="w-full max-w-xs mx-auto rounded-lg border border-rule bg-raised"
         aria-label={`Court heatmap ${courtWidthM}m by ${courtHeightM}m`}
       />
       <div className="flex flex-wrap gap-2">
@@ -118,7 +119,7 @@ export default function CourtHeatmapOverlay({
                 });
               }}
               className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                on ? "text-white" : "text-slate-500 opacity-60"
+                on ? "text-ink" : "text-muted-2 opacity-60"
               }`}
               style={{
                 borderColor: color,
@@ -133,7 +134,7 @@ export default function CourtHeatmapOverlay({
           );
         })}
       </div>
-      <p className="text-[11px] text-slate-500 text-center">
+      <p className="text-[11px] text-muted-2 text-center">
         Bird&apos;s-eye court ({courtWidthM}m × {courtHeightM}m)
       </p>
     </div>

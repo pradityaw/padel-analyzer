@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "skills": {
+    "hallmark": {
+      "source": "nutlope/hallmark",
+      "sourceType": "github",
+      "skillPath": "skills/hallmark/SKILL.md",
+      "computedHash": "099306f12b9980eb6196a441af8290412d2cb8884b09c675672e3ffbb268b3c7"
+    },
+    "ui-design-system": {
+      "source": "ui-design-system",
+      "sourceType": "local",
+      "skillPath": "skills/ui-design-system/SKILL.md"
+    },
+    "framer-motion-animator": {
+      "source": "framer-motion-animator",
+      "sourceType": "local",
+      "skillPath": "skills/framer-motion-animator/SKILL.md"
+    },
+    "penpot-uiux-design": {
+      "source": "penpot-uiux-design",
+      "sourceType": "local",
+      "skillPath": "skills/penpot-uiux-design/SKILL.md"
+    }
+  }
+}

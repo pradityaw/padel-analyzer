@@ -63,3 +63,7 @@ playwright-report/
 test-results/
 blob-report/
 data/rallies/
+
+# Local Agent Kanban board (tools/agent-kanban)
+tools/agent-kanban/node_modules/
+tools/agent-kanban/.next/

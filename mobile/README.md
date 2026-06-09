@@ -33,7 +33,11 @@ sudo xcodebuild -license accept
 
 The `npm run ios` script sets `DEVELOPER_DIR` so `xcrun simctl` uses full Xcode even when the default `xcode-select` path is still Command Line Tools—useful if you can’t change the global path yet.
 
-## Run
+## Hosted preview (laptop off)
+
+EAS installable app + Fly API — no Expo Go. See **[../docs/MOBILE_HOSTED_SETUP.md](../docs/MOBILE_HOSTED_SETUP.md)** (`npm run hosted:check` from repo root).
+
+## Run (local Expo Go)
 
 ```bash
 npm start

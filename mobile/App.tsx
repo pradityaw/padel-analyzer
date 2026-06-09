@@ -17,6 +17,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import JobStatusScreen from "./src/screens/JobStatusScreen";
 import AnalysisScreen from "./src/screens/AnalysisScreen";
 import type { RootStackParamList } from "./src/lib/navigation";
+import { theme as courtFlood } from "./src/lib/theme";
 
 if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
   void import("@sentry/react-native")
@@ -38,12 +39,12 @@ const theme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: "#a3e635",
-    background: "#0f172a",
-    card: "#1e293b",
-    text: "#f8fafc",
-    border: "#334155",
-    notification: "#f59e0b",
+    primary: courtFlood.accent,
+    background: courtFlood.paper,
+    card: courtFlood.surface,
+    text: courtFlood.ink,
+    border: courtFlood.rule,
+    notification: courtFlood.sand,
   },
 };
 
@@ -56,9 +57,9 @@ export default function App() {
             <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
-                headerStyle: { backgroundColor: "#0f172a" },
-                headerTintColor: "#f8fafc",
-                contentStyle: { backgroundColor: "#0f172a" },
+                headerStyle: { backgroundColor: courtFlood.paper },
+                headerTintColor: courtFlood.ink,
+                contentStyle: { backgroundColor: courtFlood.paper },
               }}
             >
               <Stack.Screen

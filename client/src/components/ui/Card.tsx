@@ -2,13 +2,13 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-xl border", {
+const cardVariants = cva("rounded-2xl border", {
   variants: {
     variant: {
-      default: "bg-padel-surface border-padel-border",
-      gradient:
-        "bg-gradient-to-br from-padel-surface to-slate-900/80 border-padel-border",
-      bordered: "bg-transparent border-padel-border",
+      default: "bg-surface border-rule",
+      /* Brand flood surface — max one per viewport (design.md). */
+      flood: "bg-flood border-transparent text-ink",
+      bordered: "bg-transparent border-rule",
     },
     padding: {
       none: "",

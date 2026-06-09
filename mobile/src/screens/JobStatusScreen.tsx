@@ -12,6 +12,7 @@ import RecordModeBadge from "../components/RecordModeBadge";
 import SectionCard from "../components/SectionCard";
 import { getMobileAnalysisJob, retryMobileAnalysisJob } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "JobStatus">;
 
@@ -62,7 +63,7 @@ export default function JobStatusScreen({ route, navigation }: Props) {
         >
           {query.isLoading ? (
             <View style={styles.centerRow}>
-              <ActivityIndicator color="#a3e635" />
+              <ActivityIndicator color={theme.accent} />
               <Text style={styles.metaText}>Connecting to analysis job...</Text>
             </View>
           ) : null}
@@ -173,7 +174,7 @@ export default function JobStatusScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
   },
   content: {
     padding: 16,
@@ -184,27 +185,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   statusText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 16,
     fontWeight: "600",
   },
   metaText: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
   },
   progressTrack: {
     height: 12,
-    borderRadius: 999,
-    backgroundColor: "#0f172a",
+    borderRadius: radius.pill,
+    backgroundColor: theme.paper,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#a3e635",
-    borderRadius: 999,
+    backgroundColor: theme.accent,
+    borderRadius: radius.pill,
   },
   errorText: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -213,9 +214,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   stageCard: {
-    backgroundColor: "#0f172a",
-    borderColor: "#334155",
-    borderRadius: 12,
+    backgroundColor: theme.paper,
+    borderColor: theme.rule,
+    borderRadius: radius.input,
     borderWidth: 1,
     padding: 10,
   },
@@ -226,42 +227,42 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stageLabel: {
-    color: "#e2e8f0",
+    color: theme.ink,
     flex: 1,
     fontSize: 13,
     fontWeight: "600",
   },
   stageStatus: {
-    color: "#64748b",
+    color: theme.muted,
     fontSize: 12,
     textTransform: "capitalize",
   },
   stageDone: {
-    color: "#a3e635",
+    color: theme.accent,
   },
   stageFailed: {
-    color: "#fca5a5",
+    color: theme.danger,
   },
   stageRunning: {
-    color: "#fbbf24",
+    color: theme.sand,
   },
   stageTrack: {
     height: 6,
-    borderRadius: 999,
-    backgroundColor: "#1e293b",
+    borderRadius: radius.pill,
+    backgroundColor: theme.surface,
     marginTop: 8,
     overflow: "hidden",
   },
   stageFill: {
     height: "100%",
-    backgroundColor: "#a3e635",
-    borderRadius: 999,
+    backgroundColor: theme.accent,
+    borderRadius: radius.pill,
   },
   stageFillFailed: {
-    backgroundColor: "#f87171",
+    backgroundColor: theme.danger,
   },
   stageMessage: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 6,
@@ -271,25 +272,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     paddingVertical: 12,
     alignItems: "center",
   },
   primaryButtonText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontWeight: "700",
     fontSize: 15,
   },
   secondaryButton: {
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.white15,
     paddingVertical: 12,
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#e2e8f0",
+    color: theme.ink,
     fontWeight: "600",
   },
   buttonPressed: {

@@ -1,5 +1,5 @@
 /* Hallmark · genre: modern-minimal (dark, data-led sports) · macrostructure: Stat-Led intake
- * design-system: design.md · designed-as-app · theme: Tennis Neon (LOCKED)
+ * design-system: design.md · designed-as-app · theme: studied-DNA "Court Flood"
  * React Native StyleSheet */
 import { useCallback, useState } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -23,6 +23,7 @@ import {
 } from "../lib/swingVideoPickers";
 import type { RootStackParamList } from "../lib/navigation";
 import { loadLastRecordMode } from "../lib/recordMode";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Upload">;
 
@@ -116,7 +117,7 @@ export default function UploadScreen({ navigation }: Props) {
       <View style={styles.actionCard}>
         <View style={styles.actionHeader}>
           <Text style={styles.actionTitle}>Choose your clip</Text>
-          {uploading ? <ActivityIndicator color="#a3e635" /> : null}
+          {uploading ? <ActivityIndicator color={theme.accent} /> : null}
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -166,39 +167,42 @@ export default function UploadScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0f172a" },
+  screen: { flex: 1, backgroundColor: theme.paper },
   content: { padding: 16, gap: 16 },
   eyebrow: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 2,
+    textTransform: "uppercase",
   },
   screenTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 26,
     fontWeight: "800",
-    letterSpacing: -0.5,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginTop: 4,
   },
   lede: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
   },
   sectionLabel: {
-    color: "#64748b",
+    color: theme.muted,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.6,
+    textTransform: "uppercase",
     marginTop: 4,
   },
   stepRail: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 16,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 16,
     gap: 16,
   },
@@ -210,26 +214,26 @@ const styles = StyleSheet.create({
   stepNumber: {
     width: 28,
     height: 28,
-    borderRadius: 999,
-    backgroundColor: "#a3e63522",
+    borderRadius: radius.pill,
+    backgroundColor: theme.white10,
     borderWidth: 1,
-    borderColor: "#a3e63555",
+    borderColor: theme.white15,
     alignItems: "center",
     justifyContent: "center",
   },
   stepNumberText: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 13,
     fontWeight: "800",
   },
   stepText: { flex: 1, gap: 2 },
-  stepTitle: { color: "#f8fafc", fontSize: 15, fontWeight: "600" },
-  stepBody: { color: "#94a3b8", fontSize: 13, lineHeight: 18 },
+  stepTitle: { color: theme.ink, fontSize: 15, fontWeight: "600" },
+  stepBody: { color: theme.ink2, fontSize: 13, lineHeight: 18 },
   actionCard: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 16,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 16,
     gap: 14,
   },
@@ -239,25 +243,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  actionTitle: { color: "#f8fafc", fontSize: 17, fontWeight: "700" },
+  actionTitle: { color: theme.ink, fontSize: 17, fontWeight: "700" },
   buttonStack: { gap: 10 },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     minHeight: 48,
     justifyContent: "center",
     alignItems: "center",
   },
-  primaryButtonText: { color: "#0f172a", fontWeight: "700", fontSize: 16 },
+  primaryButtonText: { color: theme.ctaInk, fontWeight: "700", fontSize: 16 },
   secondaryButton: {
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     minHeight: 48,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.white15,
   },
-  secondaryButtonText: { color: "#f8fafc", fontWeight: "600", fontSize: 16 },
+  secondaryButtonText: { color: theme.ink, fontWeight: "600", fontSize: 16 },
   buttonPressed: { opacity: 0.92 },
   buttonDisabled: { opacity: 0.65 },
   metaRow: {
@@ -266,15 +271,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: theme.rule,
   },
   metaLabel: {
-    color: "#64748b",
+    color: theme.muted,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.2,
   },
-  metaValue: { color: "#cbd5e1", fontSize: 13, flex: 1 },
-  warningText: { color: "#fbbf24", fontSize: 13, lineHeight: 18 },
-  errorText: { color: "#fca5a5", fontSize: 13, lineHeight: 18 },
+  metaValue: { color: theme.ink2, fontSize: 13, flex: 1 },
+  warningText: { color: theme.sand, fontSize: 13, lineHeight: 18 },
+  errorText: { color: theme.danger, fontSize: 13, lineHeight: 18 },
 });

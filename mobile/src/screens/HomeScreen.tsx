@@ -34,6 +34,7 @@ import {
 import { DEMO_ANALYSIS_ID } from "../lib/sampleAnalysis";
 import type { RootStackParamList } from "../lib/navigation";
 import { loadLastRecordMode } from "../lib/recordMode";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -119,7 +120,7 @@ export default function HomeScreen({ navigation }: Props) {
           <RefreshControl
             refreshing={analysesQuery.isRefetching}
             onRefresh={() => analysesQuery.refetch()}
-            tintColor="#a3e635"
+            tintColor={theme.accent}
           />
         }
         ListHeaderComponent={
@@ -203,7 +204,7 @@ export default function HomeScreen({ navigation }: Props) {
               title="Quick upload"
               subtitle="Pick from Photos, browse Files, or use the Upload screen."
               right={
-                uploading ? <ActivityIndicator color="#a3e635" /> : undefined
+                uploading ? <ActivityIndicator color={theme.accent} /> : undefined
               }
             >
               <Text style={styles.bodyText}>API: {API_BASE_URL}</Text>
@@ -282,7 +283,7 @@ export default function HomeScreen({ navigation }: Props) {
         ListEmptyComponent={
           analysesQuery.isLoading ? (
             <View style={styles.emptyState}>
-              <ActivityIndicator color="#a3e635" />
+              <ActivityIndicator color={theme.accent} />
               <Text style={styles.metaText}>Loading sessions...</Text>
             </View>
           ) : (
@@ -310,7 +311,7 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
   },
   content: {
     padding: 16,
@@ -321,23 +322,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   eyebrow: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   heroTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 28,
     fontWeight: "800",
-    lineHeight: 34,
+    lineHeight: 32,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   heroAccent: {
-    color: "#a3e635",
+    color: theme.accent,
   },
   heroBody: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -348,15 +351,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   recordButton: {
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#a3e635",
+    borderColor: theme.white15,
   },
   recordButtonText: {
-    color: "#a3e635",
+    color: theme.ink,
     fontWeight: "700",
     fontSize: 16,
   },
@@ -365,26 +368,28 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   skipWizardText: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
     fontWeight: "600",
   },
   sectionTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginTop: 4,
   },
   stepCard: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 14,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 14,
     gap: 4,
   },
   stepTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 15,
     fontWeight: "600",
   },
@@ -394,49 +399,50 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   trustChip: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 11,
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.white10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.white15,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   bodyText: {
-    color: "#cbd5e1",
+    color: theme.ink2,
     fontSize: 13,
   },
   warningText: {
-    color: "#fbbf24",
+    color: theme.sand,
     fontSize: 13,
     lineHeight: 18,
   },
   errorText: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
     lineHeight: 18,
   },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryButtonText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontWeight: "700",
     fontSize: 16,
   },
   secondaryButton: {
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#475569",
+    borderColor: theme.white15,
   },
   secondaryButtonText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -447,10 +453,10 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   listCard: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 16,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 16,
     gap: 6,
   },
@@ -464,22 +470,23 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 16,
     fontWeight: "600",
     flex: 1,
   },
   score: {
-    color: "#a3e635",
+    color: theme.accent,
     fontWeight: "800",
     fontSize: 22,
+    fontVariant: ["tabular-nums"],
   },
   metaText: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
   },
   devStamp: {
-    color: "#64748b",
+    color: theme.muted,
     fontSize: 11,
     marginTop: 24,
     marginBottom: 8,
@@ -493,11 +500,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: "flex-start",
-    backgroundColor: "#a3e63522",
-    color: "#d9f99d",
+    backgroundColor: theme.white10,
+    color: theme.ink2,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: "hidden",
     fontSize: 12,
     fontWeight: "600",

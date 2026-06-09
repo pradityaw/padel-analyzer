@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { listProComparisons } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ProCompare">;
 
@@ -34,7 +35,7 @@ export default function ProCompareScreen({ navigation }: Props) {
           <RefreshControl
             refreshing={query.isRefetching}
             onRefresh={() => query.refetch()}
-            tintColor="#a3e635"
+            tintColor={theme.accent}
           />
         }
         ListHeaderComponent={
@@ -74,7 +75,7 @@ export default function ProCompareScreen({ navigation }: Props) {
         )}
         ListEmptyComponent={
           query.isLoading ? (
-            <ActivityIndicator color="#a3e635" />
+            <ActivityIndicator color={theme.accent} />
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.cardTitle}>No pro comparisons yet</Text>
@@ -90,15 +91,21 @@ export default function ProCompareScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0f172a" },
+  screen: { flex: 1, backgroundColor: theme.paper },
   content: { padding: 16, gap: 12 },
   header: { gap: 6, marginBottom: 12 },
-  sectionTitle: { color: "#f8fafc", fontSize: 20, fontWeight: "700" },
+  sectionTitle: {
+    color: theme.ink,
+    fontSize: 20,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   listCard: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 16,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 16,
     gap: 6,
     marginBottom: 12,
@@ -109,9 +116,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  cardTitle: { color: "#f8fafc", fontSize: 16, fontWeight: "600" },
-  score: { color: "#a3e635", fontWeight: "700", fontSize: 16 },
-  proScore: { color: "#fbbf24", fontWeight: "700", fontSize: 16 },
-  metaText: { color: "#94a3b8", fontSize: 13 },
+  cardTitle: { color: theme.ink, fontSize: 16, fontWeight: "600" },
+  score: {
+    color: theme.accent,
+    fontWeight: "700",
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+  },
+  proScore: {
+    color: theme.sand,
+    fontWeight: "700",
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+  },
+  metaText: { color: theme.ink2, fontSize: 13 },
   emptyState: { paddingVertical: 36, alignItems: "center", gap: 8 },
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, SkipBack, SkipForward, Eye, EyeOff } from "lucide-react";
 import { drawSkeleton } from "@/lib/skeleton";
+import { UI } from "@/lib/uiColors";
 import { buildFrameSyncIndex, getPhaseAtFrameIndex } from "@/lib/frameSync";
 import type { FrameLandmarks, SwingPhase, SwingPhaseType } from "@shared/types";
 import { PHASE_COLORS, PHASE_LABELS } from "@shared/types";
@@ -39,7 +40,7 @@ export default function FrameSkeletonPlayer({
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.fillStyle = "#0f172a";
+      ctx.fillStyle = UI.paper;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       if (!showSkeleton || !frames[idx]) return;
 
@@ -73,7 +74,7 @@ export default function FrameSkeletonPlayer({
   const phaseColor = activePhaseType ? PHASE_COLORS[activePhaseType] : undefined;
 
   return (
-    <div className="relative bg-black rounded-xl overflow-hidden border border-padel-border">
+    <div className="relative bg-raised rounded-2xl overflow-hidden border border-rule">
       <div className="relative aspect-[4/5] max-h-[480px]">
         <canvas ref={canvasRef} width={640} height={800} className="w-full h-full" />
         {activePhaseType ? (
@@ -93,12 +94,12 @@ export default function FrameSkeletonPlayer({
           </div>
         ) : null}
       </div>
-      <div className="flex items-center gap-2 p-3 bg-slate-900/90">
+      <div className="flex items-center gap-2 p-3 bg-raised/90">
         <button
           type="button"
           aria-label={playing ? "Pause" : "Play"}
           onClick={() => setPlaying((p) => !p)}
-          className="p-2 rounded-lg bg-padel-green text-black"
+          className="p-2 rounded-full bg-cta text-cta-ink hover:bg-white/90 transition-colors"
         >
           {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
         </button>
@@ -108,7 +109,7 @@ export default function FrameSkeletonPlayer({
             setPlaying(false);
             setCurrentFrame((f) => Math.max(0, f - 1));
           }}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"
+          className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
         >
           <SkipBack className="w-4 h-4" />
         </button>
@@ -118,17 +119,17 @@ export default function FrameSkeletonPlayer({
             setPlaying(false);
             setCurrentFrame((f) => Math.min(frames.length - 1, f + 1));
           }}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"
+          className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
         >
           <SkipForward className="w-4 h-4" />
         </button>
-        <span className="text-xs text-slate-500 font-mono ml-auto">
+        <span className="text-xs text-muted-2 font-mono ml-auto">
           Frame {frames[currentFrame]?.frameIndex ?? 0}
         </span>
         <button
           type="button"
           onClick={() => setShowSkeleton(!showSkeleton)}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"
+          className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
         >
           {showSkeleton ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
         </button>

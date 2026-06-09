@@ -48,10 +48,10 @@ export function Stepper({
               className={cn(
                 "shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors",
                 completed
-                  ? "bg-padel-green border-padel-green text-black"
+                  ? "bg-accent border-accent text-cta-ink"
                   : active
-                    ? "border-padel-green text-padel-green bg-padel-green/10"
-                    : "border-slate-600 text-slate-500"
+                    ? "border-accent text-accent bg-accent/10"
+                    : "border-rule text-muted-2"
               )}
             >
               {completed ? <Check className="w-4 h-4" aria-hidden /> : i + 1}
@@ -60,13 +60,13 @@ export function Stepper({
               <p
                 className={cn(
                   "font-semibold text-sm",
-                  active || completed ? "text-slate-200" : "text-slate-500"
+                  active || completed ? "text-ink" : "text-muted-2"
                 )}
               >
                 {step.title}
               </p>
               {step.description ? (
-                <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>
+                <p className="text-xs text-muted-2 mt-0.5">{step.description}</p>
               ) : null}
             </div>
           </li>

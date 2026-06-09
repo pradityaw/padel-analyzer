@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import type { FrameLandmarks } from "@shared/types";
 import { drawSkeleton } from "@/lib/skeleton";
+import { UI } from "@/lib/uiColors";
 
 type Props = {
   frames: FrameLandmarks[];
@@ -57,7 +58,7 @@ export default function SkeletonReplay({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      ctx.fillStyle = "#0f172a";
+      ctx.fillStyle = UI.paper;
       ctx.fillRect(0, 0, width, height);
 
       drawSkeleton(ctx, frames[idx].landmarks, width, height);
@@ -109,7 +110,7 @@ export default function SkeletonReplay({
         ref={canvasRef}
         width={width}
         height={height}
-        className="rounded-lg border border-padel-border"
+        className="rounded-lg border border-rule"
         style={borderStyle}
       />
 
@@ -120,14 +121,14 @@ export default function SkeletonReplay({
               setPlaying(false);
               setFrameIdx((prev: number) => Math.max(0, prev - 1));
             }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
           >
             <SkipBack className="w-4 h-4" />
           </button>
 
           <button
             onClick={() => setPlaying((p) => !p)}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
           >
             {playing ? (
               <Pause className="w-4 h-4" />
@@ -141,7 +142,7 @@ export default function SkeletonReplay({
               setPlaying(false);
               setFrameIdx((prev: number) => Math.min(totalFrames - 1, prev + 1));
             }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
           >
             <SkipForward className="w-4 h-4" />
           </button>
@@ -155,10 +156,10 @@ export default function SkeletonReplay({
               setPlaying(false);
               setFrameIdx(Number(e.target.value));
             }}
-            className="flex-1 accent-padel-green"
+            className="flex-1 accent-accent"
           />
 
-          <span className="text-xs text-slate-500 tabular-nums w-14 text-right">
+          <span className="text-xs text-muted-2 tabular-nums w-14 text-right">
             {frameIdx + 1}/{totalFrames}
           </span>
         </div>

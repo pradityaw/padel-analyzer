@@ -26,11 +26,11 @@ Capabilities that work well in SwingVision and map to Padel Analyzer goals:
 
 | Feature | Why it works | Padel Analyzer status (mobile) |
 |---------|--------------|-------------------------------|
-| **Court alignment overlay** (pink rectangle) | Ground-truth homography before record | **Target:** capture-time 4-corner overlay on `Record` |
+| **Court alignment overlay** (pink rectangle) | Ground-truth homography before record | **Done:** wizard + Record overlay → server homography override |
 | **Audio-Guided vs Manual setup** | Reduces bad framing for novices | Missing |
 | **HD + zoom + flip** | User control over capture quality | Missing (fixed 1080p back camera) |
-| **Pre-record setup wizard** | Swing Stick → Height → Zoom → Reminders | **Target:** `SetupWizard` before `Record` |
-| **Mode picker** (Match / Rally / Serve / Ball machine) | Tunes downstream analysis | **Target:** `RecordMode` on job + orchestrator |
+| **Pre-record setup wizard** | Swing Stick → Height → Zoom → Reminders | **Done:** `SetupWizardScreen` → `Record` |
+| **Mode picker** (Match / Rally / Serve / Ball machine) | Tunes downstream analysis | **Done:** `RecordMode` on job + orchestrator; badges on mobile History/Analysis |
 | **Live line calls** | Real-time in/out feedback | Missing (defer) |
 | **Target Practice / drills** | Practice session type | Partial via `drill` mode |
 | **Remote Control (2nd phone)** | Multi-device record | Missing (defer) |
@@ -61,9 +61,9 @@ flowchart TD
 
 Priority order for Padel Analyzer **mobile** (see repo plan):
 
-1. Capture-time **court alignment overlay** + server homography override  
-2. **Setup wizard** (mode → framing → align → reminders)  
-3. **Record mode** persisted on `analysis_jobs` / `analyses`  
+1. ~~Capture-time **court alignment overlay** + server homography override~~ (done; preview dims rounded for API)  
+2. ~~**Setup wizard** (mode → framing → align → reminders)~~ (done)  
+3. ~~**Record mode** persisted on `analysis_jobs` / `analyses`~~ (done; mobile surfaces mode badges)  
 4. Audio-guided setup, HD/zoom/flip, line calls, remote control — deferred  
 
 ---

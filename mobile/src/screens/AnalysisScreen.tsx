@@ -36,6 +36,7 @@ import {
   getBallForFrameIndex,
   parseBallTrackingSamples,
 } from "../lib/ballTracking";
+import { theme, radius } from "../lib/theme";
 
 /** Server match-CV pipeline not wired on this branch yet. */
 const MATCH_CV_ENABLED = false;
@@ -79,7 +80,7 @@ function MobileHeatmap({ players }: { players: HeatmapPlayer[] }) {
             y={r * cellH}
             width={cellW}
             height={cellH}
-            fill={`rgba(163,230,53,${0.15 + Math.min(1, value) * 0.85})`}
+            fill={`rgba(91,140,255,${0.15 + Math.min(1, value) * 0.85})`}
           />
         ))
       )}
@@ -276,7 +277,7 @@ export default function AnalysisScreen({ route }: Props) {
   if (!isDemo && query.isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#a3e635" />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -366,7 +367,7 @@ export default function AnalysisScreen({ route }: Props) {
                         y1={la.y}
                         x2={lb.x}
                         y2={lb.y}
-                        stroke="#a3e635"
+                        stroke={theme.accent}
                         strokeWidth={0.004}
                         strokeOpacity={0.85}
                       />
@@ -380,7 +381,7 @@ export default function AnalysisScreen({ route }: Props) {
                         cx={lm.x}
                         cy={lm.y}
                         r={0.012}
-                        fill="#f8fafc"
+                        fill={theme.ink}
                         fillOpacity={0.7}
                       />
                     );
@@ -390,8 +391,8 @@ export default function AnalysisScreen({ route }: Props) {
                       cx={activeBall.x}
                       cy={activeBall.y}
                       r={0.018}
-                      fill="#f59e0b"
-                      stroke="#fef08a"
+                      fill={theme.sand}
+                      stroke={theme.white70}
                       strokeWidth={0.003}
                     />
                   ) : null}
@@ -423,7 +424,7 @@ export default function AnalysisScreen({ route }: Props) {
                       y1={la.y}
                       x2={lb.x}
                       y2={lb.y}
-                      stroke="#a3e635"
+                      stroke={theme.accent}
                       strokeWidth={0.004}
                       strokeOpacity={0.85}
                     />
@@ -437,7 +438,7 @@ export default function AnalysisScreen({ route }: Props) {
                       cx={lm.x}
                       cy={lm.y}
                       r={0.012}
-                      fill="#f8fafc"
+                      fill={theme.ink}
                       fillOpacity={0.7}
                     />
                   );
@@ -447,8 +448,8 @@ export default function AnalysisScreen({ route }: Props) {
                     cx={activeBall.x}
                     cy={activeBall.y}
                     r={0.018}
-                    fill="#f59e0b"
-                    stroke="#fef08a"
+                    fill={theme.sand}
+                    stroke={theme.white70}
                     strokeWidth={0.003}
                   />
                 ) : null}
@@ -494,7 +495,7 @@ export default function AnalysisScreen({ route }: Props) {
         <SectionCard title="Match analysis" subtitle="Rallies, heatmaps, and score">
           {liveCvStatus === "pending" || liveCvStatus === "running" ? (
             <View style={styles.cvRunningRow}>
-              <ActivityIndicator color="#a3e635" size="small" />
+              <ActivityIndicator color={theme.accent} size="small" />
               <Text style={styles.metaText}>Match CV running on server…</Text>
             </View>
           ) : null}
@@ -567,7 +568,7 @@ export default function AnalysisScreen({ route }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
   },
   content: {
     padding: 16,
@@ -575,12 +576,12 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 18,
     fontWeight: "700",
   },
@@ -588,10 +589,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   eyebrow: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 2,
+    textTransform: "uppercase",
   },
   headerRow: {
     flexDirection: "row",
@@ -604,25 +606,33 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.5,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
+  // The one flood surface on this screen (score hero, per design.md)
   scoreWrap: {
-    alignItems: "flex-end",
+    alignItems: "center",
+    backgroundColor: theme.flood,
+    borderRadius: radius.card,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   scoreLabel: {
-    color: "#64748b",
-    fontSize: 9,
+    color: theme.white70,
+    fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 1.4,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
   score: {
-    color: "#a3e635",
+    color: theme.ink,
     fontSize: 34,
     fontWeight: "800",
     lineHeight: 36,
+    fontVariant: ["tabular-nums"],
   },
   badgeRow: {
     flexDirection: "row",
@@ -633,11 +643,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metaText: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
   },
   errorText: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
   },
   cvRunningRow: {
@@ -647,13 +657,13 @@ const styles = StyleSheet.create({
   },
   cvButton: {
     marginTop: 8,
-    borderRadius: 10,
-    backgroundColor: "#a3e635",
+    borderRadius: radius.pill,
+    backgroundColor: theme.cta,
     paddingVertical: 10,
     alignItems: "center",
   },
   cvButtonText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontWeight: "700",
     fontSize: 14,
   },
@@ -670,11 +680,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: "flex-start",
-    backgroundColor: "#a3e63522",
-    color: "#d9f99d",
+    backgroundColor: theme.white10,
+    color: theme.ink2,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: "hidden",
     fontSize: 12,
     fontWeight: "600",
@@ -685,24 +695,25 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: theme.rule,
   },
   phaseTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 15,
     fontWeight: "600",
     textTransform: "capitalize",
   },
   phaseScore: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 22,
     fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   videoWrap: {
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: radius.input,
     overflow: "hidden",
-    backgroundColor: "#020617",
+    backgroundColor: theme.raised,
     position: "relative",
     width: "100%",
     aspectRatio: 16 / 9,
@@ -720,7 +731,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 8,
     left: 8,
-    backgroundColor: "#0f172acc",
+    backgroundColor: "rgba(7,11,34,0.80)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -729,20 +740,20 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "#0f172ae6",
+    backgroundColor: "rgba(7,11,34,0.90)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#f59e0b55",
+    borderColor: theme.white15,
   },
   ballSpeedText: {
-    color: "#fde68a",
+    color: theme.sand,
     fontSize: 12,
     fontWeight: "700",
   },
   trackingHint: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 12,
     marginTop: 8,
     lineHeight: 18,

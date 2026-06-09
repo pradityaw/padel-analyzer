@@ -1,6 +1,7 @@
 import type { SwingPhase, SwingPhaseType } from "@shared/types";
 import { PHASE_COLORS, PHASE_LABELS } from "@shared/types";
 import { PHASE_ORDER, SWING_RING_CLOSE_SCORE } from "@shared/config";
+import { UI } from "@/lib/uiColors";
 
 type Props = {
   phases: SwingPhase[];
@@ -81,8 +82,8 @@ export default function SwingRing({
             <g key={type}>
               <path
                 d={trackPath}
-                fill="#1e293b"
-                stroke="#334155"
+                fill={UI.surface}
+                stroke={UI.rule}
                 strokeWidth={0.5}
               />
               {scorePath ? (
@@ -95,9 +96,9 @@ export default function SwingRing({
             </g>
           );
         })}
-        <circle cx={CX} cy={CY} r={R_IN - 6} fill="#0f172a" stroke="#334155" strokeWidth={1} />
+        <circle cx={CX} cy={CY} r={R_IN - 6} fill={UI.paper} stroke={UI.rule} strokeWidth={1} />
       </svg>
-      <ul className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-[10px] text-slate-500 w-full max-w-[200px]">
+      <ul className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-[10px] text-muted-2 w-full max-w-[200px]">
         {PHASE_ORDER.map((type) => {
           const phase = byType.get(type);
           const score = phase?.score ?? 0;
@@ -109,7 +110,7 @@ export default function SwingRing({
                 style={{ backgroundColor: PHASE_COLORS[type] }}
               />
               <span className="truncate">{PHASE_LABELS[type]}</span>
-              <span className={closed ? "text-padel-green font-semibold" : "text-slate-400"}>
+              <span className={closed ? "text-accent font-semibold" : "text-ink-2"}>
                 {score}
               </span>
             </li>

@@ -23,6 +23,7 @@ import {
   type HomographyMatrix,
   type Point2D,
 } from "@/lib/courtCalibration";
+import { OVERLAY, UI } from "@/lib/uiColors";
 
 type Props = {
   videoId: string;
@@ -235,7 +236,7 @@ export default function CourtCalibrationOverlay({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
-    ctx.fillStyle = "#020617";
+    ctx.fillStyle = UI.raised;
     ctx.fillRect(0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
 
     const video = videoRef?.current;
@@ -257,7 +258,7 @@ export default function CourtCalibrationOverlay({
         throw new Error("Video frame unavailable");
       }
     } catch {
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+      ctx.strokeStyle = "rgba(170, 179, 214, 0.35)";
       ctx.lineWidth = 1;
       for (let i = 0; i <= MAGNIFIER_SIZE; i += 14) {
         ctx.beginPath();
@@ -267,13 +268,13 @@ export default function CourtCalibrationOverlay({
         ctx.lineTo(MAGNIFIER_SIZE, i);
         ctx.stroke();
       }
-      ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
+      ctx.fillStyle = "rgba(170, 179, 214, 0.9)";
       ctx.font = "10px sans-serif";
       ctx.fillText("preview unavailable", 10, MAGNIFIER_SIZE - 12);
     }
 
     const center = MAGNIFIER_SIZE / 2;
-    ctx.strokeStyle = "#a3e635";
+    ctx.strokeStyle = OVERLAY.courtLine;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(center, 0);
@@ -301,8 +302,8 @@ export default function CourtCalibrationOverlay({
       >
         <polygon
           points={polygonPoints(calibration)}
-          fill="rgba(163, 230, 53, 0.08)"
-          stroke="rgba(163, 230, 53, 0.9)"
+          fill="rgba(91, 140, 255, 0.08)"
+          stroke="rgba(91, 140, 255, 0.9)"
           strokeWidth={Math.max(videoWidth, videoHeight) * 0.003}
         />
         {calibration.points.map((point, index) => {
@@ -322,9 +323,9 @@ export default function CourtCalibrationOverlay({
         })}
       </svg>
 
-      <div className="absolute left-3 top-3 max-w-xs rounded-lg border border-padel-border bg-slate-950/80 px-3 py-2 text-xs text-slate-300 shadow-xl backdrop-blur">
-        <div className="font-semibold text-padel-green">Court calibration</div>
-        <div className="mt-0.5 text-slate-400">
+      <div className="absolute left-3 top-3 max-w-xs rounded-lg border border-rule bg-raised/80 px-3 py-2 text-xs text-ink-2 shadow-xl backdrop-blur">
+        <div className="font-semibold text-accent">Court calibration</div>
+        <div className="mt-0.5 text-ink-2">
           Drag each corner to the visible 20m × 10m court outline.
         </div>
       </div>
@@ -346,7 +347,7 @@ export default function CourtCalibrationOverlay({
               if (!dragRef.current) setMagnifier(null);
             }}
             onKeyDown={(event) => handleKeyboardNudge(point.id, event)}
-            className="absolute rounded-full border-2 border-black bg-padel-green text-black shadow-[0_0_18px_rgba(163,230,53,0.65)] focus:outline-none focus:ring-2 focus:ring-white disabled:cursor-not-allowed"
+            className="absolute rounded-full border-2 border-paper bg-white text-cta-ink shadow-[0_0_18px_rgba(91,140,255,0.65)] focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed"
             style={{
               ...position,
               width: MARKER_RADIUS * 2,
@@ -362,7 +363,7 @@ export default function CourtCalibrationOverlay({
 
       {magnifier?.visible && (
         <div
-          className="pointer-events-none fixed z-50 rounded-xl border border-padel-green/70 bg-slate-950/95 p-1 shadow-2xl"
+          className="pointer-events-none fixed z-50 rounded-xl border border-accent/70 bg-raised/95 p-1 shadow-2xl"
           style={{
             left: Math.min(window.innerWidth - MAGNIFIER_SIZE - 18, magnifier.clientPoint.x + 18),
             top: Math.max(8, magnifier.clientPoint.y - MAGNIFIER_SIZE - 18),
@@ -374,7 +375,7 @@ export default function CourtCalibrationOverlay({
             height={MAGNIFIER_SIZE}
             className="block rounded-lg"
           />
-          <div className="px-1 pt-1 text-[10px] text-slate-400">
+          <div className="px-1 pt-1 text-[10px] text-ink-2">
             {COURT_POINT_LABELS[magnifier.pointId]} · {Math.round(magnifier.videoPoint.x)},
             {Math.round(magnifier.videoPoint.y)} px
           </div>

@@ -29,6 +29,7 @@ import {
   saveLastRecordMode,
   type RecordMode,
 } from "../lib/recordMode";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
 type RecordRoute = RouteProp<RootStackParamList, "Record">;
@@ -241,7 +242,7 @@ export default function RecordScreen({ navigation }: Props) {
   if (!cameraPermission) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#a3e635" />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -309,7 +310,7 @@ export default function RecordScreen({ navigation }: Props) {
             ]}
           >
             {stage === "uploading" ? (
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color={theme.ctaInk} />
             ) : (
               <Text style={styles.primaryButtonText}>Use this clip</Text>
             )}
@@ -460,11 +461,11 @@ export default function RecordScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
   },
   centered: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -482,13 +483,13 @@ const styles = StyleSheet.create({
   },
   landscapeHint: {
     alignSelf: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.9)",
+    backgroundColor: theme.sand,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   landscapeHintText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
@@ -496,21 +497,21 @@ const styles = StyleSheet.create({
   hintChip: {
     alignSelf: "center",
     marginTop: 8,
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    backgroundColor: "rgba(7,11,34,0.75)",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(163, 230, 53, 0.4)",
+    borderColor: theme.white15,
   },
   hintChipText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
   },
   alignBody: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",
@@ -522,9 +523,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   countdownText: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 96,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   recordingBadge: {
     alignSelf: "center",
@@ -553,41 +555,42 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: theme.rule,
   },
   capHint: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 12,
     textAlign: "center",
   },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     minHeight: 48,
     justifyContent: "center",
   },
   primaryButtonText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontWeight: "700",
     fontSize: 16,
   },
   secondaryButton: {
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#475569",
+    borderColor: theme.white15,
   },
   secondaryButtonText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontWeight: "600",
     fontSize: 16,
   },
   stopButton: {
     backgroundColor: "#dc2626",
-    borderRadius: 12,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
   },
@@ -605,27 +608,27 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: theme.rule,
   },
   permissionTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 20,
     fontWeight: "700",
     textAlign: "center",
   },
   permissionBody: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
   },
   errorText: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
     textAlign: "center",
   },
   errorBanner: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
     paddingHorizontal: 16,
     paddingVertical: 8,

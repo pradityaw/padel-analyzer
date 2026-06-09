@@ -1,0 +1,45 @@
+---
+description: Agentic planning workflow — align before coding on open-ended or complex tasks
+alwaysApply: true
+---
+
+# Agentic Planning Workflow
+
+Do **not** jump straight to production code when the user presents an open-ended feature request, structural refactor, or complex engineering task.
+
+## Phase 1 — Conversational Alignment
+
+If the prompt lacks a **strict technical specification**, stop the implementation cycle and align interactively first.
+
+During alignment you must:
+
+- Challenge assumptions
+- Suggest architectural paradigms
+- Detail structural trade-offs
+- Clarify edge cases
+
+Also identify the **top 3 high-risk integrations or bottlenecks** (e.g. state re-renders, database latency, heavy client data pipelines) and document **specific mitigations** for each.
+
+## Phase 2 — Plan artifact
+
+Before writing or modifying application code, compile all finalized agreements into a structured Markdown file under **`plan/`** at the project root (e.g. `plan/feature-blueprint.md`).
+
+The plan must capture: goal, scope, out-of-scope, workstream, agreed architecture, the 3 risks + mitigations, edge cases, task checklist, and verification steps.
+
+Create the `plan/` directory if it does not exist.
+
+## Phase 3 — Execution
+
+Treat the plan file as the **absolute state definition**. Execute methodically:
+
+- Check off tasks sequentially
+- Do not expand scope beyond the plan without user approval
+- Maintain **human-in-the-loop** posture — pause for approval at plan sign-off and before large or irreversible changes
+
+## Relationship to other rules
+
+- Planning happens **before** `/poteto-mode` implementation (see [pstack-execution.mdc](mdc:.cursor/rules/pstack-execution.mdc)).
+- Cross-boundary designs still require `/architect` (see [architect.mdc](mdc:.cursor/rules/architect.mdc)).
+- Workstream ownership and merge order: [AGENTS.md](mdc:AGENTS.md).
+
+**Exceptions** — skip the full alignment loop only when the user gives an explicit, narrow spec (exact file, function, and change) or asks for a trivial fix with no architectural impact.

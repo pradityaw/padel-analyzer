@@ -15,6 +15,9 @@
     "ios:qa": "npm run ios:prebuild && npm run ios:setup-tests && npm run ios:build && npm run ios:test",
     "web": "expo start --web",
     "doctor": "expo-doctor",
+    "eas": "eas-cli",
+    "build:preview:android": "eas-cli build --profile preview --platform android",
+    "build:preview:ios": "eas-cli build --profile preview --platform ios",
     "typecheck": "tsc --noEmit",
     "test:ball-tracking": "tsx scripts/ball-tracking.test.ts"
   },
@@ -44,6 +47,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-preset-expo": "~54.0.10",
+    "eas-cli": "^16.32.0",
     "expo-doctor": "^1.18.18",
     "typescript": "~5.9.2",
     "xcode": "^3.0.1"

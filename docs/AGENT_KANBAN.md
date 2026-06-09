@@ -1,43 +1,93 @@
 # Agent Kanban — Padel Analyzer
 
-Use the Cursor Agent Kanban board to run Cloud Agents against this repo.
+Run Cursor Cloud Agents against this repo from a local Kanban board.
+
+## Location
+
+The board lives at **`tools/agent-kanban`** inside this repo (not a separate project).
 
 ## Quick start
 
+From repo root:
+
 ```bash
-cd ~/Projects/agent-kanban
+npm run agent-kanban:install   # first time only
+npm run agent-kanban:dev
+```
+
+Or:
+
+```bash
+cd tools/agent-kanban
+pnpm install
 pnpm dev
 ```
 
-Open **http://localhost:3001** and sign in with your Cursor API key (saved at `~/.agent-kanban/settings.json` if you chose "Remember").
+Open **http://localhost:3010** and sign in with your Cursor API key (saved at `~/.agent-kanban/settings.json` if you chose "Remember").
 
-## Repository
+> **Ports:** padel-analyzer dev server uses **3001**; Agent Kanban uses **3010**.
 
-- **GitHub:** `pradityaw/padel-analyzer`
-- **Repository ID in Kanban:** `https://github.com/pradityaw/padel-analyzer`
-
-## Active cloud agent (2026-05-16)
+## Repository defaults
 
 | Field | Value |
 |-------|-------|
-| Agent ID | `bc-7d7f54a8-2482-47db-aaf1-badb7bbf4600` |
-| Task | PRODUCT_BACKLOG Milestone 1, item 10 — persist in-progress analysis state |
-| Status | Running (check board for updates) |
-| PR | Appears on the card when the agent opens one |
+| GitHub | `pradityaw/padel-analyzer` |
+| Kanban repository picker | `https://github.com/pradityaw/padel-analyzer` |
+| Branch | `main` |
 
-## Sample prompts (from PRODUCT_BACKLOG.md)
+Config file: `tools/agent-kanban/config/padel-analyzer.json`.
 
-Copy one of these into **New agent** → prompt:
-
-1. **Item 10 (in progress):** Persist "analysis in progress" and low-detection quality signals beyond sessionStorage so refresh/deep-link flows still show the right state.
-
-2. **Item 11:** Normalize analysis data storage so list/replay scale beyond large JSON blobs in SQLite rows.
-
-3. **Milestone 1 — low detection:** Persist low-detection warning on the analysis record instead of sessionStorage-only handoff.
-
-## Workflow
+## Orchestrator workflow
 
 1. Pick an open item from [PRODUCT_BACKLOG.md](../PRODUCT_BACKLOG.md).
-2. Create agent on the board → repo `pradityaw/padel-analyzer` → paste prompt.
-3. Watch the card move: Running → Finished.
-4. Open the PR link on the card → review → merge in GitHub.
+2. Print a scoped prompt (optional): `npm run agent-kanban:prompt -- --task <name>` — see table below.
+3. In Kanban: **Create cloud agent** → repo `pradityaw/padel-analyzer` → paste prompt → branch `main`.
+4. Watch the card: Queued → Running → Finished → PR link.
+5. Review the PR diff (reject Flask rewrites or mass deletions) → merge on GitHub.
+
+List templates: `npm run agent-kanban:prompt:list`.
+
+## Prompt guardrails (avoid PR #2-style failures)
+
+- Stack: React + Vite + Express + tRPC + Drizzle — **not** Python/Flask
+- Branch: `main`
+- One backlog item per agent
+- Do not delete `client/`, `server/`, `shared/`, `mobile/`
+- Require `npm run typecheck` before opening PR
+- Respect workstream ownership in [AGENTS.md](../AGENTS.md)
+
+Shared footer is appended automatically by `print-prompt.mjs` from `tools/agent-kanban/prompts/_guardrails.md`.
+
+## Prompt templates (current open work)
+
+| Task key | Backlog | Workstream |
+|----------|---------|------------|
+| `m1-worker-offload-spike` | #9 — worker offload (partial) | A |
+| `m2-config-dedup` | M2 — phase-order / config dedup | A + D |
+| `quality-warning-persist` | UX — quality warning on replay | S → B → C |
+
+```bash
+npm run agent-kanban:prompt -- --task m1-worker-offload-spike
+```
+
+Copy stdout into the Kanban create-agent prompt field.
+
+## Related tooling
+
+| Tool | When to use |
+|------|-------------|
+| **Agent Kanban** (this doc) | Visual board, PR cards, artifact previews, spawning cloud agents |
+| **`npm run cursor-sdk -- --task …`** | Local SDK agents with fixed review/fix prompts — see [scripts/cursor-sdk/README.md](../scripts/cursor-sdk/README.md) |
+| **`npm run feedback:triage`** | Telegram/Slack tester feedback → cloud PRs |
+
+## Orchestrator run log (2026-06-08)
+
+Historical — items 10/11 and lazy replay landed in the working tree. Review any duplicate PRs from these agents before merging.
+
+| Phase | Kanban agent ID |
+|-------|-----------------|
+| Item 10 — job resume | `bc-fab8e25a-adbf-415d-bd08-6943069e4fa6` |
+| Item 11 — file landmarks | `bc-0387e5c5-2784-42df-838b-db93ce922322` |
+| Lazy replay | `bc-ced16e4f-af1c-4c1e-9647-655a472150bd` |
+
+See [PRODUCT_BACKLOG.md](../PRODUCT_BACKLOG.md) for the full roadmap.

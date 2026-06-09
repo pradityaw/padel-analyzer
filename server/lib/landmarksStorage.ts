@@ -37,5 +37,9 @@ export function deleteLandmarksFile(fileName: string | null | undefined): void {
  * Resolve `landmarksJson` for API responses: prefer file when `landmarksPath` is set.
  */
 export function resolveLandmarksJson(row: Analysis): string {
+  if (row.landmarksPath) {
+    const fromFile = readLandmarksFile(row.landmarksPath);
+    if (fromFile) return fromFile;
+  }
   return row.landmarksJson;
 }

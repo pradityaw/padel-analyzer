@@ -1,0 +1,28 @@
+---
+description: Handoff context for PadelVideoAnalyzer dashboard (layout, files, follow-ups)
+globs: client/src/pages/Analysis.tsx,client/src/components/PadelVideoAnalyzer.tsx,client/src/components/analyzer/**,client/src/components/VideoPlayer.tsx
+alwaysApply: false
+---
+
+# Analyzer dashboard handoff
+
+Read [docs/ANALYZER_DASHBOARD_HANDOFF.md](mdc:docs/ANALYZER_DASHBOARD_HANDOFF.md) before changing the analysis screen.
+
+## Quick facts
+
+- Route: `/analysis/:id` → `Analysis.tsx` loads tRPC; **`PadelVideoAnalyzer`** owns layout.
+- Video: `VideoPlayer` + `stageOverlay` (`AnalyzerScoreOverlay`), `forceAspectRatio={16/9}`, `suppressPhaseBadge`.
+- Right rail: `AnalyzerFilterPanel` (accordion/toggles) + score/coaching/metrics.
+- shadcn UI files exist under `client/src/components/ui/` but filter panel still uses **inline Radix** — migrate when touching filters.
+- Filters are **UI state only**; overlay/timeline filtering not wired yet.
+
+## Do not
+
+- Rename or duplicate the old inline `Analysis.tsx` grid — it was refactored out.
+- Block the overlay worker on the main thread.
+
+## Typical next tasks
+
+1. Import shadcn `accordion` / `toggle-group` in `AnalyzerFilterPanel`.
+2. Pass `selectedPlayerIds` into overlay/racket rendering.
+3. Replace score overlay placeholders with real match data when available.

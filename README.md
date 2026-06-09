@@ -48,11 +48,23 @@ npm run mobile:typecheck
 
 **Always-on Expo Go (physical device, same Wi‑Fi):** `npm run daemon:start` — see **[docs/EXPO_GO_ALWAYS_ON.md](./docs/EXPO_GO_ALWAYS_ON.md)** for PM2 setup, `.env` rules, and reboot persistence.
 
-Set `EXPO_PUBLIC_API_BASE_URL` in `mobile/.env` (see `mobile/.env.example`). After pulling, apply DB migrations: `npm run db:push` (or `db:migrate`).
+**Hosted preview app (laptop off, test anywhere):** Fly API + EAS installable build — see **[docs/MOBILE_HOSTED_SETUP.md](./docs/MOBILE_HOSTED_SETUP.md)** (`npm run hosted:check` → `hosted:deploy-api` → `hosted:build:android`).
+
+Set `EXPO_PUBLIC_API_BASE_URL` in `mobile/.env` for local Expo Go only (see `mobile/.env.example`). Hosted EAS builds use `mobile/eas.json` + `hosted.config.json`. After pulling, apply DB migrations: `npm run db:push` (or `db:migrate`).
 
 ## Physical iPhone QA (agent-device)
 
 For Cursor-driven verification on a real iPhone (e.g. Swing Vision competitive analysis), see **[docs/AGENT_DEVICE_SETUP.md](./docs/AGENT_DEVICE_SETUP.md)** and run `./scripts/check-agent-device-prereqs.sh` before `./scripts/agent-device-swing-vision-smoke.sh`. To halt an in-progress QA agent: `./scripts/stop-agent-device-qa.sh`.
+
+## Agent Kanban (Cloud Agents)
+
+Track and spawn Cursor Cloud Agents for backlog items: **[docs/AGENT_KANBAN.md](./docs/AGENT_KANBAN.md)**.
+
+```bash
+npm run agent-kanban:install   # first time only
+npm run agent-kanban:dev       # http://localhost:3010
+npm run agent-kanban:prompt:list
+```
 
 ## Parallel work (multiple agents / chats)
 

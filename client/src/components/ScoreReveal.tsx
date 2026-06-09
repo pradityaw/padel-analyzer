@@ -17,7 +17,7 @@ function ConfettiDot({ delay, x }: { delay: number; x: number }) {
   if (prefersReduced) return null;
   return (
     <motion.span
-      className="absolute w-1.5 h-1.5 rounded-full bg-padel-green"
+      className="absolute w-1.5 h-1.5 rounded-full bg-accent"
       style={{ left: `${x}%`, top: "20%" }}
       initial={{ opacity: 1, y: 0, scale: 1 }}
       animate={{ opacity: 0, y: 80, scale: 0.5 }}
@@ -50,7 +50,7 @@ export default function ScoreReveal({ open, score, onClose }: Props) {
   const handleContinue = () => {
     markScoreRevealShown();
     onClose();
-    navigate("/sessions");
+    navigate("/app");
   };
 
   const handleDismiss = () => {
@@ -84,23 +84,23 @@ export default function ScoreReveal({ open, score, onClose }: Props) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="relative bg-padel-surface border border-padel-border rounded-2xl shadow-2xl max-w-md w-full p-8 text-center overflow-hidden"
+            className="relative bg-surface border border-rule rounded-2xl shadow-2xl max-w-md w-full p-8 text-center overflow-hidden"
           >
             {!prefersReduced &&
               [10, 25, 40, 55, 70, 85].map((x, i) => (
                 <ConfettiDot key={x} x={x} delay={i * 0.08} />
               ))}
-            <Sparkles className="w-8 h-8 text-padel-green mx-auto mb-3" />
+            <Sparkles className="w-8 h-8 text-accent mx-auto mb-3" />
             <p
               id="score-reveal-title"
-              className="text-sm text-slate-400 mb-2"
+              className="text-sm text-ink-2 mb-2"
             >
               Your first swing score
             </p>
             <div className="flex justify-center mb-4">
               <ScoreCard score={displayScore} size="lg" />
             </div>
-            <p className="text-slate-300 text-sm mb-6">
+            <p className="text-ink-2 text-sm mb-6">
               Save this session to your history and track progress over time.
             </p>
             <Button className="w-full mb-2" onClick={handleContinue}>
@@ -109,7 +109,7 @@ export default function ScoreReveal({ open, score, onClose }: Props) {
             <button
               type="button"
               onClick={handleDismiss}
-              className="text-sm text-slate-500 hover:text-slate-300 w-full py-2 focus-ring rounded-lg"
+              className="text-sm text-muted-2 hover:text-ink-2 w-full py-2 focus-ring rounded-full"
             >
               Keep exploring this analysis
             </button>
