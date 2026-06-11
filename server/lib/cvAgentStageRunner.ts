@@ -148,7 +148,8 @@ export async function runCvAgentStage(
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutBytes += chunk.length;
-      if (stdoutBytes > maxStdoutBytes && !settled) {
+      if (settled) return;
+      if (stdoutBytes > maxStdoutBytes) {
         settled = true;
         clearTimeout(timer);
         terminateChildWithEscalation(child);

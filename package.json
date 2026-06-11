@@ -14,6 +14,8 @@
     "test:contracts": "tsx scripts/qa/analysis-contract.test.ts && tsx scripts/qa/object-storage.test.ts",
     "test:court-calibration": "tsx scripts/qa/court-calibration.test.ts",
     "test:overlay-frame-budget": "tsx scripts/qa/overlay-frame-budget.test.ts",
+    "test:only-rallies-seek": "tsx scripts/qa/only-rallies-seek.test.ts",
+    "test:subprocess-stdout-guard": "tsx scripts/qa/subprocess-stdout-guard.test.ts",
     "test:mobile-ball-tracking": "tsx mobile/scripts/ball-tracking.test.ts",
     "test:tracking-smoke": "tsx scripts/qa/tracking-integration-smoke.ts",
     "test:cv": "python3 -m pytest scripts/cv/tests -q",

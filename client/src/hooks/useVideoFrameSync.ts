@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { RallyWindow } from "@shared/schema";
 import type { FrameSyncIndex } from "@/lib/frameSync";
 import { resolveFrameAtTime } from "@/lib/frameSync";
+import { planOnlyRalliesSeek } from "@/lib/onlyRalliesSeek";
 
 type VideoFrameRequestFn = (
   callback: (now: DOMHighResTimeStamp, metadata: VideoFrameCallbackMetadata) => void
@@ -65,6 +66,7 @@ export function useVideoFrameSync({
   const lastReportedIdxRef = useRef(-1);
   const lastTimeUiUpdateRef = useRef(0);
   const currentTimeSecRef = useRef(0);
+  const pendingRallySeekTargetRef = useRef<number | null>(null);
 
   const enforceOnlyRallies = useCallback(() => {
     if (!onlyRalliesRef.current) return;
@@ -76,17 +78,25 @@ export function useVideoFrameSync({
     if (video.paused) return;
 
     const { current, next } = locateRallyForTime(list, video.currentTime);
-    if (current) return;
+    if (current) {
+      pendingRallySeekTargetRef.current = null;
+      return;
+    }
 
-    const TOLERANCE_SEC = 0.05;
     if (next) {
-      const target = Math.max(0, next.startMs / 1000);
-      if (target - video.currentTime > TOLERANCE_SEC) {
-        video.currentTime = target + 0.001;
+      const plan = planOnlyRalliesSeek({
+        currentTimeSec: video.currentTime,
+        nextRallyStartMs: next.startMs,
+        pendingSeekTargetSec: pendingRallySeekTargetRef.current,
+      });
+      pendingRallySeekTargetRef.current = plan.pendingSeekTargetSec;
+      if (plan.seekToSec != null) {
+        video.currentTime = plan.seekToSec;
       }
       return;
     }
 
+    pendingRallySeekTargetRef.current = null;
     if (!video.paused) {
       video.pause();
     }
