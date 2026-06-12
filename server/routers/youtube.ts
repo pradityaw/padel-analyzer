@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync } from "fs";
 import path from "path";
+import { downloadToFileIfMissing } from "../lib/atomicDownload.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getUploadsDir } from "../lib/paths.js";
@@ -143,9 +144,9 @@ export const youtubeRouter = router({
       const fileName = `yt_${info.id}_${safeTitle}.mp4`;
       const filePath = path.join(uploadsDir, fileName);
 
-      if (!existsSync(filePath)) {
-        await downloadVideo(input.url, filePath);
-      }
+      await downloadToFileIfMissing(filePath, (tempPath) =>
+        downloadVideo(input.url, tempPath)
+      );
 
       return {
         fileName,
