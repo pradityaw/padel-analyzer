@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../_core/trpc.js";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync } from "fs";
 import path from "path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { downloadToFileAtomic } from "../lib/atomicDownload.js";
 import { getUploadsDir } from "../lib/paths.js";
 import {
   YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS,
@@ -143,9 +144,9 @@ export const youtubeRouter = router({
       const fileName = `yt_${info.id}_${safeTitle}.mp4`;
       const filePath = path.join(uploadsDir, fileName);
 
-      if (!existsSync(filePath)) {
-        await downloadVideo(input.url, filePath);
-      }
+      await downloadToFileAtomic(filePath, (tempPath) =>
+        downloadVideo(input.url, tempPath)
+      );
 
       return {
         fileName,
