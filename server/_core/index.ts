@@ -7,7 +7,7 @@ import { mkdirSync } from "fs";
 import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
+import { MAX_UPLOAD_MB } from "../../shared/config.js";
 import { logger } from "../lib/logger.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { createRequestContext } from "./requestContext.js";

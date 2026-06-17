@@ -84,6 +84,7 @@ export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
 
     const retryAfterSec = Math.ceil((1 - bucket.tokens) / refillPerSecond);
     res.setHeader("Retry-After", String(Math.max(1, retryAfterSec)));
+    res.setHeader("X-RateLimit-Policy", id);
     res.status(429).json({
       error: `Too many requests. Please wait ${Math.max(1, retryAfterSec)}s and try again.`,
     });
