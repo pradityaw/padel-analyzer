@@ -7,6 +7,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Express, Request, Response } from "express";
 import express from "express";
+import { logger } from "./logger.js";
 
 const REPLAY_WINDOW_SEC = 60 * 5;
 
@@ -108,7 +109,7 @@ async function handleMessageEvent(
   const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
   const token = process.env.SLACK_BOT_TOKEN;
   if (!channelId || !token) {
-    console.warn("[slack-events] missing SLACK_BOT_TOKEN or SLACK_FEEDBACK_CHANNEL_ID");
+    logger.warn("[slack-events] missing SLACK_BOT_TOKEN or SLACK_FEEDBACK_CHANNEL_ID");
     return;
   }
 
@@ -131,7 +132,7 @@ async function handleMessageEvent(
 
   const record = await recordFromSlackEvent(msg, channelId, token);
   if (!record) {
-    console.log("[slack-events] message ignored (filtered or invalid)");
+    logger.debug("[slack-events] message ignored (filtered or invalid)");
     return;
   }
 
@@ -148,7 +149,7 @@ export function registerSlackFeedbackRoutes(app: Express): void {
 
   const signingSecret = process.env.SLACK_SIGNING_SECRET;
   if (!signingSecret) {
-    console.log(
+    logger.info(
       "[slack-events] SLACK_SIGNING_SECRET not set — /api/slack/events disabled"
     );
     return;
@@ -196,14 +197,14 @@ export function registerSlackFeedbackRoutes(app: Express): void {
       const eventId = payload.event_id;
       setImmediate(() => {
         handleMessageEvent(payload, eventId).catch((err) => {
-          console.error(
-            "[slack-events] background handler error:",
-            err instanceof Error ? err.message : err
+          logger.error(
+            { err },
+            "[slack-events] background handler error",
           );
         });
       });
     }
   );
 
-  console.log("[slack-events] registered POST /api/slack/events");
+  logger.info("[slack-events] registered POST /api/slack/events");
 }

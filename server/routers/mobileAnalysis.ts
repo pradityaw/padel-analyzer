@@ -3,7 +3,7 @@ import path from "path";
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -105,7 +105,20 @@ async function hydrateJobTracking(
 }
 
 export const mobileAnalysisRouter = router({
+  // The create/retry mutations kick off the full Python CV pipeline (the most
+  // expensive work on the server). Rate-limit per client IP so a single caller
+  // cannot queue unbounded jobs. Tune via env; auth-exempt by design (see
+  // rateLimit docs in trpc.ts).
   create: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.create",
+      }),
+    )
     .input(createMobileAnalysisJobInputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -214,6 +227,15 @@ export const mobileAnalysisRouter = router({
 
   /** Re-queue analysis for an existing upload (failed or completed jobs). */
   retry: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.retry",
+      }),
+    )
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input }) => {
       const job = db

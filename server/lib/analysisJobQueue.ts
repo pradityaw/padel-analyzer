@@ -1,4 +1,6 @@
 /** Single-process job queue. Each job may run multiple analysis agents in parallel. */
+import { logger } from "./logger.js";
+
 const MAX_CONCURRENT = 1;
 
 let running = 0;
@@ -34,6 +36,6 @@ async function processJob(
   try {
     await processor(jobId);
   } catch (error) {
-    console.error(`[analysis-job] Unhandled failure for job ${jobId}:`, error);
+    logger.error({ jobId, err: error }, "analysis job unhandled failure");
   }
 }

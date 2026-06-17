@@ -29,6 +29,7 @@ import {
   writeRallyWindowsFile,
   type RallyWindowsPayload,
 } from "./rallyWindowsFile.js";
+import { logger } from "./logger.js";
 import { mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
@@ -124,7 +125,7 @@ async function runReportedStage<T>(
   runner: () => Promise<T>
 ): Promise<T> {
   const startedAt = Date.now();
-  console.log(`[analysis-stage] ${stageId} start`);
+  logger.debug({ stageId }, "analysis stage start");
   await report(
     stageId,
     { status: "running", progress: 5, message: messages.running, errorMessage: null },
@@ -133,7 +134,7 @@ async function runReportedStage<T>(
   try {
     const result = await runner();
     const elapsedMs = Date.now() - startedAt;
-    console.log(`[analysis-stage] ${stageId} done ${elapsedMs}ms`);
+    logger.info({ stageId, elapsedMs }, "analysis stage done");
     await report(
       stageId,
       { status: "completed", progress: 100, message: messages.completed, errorMessage: null },
@@ -143,7 +144,7 @@ async function runReportedStage<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown stage failure.";
     const elapsedMs = Date.now() - startedAt;
-    console.warn(`[analysis-stage] ${stageId} failed ${elapsedMs}ms: ${message}`);
+    logger.warn({ stageId, elapsedMs, err: error, message }, "analysis stage failed");
     await report(
       stageId,
       { status: "failed", progress: 100, message: "Stage failed.", errorMessage: message },
@@ -194,8 +195,9 @@ async function detectRalliesOrFullVideo(videoPath: string) {
     return await detectRalliesForVideo(videoPath);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown rally detection failure.";
-    console.warn(
-      `[analysis-stage] ingestion rally detection failed; processing full clip: ${message}`
+    logger.warn(
+      { err: error, message },
+      "ingestion rally detection failed; processing full clip",
     );
     return {
       fps: 30,

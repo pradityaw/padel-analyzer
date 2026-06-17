@@ -30,6 +30,7 @@ import {
 } from "./poseQuality.js";
 import { writeLandmarksFile } from "./landmarksStorage.js";
 import { isAgentStageSoftFailure } from "./agentStageFallbacks.js";
+import { logger } from "./logger.js";
 
 async function updateJob(
   jobId: number,
@@ -220,9 +221,9 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     try {
       await writePipelineTimingArtifact(jobId, timer.snapshot());
     } catch (artifactError) {
-      console.warn(
-        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
-        artifactError
+      logger.warn(
+        { jobId, err: artifactError },
+        "could not write pipeline timing artifact",
       );
     }
   } catch (error) {
@@ -244,9 +245,9 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     try {
       await writePipelineTimingArtifact(jobId, timer.snapshot());
     } catch (artifactError) {
-      console.warn(
-        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
-        artifactError
+      logger.warn(
+        { jobId, err: artifactError, failed: true },
+        "could not write pipeline timing artifact",
       );
     }
   }

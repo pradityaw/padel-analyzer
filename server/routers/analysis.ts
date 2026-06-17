@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { desc, eq, lt } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import {
@@ -48,6 +48,15 @@ const listSelectBase = {
 
 export const analysisRouter = router({
   create: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "analysis.create",
+      }),
+    )
     .input(createAnalysisInputSchema)
     .mutation(async ({ input }) => {
       const result = db.insert(analyses).values(input).returning().get();
