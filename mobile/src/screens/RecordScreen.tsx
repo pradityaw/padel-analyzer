@@ -4,6 +4,8 @@ import { Video, ResizeMode } from "expo-av";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import {
+  Alert,
+  Linking,
   ActivityIndicator,
   Dimensions,
   Pressable,
@@ -108,6 +110,28 @@ export default function RecordScreen({ navigation }: Props) {
       }
     };
   }, [clearTimer]);
+
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (e) => {
+      if (stage !== "recording") return;
+      e.preventDefault();
+      Alert.alert(
+        "Discard recording?",
+        "Going back will discard your current take.",
+        [
+          { text: "Keep recording", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              cameraRef.current?.stopRecording();
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ]
+      );
+    });
+  }, [navigation, stage]);
 
   const ensurePermissions = async () => {
     let cam = cameraPermission;
@@ -248,15 +272,22 @@ export default function RecordScreen({ navigation }: Props) {
   }
 
   if (!cameraPermission.granted && (stage === "idle" || stage === "aligning")) {
+    const canAsk = cameraPermission.canAskAgain !== false;
     return (
       <View style={styles.centered}>
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionBody}>
-          Record side-view swing clips directly in the app for analysis.
+          {canAsk
+            ? "Record side-view swing clips directly in the app for analysis."
+            : "Camera access was denied. Enable it in Settings to record clips."}
         </Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Pressable
           onPress={async () => {
+            if (!canAsk) {
+              await Linking.openSettings();
+              return;
+            }
             try {
               await ensurePermissions();
             } catch (err) {
@@ -270,7 +301,9 @@ export default function RecordScreen({ navigation }: Props) {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.primaryButtonText}>Allow camera</Text>
+          <Text style={styles.primaryButtonText}>
+            {canAsk ? "Allow camera" : "Open Settings"}
+          </Text>
         </Pressable>
       </View>
     );

@@ -15,7 +15,7 @@ When imagery is needed *and* the user hasn't supplied real assets, pick from thi
 | 1 | **Hallmark imagery kit** ([`imagery-kit.md`](imagery-kit.md)) | Brief allows non-photographic imagery: SaaS landings, manifestos, agency / studio splash, type-led portfolio, editorial-led marketing. **Always preferred** when the kit's register fits. |
 | 2 | **Hand-built SVG composition** (Tier B from custom-craft.md) | Editorial-typographic brief where "imagery" can be a stamp / wordmark / colour-blocked composition. Use when the kit doesn't carry the register. |
 | 3 | **Picsum** — `https://picsum.photos/seed/<seed>/<w>/<h>` | Generic photo slot, keyword anchoring not critical. Use a deterministic seed (brand-name + slot-name) so the same render produces the same image. |
-| 4 | **Unsplash Source** — `https://source.unsplash.com/<w>x<h>/?<keywords>` | Keyword-anchored photo slot — food, travel, portrait, real product. Pass 1–2 specific keywords, never zero. |
+| 4 | **Unsplash direct** — `https://images.unsplash.com/photo-<id>?w=<w>&h=<h>&fit=crop` (or a curated photo URL from unsplash.com) | Keyword-anchored photo slot — food, travel, portrait, real product. Pick a specific photo ID; do not use deprecated `source.unsplash.com`. |
 | 5 | **Local `public/placeholder-<type>.{jpg,svg}`** | Self-contained projects with no third-party deps. Single neutral grey-block SVG checked into the repo. |
 
 **Swappability — non-negotiable:**
@@ -133,7 +133,7 @@ import { siGithub } from 'simple-icons/icons';
 
 ## Generated illustration (Tier C in the enrichment hierarchy)
 
-When characters or specific scenes can't be hand-built economically. **Always post-process.** See [`custom-craft.md`](custom-craft.md) Tier E for full discipline.
+When characters or specific scenes can't be hand-built economically. **Always post-process.** See [`custom-craft.md`](custom-craft.md) Tier C (enrichment) / Tier E (generated stills) for full discipline.
 
 ### Canon
 
@@ -222,7 +222,7 @@ When budget and timeline force a shortcut and even Tier C is overkill.
 
 ### The rules
 
-1. **Browser frame for SaaS / web apps.** Communicates "this is real, on the web". Use Browserframe or hand-build (a 1-px hairline + three macOS dots is enough).
+1. **Browser frame for SaaS / web apps.** Communicates "this is real, on the web". Use Browserframe or a floating screenshot with a hairline border only — never hand-draw traffic-light dots (gate **57**).
 2. **Floating-no-frame for clean splits.** When the screenshot is beautiful enough to stand naked. Demands a high-quality screenshot.
 3. **Device frame (iPhone / iPad) sparingly.** One hero mockup max — beyond that it reads as generic template work.
 4. **Tilt 1–3°.** Adds life. 0° reads as flat; 5°+ reads as drunk.

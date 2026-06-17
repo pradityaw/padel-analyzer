@@ -1,8 +1,8 @@
 
-### S1 · Left-margin numbered
-A narrow left column holds `01 — LABEL.`; the wide right column holds the heading and content.
-*Use when:* the page is editorial / specimen.
-*Don't confuse with:* S5 Bottom-anchored (which puts the label *under* the section).
+### S1 · Left-margin numbered (vertical stack)
+A mono-cap number or label (`01 — Foundations`) stacked **above** the section heading in a single column — never beside it.
+*Use when:* the page is editorial / specimen and ordinal labels are genuinely needed (cap at 1–2 per page).
+*Don't confuse with:* S5 Bottom-anchored (which puts the label *under* the section). Gate **66** bans tag-left / header-right two-column section heads.
 
 ```html
 <header class="head-margin">
@@ -11,5 +11,7 @@ A narrow left column holds `01 — LABEL.`; the wide right column holds the head
 </header>
 ```
 ```css
-.head-margin { display: grid; grid-template-columns: 10rem 1fr; gap: var(--space-xl); align-items: baseline; }
+.head-margin { display: flex; flex-direction: column; gap: var(--space-sm); align-items: flex-start; }
+.num-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
+.head-margin h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 ```

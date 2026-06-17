@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from "react-native";
+import QueryErrorState from "../components/QueryErrorState";
 import RecordModeBadge from "../components/RecordModeBadge";
 import { deleteAnalysis, listRecentAnalyses } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
@@ -93,7 +94,7 @@ export default function HistoryScreen({ navigation }: Props) {
         ListHeaderComponent={
           <View>
             <Text style={styles.eyebrow}>YOUR PROGRESS</Text>
-            <Text style={styles.screenTitle}>Your sports schedule</Text>
+            <Text style={styles.screenTitle}>Your sessions</Text>
             {stats ? (
               <View style={styles.statRow}>
                 <View style={styles.statCard}>
@@ -125,6 +126,13 @@ export default function HistoryScreen({ navigation }: Props) {
           <Pressable
             onPress={() => navigation.navigate("Analysis", { analysisId: item.id })}
             onLongPress={() => confirmDelete(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.videoFileName}, score ${item.overallScore}`}
+            accessibilityHint="Double tap to open. Double tap and hold to delete."
+            accessibilityActions={[{ name: "delete", label: "Delete" }]}
+            onAccessibilityAction={(e) => {
+              if (e.nativeEvent.actionName === "delete") confirmDelete(item);
+            }}
             style={({ pressed }) => [
               featured ? styles.featuredCard : styles.listCard,
               pressed ? styles.listCardPressed : null,
@@ -159,6 +167,7 @@ export default function HistoryScreen({ navigation }: Props) {
                   {item.shotType}
                 </Text>
               ) : null}
+              <Text style={styles.deleteHint}>Hold to delete</Text>
             </View>
           </Pressable>
           );
@@ -168,10 +177,15 @@ export default function HistoryScreen({ navigation }: Props) {
             <View style={styles.emptyState}>
               <ActivityIndicator color={theme.accent} />
             </View>
+          ) : analysesQuery.isError ? (
+            <QueryErrorState
+              message="Couldn't load your sessions. Check your connection and try again."
+              onRetry={() => void analysesQuery.refetch()}
+            />
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.cardTitle}>No analyses yet</Text>
-              <Text style={styles.metaText}>
+              <Text style={styles.emptyTitle}>No analyses yet</Text>
+              <Text style={styles.emptyMeta}>
                 Upload a swing from the Upload screen.
               </Text>
             </View>
@@ -308,5 +322,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  deleteHint: { color: theme.cardPaperMuted, fontSize: 11, marginLeft: "auto" },
   emptyState: { paddingVertical: 36, alignItems: "center", gap: 8 },
+  // cardTitle/metaText are styled for the light ledger rows; the empty state
+  // sits directly on dark paper and needs page-ink colors.
+  emptyTitle: { color: theme.ink, fontSize: 16, fontWeight: "600" },
+  emptyMeta: { color: theme.ink2, fontSize: 13 },
 });

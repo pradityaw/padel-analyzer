@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import QueryErrorState from "../components/QueryErrorState";
 import { listProComparisons } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
 import { theme, radius } from "../lib/theme";
@@ -76,6 +77,11 @@ export default function ProCompareScreen({ navigation }: Props) {
         ListEmptyComponent={
           query.isLoading ? (
             <ActivityIndicator color={theme.accent} />
+          ) : query.isError ? (
+            <QueryErrorState
+              message="Couldn't load pro comparisons. Check your connection and try again."
+              onRetry={() => void query.refetch()}
+            />
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.cardTitle}>No pro comparisons yet</Text>

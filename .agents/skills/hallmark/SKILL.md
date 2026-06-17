@@ -275,7 +275,7 @@ Before loading any visual ruleset, **read the slim index at [`references/macrost
 
 If the previous output was Specimen (light · italic-serif · warm), the next can be Studio (light · italic-serif · chromatic-green) — the *accent hue* differs. But the next can't be Salon (light · roman-serif · warm) which only differs on display style and shares both paper band and accent — pick a more distant theme.
 
-The per-theme axis values live as comments at the top of each theme's tokens block in [`site/css/tokens.css`](../../site/css/tokens.css). When in doubt, name your candidate theme out loud and identify its three axis values; if two of three match the previous output, redirect.
+When in doubt, name your candidate catalog theme out loud and identify its three axis values (paper band · display style · accent hue) using the examples in the theme-diversification rule above and the axis bands in [`custom-theme.md`](references/custom-theme.md) § D. If two of three match the previous output, redirect.
 
 **State your pick.** Before writing any code, say "Macrostructure: <name>. Theme: <name>. Differs from the last on: <axes>." in plain text. This is a deliberate accountability step — picking on the page (not in your head) prevents the default-attractor sameness that kept the skill emitting Specimen output.
 
@@ -337,7 +337,7 @@ By the time you reach this step, one of four things is true:
 
 **Custom is a quiet branch, not a default question.** Most briefs route to catalog and the user never sees the words "catalog" or "custom." The 22 named themes plus the rotation rule already deliver structural variety; the fork is reserved for when the brief specifically asks for a tuned look the catalog can't carry.
 
-A custom theme is a **complete** OKLCH palette + font pairing tuned to the brief — not a one-off colour swap, not an excuse to bypass the rules. Every constraint in [`color.md`](references/color.md), [`typography.md`](references/typography.md), and [`anti-patterns.md`](references/anti-patterns.md) still applies. The 65 slop-test gates fire unchanged. The Step 5 preview block surfaces the palette + pairing in plain text **before** any code is emitted, so the user can redirect.
+A custom theme is a **complete** OKLCH palette + font pairing tuned to the brief — not a one-off colour swap, not an excuse to bypass the rules. Every constraint in [`color.md`](references/color.md), [`typography.md`](references/typography.md), and [`anti-patterns.md`](references/anti-patterns.md) still applies. The 69 slop-test gates fire unchanged. The Step 5 preview block surfaces the palette + pairing in plain text **before** any code is emitted, so the user can redirect.
 
 The diversification rule is theme-route-blind: a custom run that follows another custom (or a catalog) must differ on at least one of the three axes from the previous entry, same as catalog-vs-catalog. Custom entries record their three axes explicitly into `.hallmark/log.json` (see [`custom-theme.md`](references/custom-theme.md) § F).
 
@@ -373,7 +373,7 @@ The non-negotiables live in [`references/`](references/). **Be precise about wha
 - [`preview-examples.md`](references/preview-examples.md) — load only if you need a worked example of the Step 5 preview block format. The bullet list in Step 5 itself is normally enough; reach for the file only when picking unusual macrostructures / custom themes.
 
 **Load-at-the-end (Step 7 only):**
-- [`slop-test.md`](references/slop-test.md) — **strictly Step 7, after Build.** The 66 gates are a post-emit check, not a pre-emit reference. Pre-loading slop-test.md costs ~7K tokens for nothing — the gates inform fixes, not generation. If a gate fails at Step 7, fix and re-test; do not consult the file earlier "to know what to avoid" — that's what `anti-patterns.md` is for.
+- [`slop-test.md`](references/slop-test.md) — **strictly Step 7, after Build.** The 69 gates are a post-emit check, not a pre-emit reference. Pre-loading slop-test.md costs ~7K tokens for nothing — the gates inform fixes, not generation. If a gate fails at Step 7, fix and re-test; do not consult the file earlier "to know what to avoid" — that's what `anti-patterns.md` is for.
 - [`contract.md`](references/contract.md) — load at handoff time for output-contract + scope rules.
 - [`export-formats.md`](references/export-formats.md) — load at Step 6 only when the project warrants multi-format exports (i.e. has a `design.md`). Single-page builds emit `tokens.css` from the in-memory token state and don't need this file.
 
@@ -393,7 +393,7 @@ Most pages don't need it. The strongest hero is often a typographic one. **Reach
 
 Eyeball the brief or ask one short question. State the decision in one sentence (e.g., *"Enrichment: E1 Clipped-Edge Demo Video, Tier-A CSS-art mockup."* or *"Enrichment: none — typography only."*). The decision goes into the macrostructure stamp at Step 6.
 
-**The enrichment hierarchy is non-negotiable.** Reach for the highest tier you can ship: typography only → Tier A pure CSS art → Tier B hand-built SVG → Tier C generated still (Nanobanana / Recraft) → Tier D library + customisation → **Tier E Lottie is last resort**, only for complex character motion that hand-build can't reach. Reaching for Lottie when CSS would have built it is the new tell.
+**The enrichment hierarchy is non-negotiable.** Reach for the highest tier you can ship: typography only → Tier A pure CSS art → Tier B hand-built SVG → Tier C generated still (Nanobanana / Recraft) → Tier D library + customisation → **Tier F Lottie is last resort**, only for complex character motion that hand-build can't reach. Reaching for Lottie when CSS would have built it is the new tell.
 
 When an enrichment archetype requires construction, also load [`custom-craft.md`](references/custom-craft.md). When it requires an external asset, load [`assets.md`](references/assets.md).
 
@@ -411,7 +411,7 @@ Before emitting any code, output a tight summary of what you're about to ship. T
 - **Enrichment** · none (typography only)
 - **Sections** · Hero · Logos · Stats · Features · Testimonials · Pricing · FAQ · CTA · Footer
 - **Motion** · counter · pricing-lift · pulse-once
-- **Slop test** · 69 / 69 ✓ (run after Build)
+- **Slop test** · pending (Step 7 — after Build)
 - **Diversification** · differs from Linen on display style + accent hue
 ```
 
@@ -422,7 +422,7 @@ Before emitting any code, output a tight summary of what you're about to ship. T
 3. **Enrichment** — the chosen archetype + tier, or *none (typography only)*.
 4. **Sections** — section names separated by ` · `, in DOM order.
 5. **Motion** — microinteraction primitives separated by ` · `, or *none — typography only*. Always under three primitives per the [`microinteractions.md`](references/microinteractions.md) hard rules.
-6. **Slop test** — `69 / 69 ✓` if all gates pass, or `N / 69 — fails: <gate numbers>` if any are open. Run the slop test BEFORE writing this row; the slop test is Step 7.
+6. **Slop test** — `pending (Step 7)` in the pre-build preview. After Build, run Step 7 and replace with `69 / 69 ✓` if all gates pass, or `N / 69 — fails: <gate numbers>` if any are open.
 7. **Diversification** *(optional, only when `.hallmark/log.json` has prior entries)* — what axes differ vs the previous run.
 
 **Then one quiet CTA line, italicised, after the bullets:**
@@ -433,7 +433,7 @@ Skip the CTA line when (a) the build is component-scope, or (b) `design.md` alre
 
 Four worked sample preview blocks (Long Document, Bento Grid, Manifesto, Custom) live in [`references/preview-examples.md`](references/preview-examples.md) — load that file only if the bullet-list spec above isn't scaffolding enough on its own. Most builds don't need it.
 
-If any slop-test gate fails when you reach Step 7, return to the relevant Build step, fix it, and **re-emit the preview block** with the corrected slop-test row. The preview is the durable summary; it's wrong to ship if it lies.
+If any slop-test gate fails when you reach Step 7, return to the relevant Build step, fix it, re-run the gate sweep, and **update the slop-test row** in the handoff summary (re-emit the preview block if you already showed one). The final slop-test row is the durable record; do not ship if it lies.
 
 ### 6. Build
 
@@ -463,7 +463,7 @@ Always:
 
 Before handing back, run the output through the 69-gate slop test in [`references/slop-test.md`](references/slop-test.md). Every answer must be **no**. Load that file at this step (not earlier — it isn't needed until handoff). The active genre matters: some gates are universal, some are genre-scoped (atmospheric loosens the radial-bloom gate; modern-minimal loosens the zero-chroma neutral gate; etc.). The full per-genre overrides are listed inline in `slop-test.md`.
 
-Run the slop test BEFORE writing the Slop test row in the Step 5 preview block — that row reflects the actual outcome of this step.
+Update the Step 5 preview's slop-test row (or the handoff summary if no preview was shown) with the actual gate outcome from this step.
 
 If any gate fails, fix it. Do not ship slop.
 
@@ -508,7 +508,7 @@ If the user's input starts with `http://` or `https://` → **URL mode**. Otherw
 4. **Confirmation question.** Ask: *"Adopt this DNA wholesale, or change one axis? For example, I could keep the macrostructure but pick a theme that better matches your tone."* The diagnosis report's last line **also** surfaces the `design.md` emission CTA — *"Or — say `lock the DNA` if you want a portable `design.md` of this DNA."* Wait for the user's answer before doing anything.
 
 5. **Branch on the user's response:**
-   - **"Build with this DNA"** → run the build step below. Pick the closest matching theme from the catalog. Stamp the comment with the inferred macrostructure + archetypes + theme + source mode. The user's content goes in; the source's content does not.
+   - **"Build with this DNA"** → run the build step below. Route to **studied-DNA** per Step 2.6 Condition 0 — use the diagnosis's paper OKLCH, accent OKLCH, type roles, macrostructure, and archetypes directly; do **not** swap in a catalog theme unless the user explicitly pivots. Stamp `theme: studied-DNA (source: <URL or image>)` with the inline values. The user's content goes in; the source's content does not.
    - **"Lock the DNA"** (or any other emission trigger phrase per `study.md` § Trigger phrases) → emit a portable `design.md` of the DNA per `study.md` § Emitting a `design.md` from `study`. **In URL mode, run the attestation step first** — ask whether the source is (a) user's own, (b) public reference for the user's brand, or (c) something else. (c) refuses emission; (a) and (b) write the file with a `## Provenance` block recording the answer. **Image mode emits without asking** — the user owns the screenshot. The emitted file becomes the project's locked system; subsequent runs defer to it.
    - **"Just the diagnosis was enough"** / silence → stop. The diagnosis is a complete deliverable.
 

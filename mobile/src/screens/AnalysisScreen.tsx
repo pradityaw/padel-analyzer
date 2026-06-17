@@ -113,6 +113,12 @@ export default function AnalysisScreen({ route }: Props) {
   });
 
   const [videoSize, setVideoSize] = useState({ w: 320, h: 180 });
+  // Intrinsic video dimensions (image-pixel space) — the denominator for
+  // ball-sample normalization. The rendered layout size is wrong for this.
+  const [intrinsicSize, setIntrinsicSize] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
   const [playbackMs, setPlaybackMs] = useState(0);
   const [demoFrameIdx, setDemoFrameIdx] = useState(0);
   const [useCondensedVideo, setUseCondensedVideo] = useState(false);
@@ -148,7 +154,8 @@ export default function AnalysisScreen({ route }: Props) {
       if (cvStatus === "pending" || cvStatus === "running") {
         void cvPoll.refetch();
       }
-    }, [isDemo, query, cvPoll, cvStatus])
+      // refetch fns are referentially stable in RQ v5; the result objects are not
+    }, [isDemo, analysisId, query.refetch, cvPoll.refetch, cvStatus])
   );
 
   useEffect(() => {
@@ -221,9 +228,9 @@ export default function AnalysisScreen({ route }: Props) {
     () =>
       buildBallFrameMap(
         parseBallTrackingSamples(analysis?.ballTracking),
-        { w: videoSize.w, h: videoSize.h }
+        intrinsicSize ?? { w: 1, h: 1 }
       ),
-    [analysis?.ballTracking, videoSize.w, videoSize.h]
+    [analysis?.ballTracking, intrinsicSize]
   );
 
   const activeBall = useMemo(
@@ -273,6 +280,12 @@ export default function AnalysisScreen({ route }: Props) {
     useCondensedVideo,
     cvResult?.trimmed_video_url,
   ]);
+
+  // Source swap (e.g. condensed-rally toggle) can change dimensions; drop the
+  // stale denominator until the new video reports its natural size.
+  useEffect(() => {
+    setIntrinsicSize(null);
+  }, [replayUrl]);
 
   if (!isDemo && query.isLoading) {
     return (
@@ -342,6 +355,12 @@ export default function AnalysisScreen({ route }: Props) {
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
               isLooping
+              onReadyForDisplay={(e) => {
+                const { width, height } = e.naturalSize;
+                if (width > 0 && height > 0) {
+                  setIntrinsicSize({ w: width, h: height });
+                }
+              }}
               onPlaybackStatusUpdate={(status) => {
                 if (!status.isLoaded) return;
                 if (typeof status.positionMillis === "number") {

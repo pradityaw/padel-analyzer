@@ -2,7 +2,7 @@
 ### C1 · Outlined chip
 A bordered, transparent button with a typographic verb ("Save changes").
 *Use when:* the page has one primary action; you want it visible but quiet.
-*Don't confuse with:* C2 Oversized solid (which is statement-loud).
+*Don't confuse with:* C2 Inline form-as-CTA (which embeds an input inside the CTA).
 
 ```html
 <a class="cta-outline">Open your studio →</a>

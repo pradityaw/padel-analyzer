@@ -27,7 +27,7 @@ Each card is a product, not a feature. Image · name · price · one micro-actio
 .product__media:hover img { transform: scale(1.02); }
 .product__name { font-family: var(--font-body); font-size: var(--text-md); margin: 0; }
 .product__price { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-ink-2); }
-.product__add { position: absolute; top: var(--space-sm); right: var(--space-sm); width: 32px; height: 32px; background: var(--color-paper); border: var(--rule-hair) solid var(--color-rule-2); cursor: pointer; opacity: 0; transition: opacity var(--dur-short) var(--ease-out); }
+.product__add { position: absolute; top: var(--space-sm); right: var(--space-sm); width: 44px; height: 44px; min-width: 44px; min-height: 44px; background: var(--color-paper); border: var(--rule-hair) solid var(--color-rule-2); cursor: pointer; opacity: 0; transition: opacity var(--dur-short) var(--ease-out); }
 .product:hover .product__add, .product:focus-within .product__add { opacity: 1; }
 @media (pointer: coarse) { .product__add { opacity: 1; } }
 ```

@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import NavGrid from "../components/NavGrid";
+import QueryErrorState from "../components/QueryErrorState";
 import RecordModeBadge from "../components/RecordModeBadge";
 import SectionCard from "../components/SectionCard";
 import SkeletonPreview from "../components/SkeletonPreview";
@@ -286,6 +287,11 @@ export default function HomeScreen({ navigation }: Props) {
               <ActivityIndicator color={theme.accent} />
               <Text style={styles.metaText}>Loading sessions...</Text>
             </View>
+          ) : analysesQuery.isError ? (
+            <QueryErrorState
+              message="Couldn't load recent analyses. Check your connection and try again."
+              onRetry={() => void analysesQuery.refetch()}
+            />
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.cardTitle}>No analyses yet</Text>

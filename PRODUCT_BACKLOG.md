@@ -18,7 +18,7 @@
 | 6 | ~~TOCTOU race in YouTube download~~ | B | **Done** | Severity #6 |
 | 7 | ~~N+1 queries in proCompare list and export~~ | B | **Done** | Severity #7 |
 | 8 | ~~No pagination on `analysis.list` (returns all rows with JSON blobs)~~ | B | **Done** | Severity #8 |
-| 9 | True worker offload for the analysis pipeline — `pipeline.worker.ts` exists, but full MediaPipe/ONNX execution still runs on the main thread because of DOM/runtime constraints | A | Partial | Milestone 1 |
+| 9 | ~~True worker offload for the analysis pipeline~~ — **Decided (June 2026): closed as overtaken by events.** The web client switched to server-side analysis jobs (commit `c59322b`); the client pipeline (`analysisPipeline.ts`, `pipeline.worker.ts`) has zero call sites and should be deleted/quarantined. If client-side analysis ever returns, the verified-feasible design is hybrid main-thread-decode + worker-inference — see [`docs/WORKER_OFFLOAD_DECISION.md`](./docs/WORKER_OFFLOAD_DECISION.md) | A | **Decided** | Milestone 1 |
 | 10 | ~~Persist “analysis in progress” and low-detection quality signals beyond sessionStorage so refresh/deep-link flows still show the right state~~ | A + B + C | **Done** | UX gap |
 | 11 | ~~Normalize analysis data storage so list/replay scale beyond large JSON blobs in SQLite rows~~ | B + S + C | **Done** | Milestone 3 |
 
