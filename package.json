@@ -16,7 +16,7 @@
     "test:overlay-frame-budget": "tsx scripts/qa/overlay-frame-budget.test.ts",
     "test:mobile-ball-tracking": "tsx mobile/scripts/ball-tracking.test.ts",
     "test:tracking-smoke": "tsx scripts/qa/tracking-integration-smoke.ts",
-    "test:cv": "python3 -m pytest scripts/cv/tests -q",
+    "test:cv": "if [ -x .venv/bin/python3 ]; then .venv/bin/python3 -m pytest scripts/cv/tests -q; else python3 -m pytest scripts/cv/tests -q; fi",
     "cv:doctor": "if [ -x .venv/bin/python3 ]; then .venv/bin/python3 scripts/cv/doctor.py; else python3 scripts/cv/doctor.py; fi",
     "release:beta-gates": "node scripts/release-gates.mjs --skip-build",
     "release:gates": "node scripts/release-gates.mjs",
