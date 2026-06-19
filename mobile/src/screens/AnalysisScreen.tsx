@@ -261,6 +261,9 @@ export default function AnalysisScreen({ route }: Props) {
     if (useCondensedVideo && cvResult?.trimmed_video_url) {
       return resolveUploadUrl(cvResult.trimmed_video_url);
     }
+    if (analysis.videoPlaybackUrl) {
+      return resolveUploadUrl(analysis.videoPlaybackUrl);
+    }
     if (analysis.videoStorageKey) {
       return resolveUploadUrl(`/uploads/${analysis.videoStorageKey}`);
     }
