@@ -28,6 +28,7 @@ import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 import { getDataRoot, getUploadsDir } from "./paths.js";
+import { ensureLocalVideoPath } from "./videoProcessingCache.js";
 import {
   RALLY_DETECTION_DEFAULT_TIMEOUT_MS,
 } from "../../shared/config.js";
@@ -191,6 +192,22 @@ function resolveAnalysisVideoPath(
   if (!isInsidePath(uploadsDir, resolved)) return null;
   if (!existsSync(resolved)) return null;
   return resolved;
+}
+
+async function resolveAnalysisVideoPathForDetection(
+  analysis: { videoStorageKey: string | null; videoFileName: string }
+): Promise<string | null> {
+  const local = resolveAnalysisVideoPath(analysis);
+  if (local) return local;
+
+  const key = analysis.videoStorageKey ?? analysis.videoFileName;
+  if (!key) return null;
+
+  try {
+    return await ensureLocalVideoPath(key);
+  } catch {
+    return null;
+  }
 }
 
 async function readCache(analysisId: number): Promise<RallyDetectionResult | null> {
@@ -360,7 +377,7 @@ export async function detectRalliesForAnalysis(
       );
     }
 
-    const videoPath = resolveAnalysisVideoPath(row);
+    const videoPath = await resolveAnalysisVideoPathForDetection(row);
     if (!videoPath) {
       // Some swing-clip analyses have no associated long-form video. Return
       // an empty (but cacheable) result so the UI can render the toggle as

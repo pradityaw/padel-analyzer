@@ -14,6 +14,7 @@ import {
   ballTrackingSchema,
   racketTrackingSchema,
 } from "@shared/schema";
+import { buildVideoPlaybackUrl } from "@shared/videoPlayback";
 import type {
   BallTrackSample,
   FrameLandmarks,
@@ -158,7 +159,7 @@ export default function Analysis() {
     const key =
       data.videoStorageKey ??
       (data.videoFileName.startsWith("yt_") ? data.videoFileName : null);
-    return key ? `/uploads/${key}` : "";
+    return key ? buildVideoPlaybackUrl(key) : "";
   }, [data]);
 
   const activePhase = useMemo<SwingPhaseType | undefined>(() => {

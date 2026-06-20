@@ -112,6 +112,31 @@ async function downloadVideo(
   );
 }
 
+/** Serialize concurrent downloads to the same output path (TOCTOU guard). */
+const downloadsInFlight = new Map<string, Promise<void>>();
+
+async function ensureVideoDownloaded(
+  url: string,
+  filePath: string
+): Promise<void> {
+  if (existsSync(filePath)) return;
+
+  let inflight = downloadsInFlight.get(filePath);
+  if (!inflight) {
+    const promise = downloadVideo(url, filePath).finally(() => {
+      downloadsInFlight.delete(filePath);
+    });
+    downloadsInFlight.set(filePath, promise);
+    inflight = promise;
+  }
+
+  await inflight;
+
+  if (!existsSync(filePath)) {
+    throw new Error("Video download failed.");
+  }
+}
+
 export const youtubeRouter = router({
   getInfo: publicProcedure
     .input(z.object({ url: ytUrlSchema }))
@@ -144,7 +169,7 @@ export const youtubeRouter = router({
       const filePath = path.join(uploadsDir, fileName);
 
       if (!existsSync(filePath)) {
-        await downloadVideo(input.url, filePath);
+        await ensureVideoDownloaded(input.url, filePath);
       }
 
       return {

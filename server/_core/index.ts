@@ -8,6 +8,8 @@ import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
+import { serveVideoPlayback } from "../lib/videoPlayback.js";
+import { registerSlackFeedbackRoutes } from "../lib/slackFeedbackEvents.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -16,6 +18,10 @@ mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
+
+// Slack Events API needs the raw body for signature verification — register before express.json().
+registerSlackFeedbackRoutes(app);
+
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
@@ -57,6 +63,18 @@ app.post("/api/upload", uploadSingleMiddleware, (req, res) => {
     return;
   }
   res.json({ storageKey: req.file.filename });
+});
+
+app.get("/api/video/:encodedKey", async (req, res) => {
+  try {
+    const storageKey = decodeURIComponent(req.params.encodedKey);
+    await serveVideoPlayback(storageKey, res);
+  } catch (error) {
+    console.error("[video-playback]", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Could not load video." });
+    }
+  }
 });
 
 app.use(
