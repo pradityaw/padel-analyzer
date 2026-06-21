@@ -7,18 +7,16 @@ modules. It is written by inspection only — no accuracy numbers are invented.
 
 ---
 
-## 1. CV health (as of 2026-06-18)
+## 1. CV health (as of 2026-06-19)
 
 | Check | Command | Result |
 |-------|---------|--------|
 | Environment doctor | `npm run cv:doctor` | **PASS** (exit 0). mediapipe 0.10.33, opencv, numpy 2.4.4, scipy 1.17.1, onnxruntime 1.24.4, ffmpeg 8.1.1, yt-dlp 2026.03.17 all present. |
-| CV unit tests | `npm run test:cv` | **PASS** — 117 passed, 1 skipped. |
+| CV unit tests | `npm run test:cv` | **PASS** — 120 passed. |
 
-Caveat from the doctor output: **`scripts/cv/models/tracknet-v2.onnx` does not
-exist** (`exists: false, bytes: 0`). This means TrackNet ball inference cannot
-actually run end-to-end today — every code path that loads the model will raise
-`FileNotFoundError`. The single skipped pytest is consistent with this. The
-ball-tracking harness below handles this and reports it rather than crashing.
+Caveat: **`scripts/cv/models/tracknet-v2.onnx` is a local model artifact** and
+should be verified with `npm run cv:doctor` before relying on TrackNet numbers.
+It is intentionally not part of the normal source-code workflow.
 
 ---
 
@@ -51,11 +49,24 @@ ball-tracking harness below handles this and reports it rather than crashing.
     FPvis=1, FPinvis=1 → precision=recall=1/3, MPE=10 px) and passes.
 
 ### Ground truth needed to validate ball tracking
-**Status: BLOCKED on missing labels.** `~/padel-ml-dataset` contains 533
-`.mp4` clips (organized by shot-type category) but **zero** per-frame ball
-annotations — no `.json`/`.csv`/`.pkl`/`.npy` files with frame indices and ball
-(x, y), no bbox files, clip filenames encode only time ranges. The only
-metadata present is download provenance and a coarse shot-type category label.
+**Status: FIRST CLIP LABELED.** `~/padel-ml-dataset` now has one manual
+per-frame ball annotation clip:
+`clips/manual/jHhql43o7uE_Bratislava_clip001_11m40s-11m48s.mp4` with 159
+labels (84 visible, 75 not-visible). That is enough to smoke-test the eval
+workflow, but still too small to claim production accuracy. Continue collecting
+5-10 clips before treating aggregate metrics as representative. See
+`docs/CV_BALL_EVAL_WORKFLOW.md` for the repeatable collect/evaluate loop.
+
+Latest single-clip TrackNet harness result (`scripts/cv/eval_ball_tracking.py
+--clips ~/padel-ml-dataset/clips/manual`, 25 px tolerance):
+
+- precision: `0.36419753086419754`
+- recall: `0.7023809523809523`
+- mean_pixel_error: `5.503847133730764`
+- TP: `59`
+- FN: `25`
+- FP_invisible: `54`
+- FP_visible: `49`
 
 Minimal ground truth required:
 1. **5–10 coach-annotated clips** sampled across shot types
@@ -225,16 +236,17 @@ produce wrong output. None has been validated against labeled data.
 
 | Subsystem | Validation status | Blocker |
 |-----------|-------------------|---------|
-| CV environment + unit tests | **Validated** (doctor pass, 117/1 tests pass) | TrackNet ONNX model file missing — inference cannot run |
-| Ball tracking precision/recall | **Blocked on data** | No per-frame ball labels in dataset (0/533 clips labeled); harness built and self-checked, ready to run when labels exist |
+| CV environment + unit tests | **Validated** (doctor pass, 120 tests pass) | TrackNet ONNX model is local; verify presence with `npm run cv:doctor` |
+| Ball tracking precision/recall | **First clip labeled** | Harness has a real smoke-test clip; collect 5-10 clips before product accuracy claims |
 | Scoring (winning-side / scoreboard) | **Blocked on data** | No rally-by-rally point-winner ground truth; heuristics (esp. net-at-10 m and parity fallbacks) are unvalidated and likely near-chance |
 | Rally / court / dead-time thresholds | **Blocked on data** | Hard-coded thresholds untuned; no labelled active/deed or net-position segments |
 
 **Next actions (data-first, not code-first):**
-1. Annotate 5–10 dataset clips with per-frame ball positions → run
+1. Annotate 5–10 dataset clips with per-frame ball positions using
+   `docs/CV_BALL_EVAL_WORKFLOW.md` → run
    `python scripts/cv/eval_ball_tracking.py --clips <labeled_dir>`.
-2. Obtain/export TrackNet ONNX (`npm run cv:doctor` shows the model file is
-   absent) so inference actually runs.
+2. Keep TrackNet ONNX availability explicit with `npm run cv:doctor` before
+   comparing accuracy runs.
 3. Label 3–5 full matches with rally winners + final score → exercise
    `score_match` end-to-end and record honest winning-side accuracy.
 4. Only after steps 1–3: tune the hard-coded thresholds above against the new

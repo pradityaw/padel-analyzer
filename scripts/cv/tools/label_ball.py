@@ -24,7 +24,7 @@ Two subcommands:
     schema expected by both ``scripts/cv/eval_ball_tracking.py`` and
     ``scripts/cv/tests/test_ball_eval.py``::
 
-        {"video": "<abs clip path>", "fps": 30,
+        {"video": "<clip filename>", "fps": 30,
          "frames": [{"frame": 0, "x": 320.5, "y": 120.0, "visible": true},
                     {"frame": 1, "visible": false}]}
 
@@ -351,7 +351,7 @@ def serve(outdir: Path, port: int) -> int:
                 (f for f in frames if isinstance(f, dict) and isinstance(f.get("frame"), int)),
                 key=lambda f: f["frame"],
             )
-            doc = {"video": str(clip_path), "fps": manifest.get("fps"), "frames": frames}
+            doc = {"video": clip_path.name, "fps": manifest.get("fps"), "frames": frames}
             text = json.dumps(doc, indent=2)
             try:
                 label_sibling.parent.mkdir(parents=True, exist_ok=True)
