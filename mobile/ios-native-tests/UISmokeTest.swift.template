@@ -36,8 +36,11 @@ final class __UI_TARGET_NAME__: XCTestCase {
       "Should navigate to Analysis stack screen"
     )
 
+    let demoTitle = app.staticTexts.matching(
+      NSPredicate(format: "label CONTAINS[c] %@", "sample swing (demo)")
+    ).firstMatch
     XCTAssertTrue(
-      app.staticTexts["Sample swing (demo)"].waitForExistence(timeout: 10),
+      demoTitle.waitForExistence(timeout: 10),
       "Demo analysis title should render"
     )
     XCTAssertTrue(
