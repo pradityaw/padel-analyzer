@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -230,4 +230,122 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
 
 export function scheduleAnalysisJob(jobId: number): void {
   enqueueAnalysisJob(jobId, processAnalysisJob);
+}
+
+export type JobRecoveryAction =
+  | { type: "schedule"; jobId: number }
+  | { type: "markCompleted"; jobId: number }
+  | {
+      type: "markFailed";
+      jobId: number;
+      message: string;
+    }
+  | { type: "requeue"; jobId: number };
+
+type RecoverableJob = {
+  id: number;
+  status: string;
+  analysisId: number | null | undefined;
+};
+
+/** Pure planner for startup recovery — unit-tested to lock behavior. */
+export function planJobRecoveryActions(jobs: RecoverableJob[]): JobRecoveryAction[] {
+  const actions: JobRecoveryAction[] = [];
+
+  for (const job of jobs) {
+    if (job.status === "queued") {
+      actions.push({ type: "schedule", jobId: job.id });
+      continue;
+    }
+
+    if (job.status === "processing") {
+      if (job.analysisId != null) {
+        actions.push({ type: "markCompleted", jobId: job.id });
+      } else {
+        actions.push({ type: "requeue", jobId: job.id });
+        actions.push({ type: "schedule", jobId: job.id });
+      }
+      continue;
+    }
+
+    if (job.status === "completed" && job.analysisId == null) {
+      actions.push({
+        type: "markFailed",
+        jobId: job.id,
+        message:
+          "Analysis finished without saved results after an interrupted run. Please retry.",
+      });
+    }
+  }
+
+  return actions;
+}
+
+/**
+ * Re-enqueue analysis jobs that were lost when the in-memory queue was cleared
+ * (deploy, crash, pm2 restart). Also reconciles stale `processing` rows.
+ */
+export async function recoverPendingAnalysisJobs(): Promise<number> {
+  const jobs = db
+    .select({
+      id: analysisJobs.id,
+      status: analysisJobs.status,
+      analysisId: analysisJobs.analysisId,
+    })
+    .from(analysisJobs)
+    .where(
+      or(
+        inArray(analysisJobs.status, ["queued", "processing"]),
+        and(eq(analysisJobs.status, "completed"), isNull(analysisJobs.analysisId))
+      )
+    )
+    .all();
+
+  const actions = planJobRecoveryActions(jobs);
+  let scheduled = 0;
+
+  for (const action of actions) {
+    switch (action.type) {
+      case "schedule":
+        scheduleAnalysisJob(action.jobId);
+        scheduled += 1;
+        break;
+      case "markCompleted":
+        await updateJob(action.jobId, {
+          status: "completed",
+          progress: 100,
+          statusMessage: "Analysis complete.",
+          errorMessage: null,
+        });
+        break;
+      case "markFailed":
+        failIncompleteAnalysisJobStages(action.jobId, action.message);
+        await updateJob(action.jobId, {
+          status: "failed",
+          progress: 100,
+          statusMessage: "Analysis failed.",
+          errorMessage: action.message,
+        });
+        break;
+      case "requeue":
+        initializeAnalysisJobProgress(action.jobId);
+        await updateJob(action.jobId, {
+          status: "queued",
+          progress: 0,
+          statusMessage: "Re-queued after server restart.",
+          errorMessage: null,
+        });
+        break;
+      default: {
+        const _exhaustive: never = action;
+        throw new Error(`Unhandled recovery action: ${JSON.stringify(_exhaustive)}`);
+      }
+    }
+  }
+
+  if (scheduled > 0) {
+    console.log(`[analysis-job] Recovered ${scheduled} queued job(s) after startup.`);
+  }
+
+  return scheduled;
 }
