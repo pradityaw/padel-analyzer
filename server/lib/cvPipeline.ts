@@ -116,6 +116,7 @@ export async function runCvPipeline(input: CvPipelineInput): Promise<CvPipelineR
     }, timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
+      if (settled) return;
       stdoutBytes += chunk.length;
       if (stdoutBytes > maxStdoutBytes && !settled) {
         settled = true;

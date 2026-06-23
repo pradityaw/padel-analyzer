@@ -8,6 +8,10 @@ import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
+import { registerSlackFeedbackRoutes } from "../lib/slackFeedbackEvents.js";
+import {
+  recoverPendingAnalysisJobs,
+} from "../lib/analysisJobProcessor.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -16,6 +20,10 @@ mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
+
+// Slack Events API needs the raw body for signature verification — register before express.json().
+registerSlackFeedbackRoutes(app);
+
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
@@ -87,6 +95,9 @@ const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(
     `Padel Analyzer listening on ${LISTEN_HOST}:${PORT} (browser: http://localhost:${PORT})`,
   );
+  void recoverPendingAnalysisJobs().catch((error) => {
+    console.error("[analysis-job] Startup recovery failed:", error);
+  });
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {
