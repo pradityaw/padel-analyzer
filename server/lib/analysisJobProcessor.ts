@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -230,4 +230,36 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
 
 export function scheduleAnalysisJob(jobId: number): void {
   enqueueAnalysisJob(jobId, processAnalysisJob);
+}
+
+/**
+ * Re-enqueue jobs left in queued/processing when the process-local queue was lost
+ * (deploy, crash, or pm2 restart).
+ */
+export async function recoverPendingAnalysisJobs(): Promise<void> {
+  const pending = db
+    .select({ id: analysisJobs.id, status: analysisJobs.status })
+    .from(analysisJobs)
+    .where(inArray(analysisJobs.status, ["queued", "processing"]))
+    .all();
+
+  if (pending.length === 0) return;
+
+  for (const job of pending) {
+    if (job.status === "processing") {
+      db.update(analysisJobs)
+        .set({
+          status: "queued",
+          statusMessage: "Resuming analysis after server restart.",
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(analysisJobs.id, job.id))
+        .run();
+    }
+    scheduleAnalysisJob(job.id);
+  }
+
+  console.log(
+    `[analysis-job] Recovered ${pending.length} pending job(s) after startup.`
+  );
 }
