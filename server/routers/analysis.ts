@@ -19,6 +19,7 @@ import {
   getCachedRallies,
 } from "../lib/rallyDetection.js";
 import { resolveCompletedJobIdForAnalysis } from "../lib/analysisJobLookup.js";
+import { resolveVideoPlaybackUrl } from "../lib/videoAccess.js";
 import { readAnalysisBallTracking } from "../lib/ballTracking.js";
 import { readAnalysisRacketTracking } from "../lib/racketTracking.js";
 import {
@@ -74,8 +75,16 @@ export const analysisRouter = router({
         racketSampleCount: racketRaw.length,
       });
 
+      const playbackKey =
+        result.videoStorageKey ??
+        (result.videoFileName.startsWith("yt_") ? result.videoFileName : null);
+      const videoPlaybackUrl = playbackKey
+        ? await resolveVideoPlaybackUrl(playbackKey)
+        : "";
+
       return {
         ...result,
+        videoPlaybackUrl,
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
         trackingMeta,
