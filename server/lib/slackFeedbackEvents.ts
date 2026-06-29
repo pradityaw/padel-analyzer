@@ -86,13 +86,50 @@ async function loadFeedbackModules() {
   const eventRecordUrl = pathToFileURL(
     path.join(root, "scripts/feedback-bot/lib/slack-event-record.mjs")
   ).href;
+  const slackUrl = pathToFileURL(
+    path.join(root, "scripts/feedback-bot/slack.mjs")
+  ).href;
 
   const envMod = await import(envUrl);
   envMod.loadFeedbackEnv();
 
   const realtime = await import(realtimeUrl);
   const eventRecord = await import(eventRecordUrl);
-  return { ...realtime, ...eventRecord };
+  const slack = await import(slackUrl);
+  return { ...realtime, ...eventRecord, ...slack };
+}
+
+let cachedFeedbackChannelId: string | null | undefined;
+let feedbackChannelIdPromise: Promise<string | null> | undefined;
+
+async function resolveFeedbackChannelId(): Promise<string | null> {
+  if (cachedFeedbackChannelId !== undefined) {
+    return cachedFeedbackChannelId;
+  }
+  if (!feedbackChannelIdPromise) {
+    feedbackChannelIdPromise = (async () => {
+      const raw = process.env.SLACK_FEEDBACK_CHANNEL_ID;
+      const token = process.env.SLACK_BOT_TOKEN;
+      if (!raw || !token) return null;
+
+      const slackUrl = pathToFileURL(
+        path.join(process.cwd(), "scripts/feedback-bot/slack.mjs")
+      ).href;
+      const { resolveSlackChannelId } = await import(slackUrl);
+      try {
+        return await resolveSlackChannelId(token, raw);
+      } catch (err) {
+        console.warn(
+          "[slack-events] could not resolve SLACK_FEEDBACK_CHANNEL_ID:",
+          err instanceof Error ? err.message : err
+        );
+        return null;
+      }
+    })();
+  }
+
+  cachedFeedbackChannelId = await feedbackChannelIdPromise;
+  return cachedFeedbackChannelId;
 }
 
 async function handleMessageEvent(
@@ -105,8 +142,8 @@ async function handleMessageEvent(
   if (event.bot_id || event.bot_profile) return;
   if (event.subtype && event.subtype !== "file_share") return;
 
-  const channelId = process.env.SLACK_FEEDBACK_CHANNEL_ID;
   const token = process.env.SLACK_BOT_TOKEN;
+  const channelId = await resolveFeedbackChannelId();
   if (!channelId || !token) {
     console.warn("[slack-events] missing SLACK_BOT_TOKEN or SLACK_FEEDBACK_CHANNEL_ID");
     return;

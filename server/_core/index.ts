@@ -7,6 +7,7 @@ import { mkdirSync } from "fs";
 import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
+import { registerSlackFeedbackRoutes } from "../lib/slackFeedbackEvents.js";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
@@ -16,6 +17,8 @@ mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
+/** Raw body for Slack signature verification — must register before express.json(). */
+registerSlackFeedbackRoutes(app);
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
