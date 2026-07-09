@@ -29,6 +29,11 @@ import { analyses } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 import { getDataRoot, getUploadsDir } from "./paths.js";
 import {
+  isCloudStorageKey,
+  isObjectStorageConfigured,
+} from "./objectStorage.js";
+import { ensureLocalVideoPath } from "./videoProcessingCache.js";
+import {
   RALLY_DETECTION_DEFAULT_TIMEOUT_MS,
 } from "../../shared/config.js";
 import { terminateChildWithEscalation } from "./managedSubprocess.js";
@@ -177,16 +182,25 @@ function snakeToCamel(payload: RawPayload, analysisId?: number): RallyDetectionR
   return rallyDetectionResultSchema.parse(result);
 }
 
-function resolveAnalysisVideoPath(
+async function resolveAnalysisVideoPath(
   analysis: { videoStorageKey: string | null; videoFileName: string }
-): string | null {
-  const uploadsDir = path.resolve(getUploadsDir());
+): Promise<string | null> {
   const candidate = analysis.videoStorageKey ?? analysis.videoFileName;
   if (!candidate) return null;
   if (path.isAbsolute(candidate)) {
     // Defensive: never trust an absolute path stored in the DB row.
     return null;
   }
+
+  if (isCloudStorageKey(candidate) && isObjectStorageConfigured()) {
+    try {
+      return await ensureLocalVideoPath(candidate);
+    } catch {
+      return null;
+    }
+  }
+
+  const uploadsDir = path.resolve(getUploadsDir());
   const resolved = path.resolve(uploadsDir, candidate);
   if (!isInsidePath(uploadsDir, resolved)) return null;
   if (!existsSync(resolved)) return null;
@@ -360,7 +374,7 @@ export async function detectRalliesForAnalysis(
       );
     }
 
-    const videoPath = resolveAnalysisVideoPath(row);
+    const videoPath = await resolveAnalysisVideoPath(row);
     if (!videoPath) {
       // Some swing-clip analyses have no associated long-form video. Return
       // an empty (but cacheable) result so the UI can render the toggle as

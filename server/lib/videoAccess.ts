@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import path from "path";
-import { assertObjectExists, isCloudStorageKey } from "./objectStorage.js";
+import { assertObjectExists, createPresignedGetUrl, isCloudStorageKey, isObjectStorageConfigured } from "./objectStorage.js";
 import { ensureLocalVideoPath } from "./videoProcessingCache.js";
 import { getUploadsDir } from "./paths.js";
 
@@ -38,4 +38,15 @@ export async function resolveVideoUriForProcessing(
   storageKey: string
 ): Promise<string> {
   return ensureLocalVideoPath(storageKey);
+}
+
+/**
+ * Browser-playable URL for an uploaded or imported video.
+ * Cloud objects receive a time-limited presigned GET URL; local files use /uploads/.
+ */
+export async function resolveVideoPlaybackUrl(storageKey: string): Promise<string> {
+  if (isCloudStorageKey(storageKey) && isObjectStorageConfigured()) {
+    return createPresignedGetUrl(storageKey);
+  }
+  return `/uploads/${storageKey}`;
 }
