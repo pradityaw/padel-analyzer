@@ -263,6 +263,7 @@ function spawnDetector(
     }, timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
+      if (settled) return;
       stdoutBytes += chunk.length;
       if (stdoutBytes > maxStdoutBytes && !settled) {
         settled = true;
