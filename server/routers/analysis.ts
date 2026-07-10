@@ -21,6 +21,7 @@ import {
 import { resolveCompletedJobIdForAnalysis } from "../lib/analysisJobLookup.js";
 import { readAnalysisBallTracking } from "../lib/ballTracking.js";
 import { readAnalysisRacketTracking } from "../lib/racketTracking.js";
+import { resolveVideoPlaybackUrl } from "../lib/videoAccess.js";
 import {
   sanitizeBallTrackingPayload,
   sanitizeRacketTrackingPayload,
@@ -74,11 +75,19 @@ export const analysisRouter = router({
         racketSampleCount: racketRaw.length,
       });
 
+      const playbackKey =
+        result.videoStorageKey ??
+        (result.videoFileName.startsWith("yt_") ? result.videoFileName : null);
+      const videoPlaybackUrl = playbackKey
+        ? await resolveVideoPlaybackUrl(playbackKey)
+        : null;
+
       return {
         ...result,
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
         trackingMeta,
+        videoPlaybackUrl,
       };
     }),
 
