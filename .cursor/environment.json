@@ -1,0 +1,18 @@
+{
+  "$schema": "https://www.cursor.com/schemas/environment.schema.json",
+  "name": "padel-analyzer-cloud-pilot",
+  "install": "npm ci && npx playwright install --with-deps chromium && npm run db:push",
+  "ports": [
+    {
+      "name": "Padel Analyzer",
+      "port": 3001
+    }
+  ],
+  "terminals": [
+    {
+      "name": "web",
+      "command": "npm run dev",
+      "description": "Runs the non-production app used by Playwright and computer-use verification."
+    }
+  ]
+}

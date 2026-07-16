@@ -49,6 +49,26 @@ Open each folder in a **separate Cursor window**; assign one agent/chat per work
 - **DB:** `npx drizzle-kit push` after schema changes in `drizzle/schema.ts`.
 - **YouTube downloads:** server expects `**yt-dlp`** on `PATH` (Homebrew: `brew install yt-dlp`) and `**ffmpeg**` for merges (`brew install ffmpeg`).
 
+## Cursor Cloud Agent pilot
+
+Read [`docs/CLOUD_AGENT_PILOT.md`](./docs/CLOUD_AGENT_PILOT.md) and
+`.cursor/skills/evidence-driven-testing/SKILL.md` before pilot work.
+
+- The cloud environment runs `npm ci`, installs Playwright Chromium, and starts
+  the non-production app on port 3001.
+- Use synthetic or seeded fixtures. Do not read, print, copy, record, or commit
+  `.env*`, credentials, production data, `data/*.db`, uploads, or user media.
+- Never run `hosted:*`, deploy, daemon, feedback, auto-merge, mobile/native,
+  YouTube download, or ML training commands in the pilot.
+- Reproduce before editing. If the issue cannot be reproduced, report evidence
+  and stop; do not guess a fix.
+- Run the targeted test and a relevant broader check. Bind evidence to the
+  tested head SHA and treat required CI as authoritative.
+- Open draft PRs only. Never merge, mark ready, force-push, or bypass branch
+  protection.
+- Only one agent may write for an issue at a time. Keep review and CI repair
+  loops bounded as specified in the pilot runbook.
+
 ## Hotspots (expect merge conflicts)
 
 - `server/routers/index.ts` — new routers must be merged into `appRouter`.

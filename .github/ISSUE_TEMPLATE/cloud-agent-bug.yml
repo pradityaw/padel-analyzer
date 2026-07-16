@@ -1,0 +1,82 @@
+name: Cloud Agent bug pilot
+description: A bounded, reproducible bug suitable for the Cloud Agent pilot.
+title: "[Cloud pilot] "
+labels:
+  - "cloud-pilot"
+  - "bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic or seeded data only. Do not include credentials, `.env`
+        contents, production data, user media, or private links.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State one observable, testable outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include exact visible behavior or a sanitized error excerpt.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Start from a fresh checkout and use local port 3001.
+      placeholder: |
+        1. Run npm ci
+        2. Run npm run dev
+        3. Open http://localhost:3001/...
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Test fixture
+      description: Name the generated or seeded fixture. Never attach user data.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the assertions that prove the issue is fixed.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Workstream
+      options:
+        - A — Client / analysis UX
+        - B — Server / data
+        - C — Tooling / PWA / docs
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Explicit exclusions
+      value: |
+        - No production or Fly deployment
+        - No Slack feedback or auto-merge workflow
+        - No mobile/native build
+        - No `.env*`, credentials, user media, uploads, or production database
+        - No unrelated refactor
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: The issue can be reproduced with synthetic or seeded data.
+          required: true
+        - label: A human will review and merge any draft PR.
+          required: true
