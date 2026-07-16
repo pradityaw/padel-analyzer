@@ -25,6 +25,7 @@ import {
   sanitizeBallTrackingPayload,
   sanitizeRacketTrackingPayload,
 } from "../lib/trackingPayload.js";
+import { resolveVideoPlaybackUrl } from "../lib/videoAccess.js";
 
 const listSelectBase = {
   id: analyses.id,
@@ -74,11 +75,19 @@ export const analysisRouter = router({
         racketSampleCount: racketRaw.length,
       });
 
+      const playbackKey =
+        result.videoStorageKey ??
+        (result.videoFileName.startsWith("yt_") ? result.videoFileName : null);
+      const videoPlaybackUrl = playbackKey
+        ? await resolveVideoPlaybackUrl(playbackKey)
+        : null;
+
       return {
         ...result,
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
         trackingMeta,
+        videoPlaybackUrl,
       };
     }),
 

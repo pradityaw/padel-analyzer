@@ -158,6 +158,7 @@ export type AnalysisDetail = AnalysisSummary & {
   thumbnailPath?: string | null;
   landmarksJson: string;
   phasesJson: string;
+  videoPlaybackUrl?: string | null;
   /** Frame-indexed ball samples from `analysis.getById` (optional on older sessions). */
   ballTracking?: BallTrackSample[];
   cvStatus?: CvStatus | null;
