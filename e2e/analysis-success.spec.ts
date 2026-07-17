@@ -86,15 +86,20 @@ test("session card exposes a compare entry point", async ({ page, request }, tes
   });
   seededIdsByTestId.get(testInfo.testId)!.push(analysisId);
 
+  // Touch-sized viewport: compare must remain visible without hover.
+  await page.setViewportSize({ width: 390, height: 844 });
   // App mounts History (Sessions) at `/`.
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "Sessions" })).toBeVisible();
   await expect(page.getByText("e2e-session-card.mp4")).toBeVisible();
 
-  // Compare control is hover-revealed; force-click verifies the `?a=` wiring.
+  // Compare must be discoverable without hover (touch/keyboard) and actually clickable.
   const compareBtn = page.getByRole("button", { name: "Compare with another swing" }).first();
-  await compareBtn.click({ force: true });
+  await expect(compareBtn).toBeVisible();
+  await compareBtn.focus();
+  await expect(compareBtn).toBeFocused();
+  await compareBtn.click();
 
   await expect(page).toHaveURL(new RegExp(`/compare\\?a=${analysisId}`));
 });

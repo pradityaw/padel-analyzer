@@ -319,7 +319,8 @@ export default function History() {
                         {a.frameCount} fr
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
+                      {/* Always visible so touch/keyboard users can reach compare without hover. */}
                       <button
                         type="button"
                         aria-label="Compare with another swing"
@@ -327,7 +328,7 @@ export default function History() {
                           e.stopPropagation();
                           navigate(`/compare?a=${a.id}`);
                         }}
-                        className="p-1.5 rounded-lg text-slate-600 hover:text-padel-green hover:bg-padel-green/10 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-padel-green hover:bg-padel-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-padel-green/60 transition-colors"
                       >
                         <GitCompareArrows className="w-3.5 h-3.5" />
                       </button>
@@ -340,7 +341,7 @@ export default function History() {
                             deleteMutation.mutate({ id: a.id });
                           }
                         }}
-                        className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
