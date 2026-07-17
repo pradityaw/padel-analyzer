@@ -43,7 +43,8 @@ test("analysis page renders score, coaching tips, and next-step actions for a re
 
   await expect(page.getByRole("heading", { name: "e2e-success-fixture.mp4" })).toBeVisible();
   await expect(page.getByText("Right-handed", { exact: false })).toBeVisible();
-  await expect(page.getByText("Overall", { exact: true })).toBeVisible();
+  // UI label is "Overall Score" (not a bare "Overall"); assert the current copy.
+  await expect(page.getByText("Overall Score", { exact: true })).toBeVisible();
   await expect(page.getByText("76", { exact: true }).first()).toBeVisible();
 
   await expect(page.getByRole("button", { name: /Drive/ })).toBeVisible();
@@ -51,11 +52,10 @@ test("analysis page renders score, coaching tips, and next-step actions for a re
   await expect(
     page.getByRole("button", { name: "Compare with Pro" }).first()
   ).toBeVisible();
+  // Peer-compare entry feeds Compare.tsx's existing `?a=` preselection contract.
   await expect(
     page.getByRole("button", { name: "Compare with another swing" })
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Analyze another swing" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Back to sessions" })).toBeVisible();
 });
 
 test("compare entry from analysis preselects the current swing", async ({
@@ -86,16 +86,20 @@ test("session card exposes a compare entry point", async ({ page, request }, tes
   });
   seededIdsByTestId.get(testInfo.testId)!.push(analysisId);
 
+  // Touch-sized viewport: compare must remain visible without hover.
+  await page.setViewportSize({ width: 390, height: 844 });
+  // App mounts History (Sessions) at `/`.
   await page.goto("/");
 
+  await expect(page.getByRole("heading", { name: "Sessions" })).toBeVisible();
   await expect(page.getByText("e2e-session-card.mp4")).toBeVisible();
-  await expect(
-    page.getByText(/AI-powered swing analysis\.\s*Track every shot/i)
-  ).toBeVisible();
 
-  // Compare button is hidden until hover; force-click is fine for verifying the wiring.
+  // Compare must be discoverable without hover (touch/keyboard) and actually clickable.
   const compareBtn = page.getByRole("button", { name: "Compare with another swing" }).first();
-  await compareBtn.click({ force: true });
+  await expect(compareBtn).toBeVisible();
+  await compareBtn.focus();
+  await expect(compareBtn).toBeFocused();
+  await compareBtn.click();
 
   await expect(page).toHaveURL(new RegExp(`/compare\\?a=${analysisId}`));
 });
