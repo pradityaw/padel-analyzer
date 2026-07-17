@@ -3,12 +3,20 @@ import { Activity, Upload, Clock, GitCompareArrows, Tag, Trophy } from "lucide-r
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/", label: "Sessions", icon: Clock },
+  { href: "/sessions", label: "Sessions", icon: Clock },
   { href: "/upload", label: "Analyze", icon: Upload },
   { href: "/compare", label: "Compare", icon: GitCompareArrows },
   { href: "/pro-compare", label: "Pro Compare", icon: Trophy },
   { href: "/annotate", label: "Annotate", icon: Tag },
 ];
+
+function isNavLinkActive(href: string, location: string): boolean {
+  if (href === "/sessions") {
+    // Canonical sessions route; `/` remains a History alias.
+    return location === "/sessions" || location === "/";
+  }
+  return location.startsWith(href);
+}
 
 export default function Navbar() {
   const [location] = useLocation();
@@ -23,8 +31,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-1 sm:gap-2">
           {links.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === "/" ? location === "/" : location.startsWith(href);
+            const active = isNavLinkActive(href, location);
             return (
               <Link
                 key={href}
