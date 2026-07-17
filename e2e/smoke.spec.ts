@@ -46,7 +46,9 @@ test("upload route handles invalid file types", async ({ page }) => {
   });
 
   await expect(
-    page.getByText("Please upload a video file (.mp4, .mov, .webm)")
+    page.getByText(
+      "That file does not look like a video (need a known extension such as .mp4, .mov, or .3gp, or a video/* type from your device)."
+    )
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
