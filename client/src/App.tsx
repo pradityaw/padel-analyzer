@@ -15,8 +15,8 @@ export default function App() {
       <main className="flex-1">
         <AnimatePresence mode="wait">
           <Switch>
-            <Route path="/" component={History} />
             <Route path="/sessions" component={History} />
+            <Route path="/" component={History} />
             <Route path="/upload" component={Upload} />
             <Route path="/analysis/:id" component={Analysis} />
             <Route path="/compare" component={Compare} />
