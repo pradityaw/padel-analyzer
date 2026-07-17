@@ -104,3 +104,42 @@ Result:
 
 This validates pilot mechanics, not a broad rollout. The sample is three agent
 tasks, below the runbook's 30-task evaluation floor.
+
+## Report-only Automations
+
+The user reviewed and saved two Cursor Automations:
+
+| Automation | Schedule | Destination | Write policy |
+| --- | --- | --- | --- |
+| Pilot — Weekly Bug Audit | Monday 09:00 UTC | `#cursor-cloud-pilot` (`C0BJ2MSLDEY`) | Report only; no source edits, branches, or PRs |
+| Pilot — Weekly Vulnerability Audit | Thursday 09:00 UTC | private `#cursor-cloud-pilot-sec` (`C0BHZ10DTM0`) | Report only; no remediation or public secret details |
+
+Both use `pradityaw/padel-analyzer` on `chore/cloud-agent-pilot`, disable
+automation memory, deduplicate findings, cap output, and require human-approved
+`agent:from-audit` escalation before code changes. Model/compute and final
+editor fields were confirmed by the user when saving.
+
+## Current go/no-go decision
+
+Decision: **NO-GO for expanded or unattended write automation; GO only for the
+bounded manual pilot and the two report-only weekly audits.**
+
+Evidence:
+
+- Three of three bounded issues were reproduced and produced draft PRs.
+- All three required an independent challenge review; two required follow-up
+  remediation before acceptance.
+- Combined local verification passed typecheck, build, and all 16 browser tests.
+- No secret exposure, production action, deployment, merge, or false final CI
+  claim remained after challenge review.
+- No draft PR has been human-merged, so PR acceptance and post-merge regression
+  rates are not yet measurable.
+- The sample is 3 tasks, below the 30-task, 10-PR, and 15-control thresholds.
+- Cursor dashboard account gates remain unverified because interactive sign-in
+  was not completed.
+- Weekly audits have not accumulated four useful runs, so automatic fix PR
+  creation remains disabled.
+
+The next formal review is after 14 calendar days or once the minimum sample is
+available. Until then, the correct result is `INCONCLUSIVE`, which is not a
+broad rollout `GO`.
