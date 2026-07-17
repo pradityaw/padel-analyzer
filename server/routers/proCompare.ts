@@ -8,6 +8,7 @@ import {
   annotations,
 } from "../../drizzle/schema.js";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 
 export const proCompareRouter = router({
   create: publicProcedure
@@ -276,7 +277,7 @@ export const proCompareRouter = router({
           analysisId: player.id,
           dominantSide: player.dominantSide,
           frameCount: player.frameCount,
-          landmarks: JSON.parse(player.landmarksJson),
+          landmarks: JSON.parse(resolveLandmarksJson(player)),
           phases: JSON.parse(player.phasesJson),
         },
         pro: pro
@@ -284,7 +285,7 @@ export const proCompareRouter = router({
               analysisId: pro.id,
               dominantSide: pro.dominantSide,
               frameCount: pro.frameCount,
-              landmarks: JSON.parse(pro.landmarksJson),
+              landmarks: JSON.parse(resolveLandmarksJson(pro)),
               phases: JSON.parse(pro.phasesJson),
             }
           : null,

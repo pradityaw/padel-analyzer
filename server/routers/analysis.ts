@@ -25,6 +25,12 @@ import {
   sanitizeBallTrackingPayload,
   sanitizeRacketTrackingPayload,
 } from "../lib/trackingPayload.js";
+import {
+  deleteLandmarksFile,
+  LANDMARKS_INLINE_PLACEHOLDER,
+  persistAnalysisLandmarks,
+  resolveLandmarksJson,
+} from "../lib/landmarksStorage.js";
 
 const listSelectBase = {
   id: analyses.id,
@@ -48,8 +54,26 @@ export const analysisRouter = router({
   create: publicProcedure
     .input(createAnalysisInputSchema)
     .mutation(async ({ input }) => {
-      const result = db.insert(analyses).values(input).returning().get();
-      return result;
+      const { landmarksJson, ...rest } = input;
+      return db.transaction((tx) => {
+        const saved = tx
+          .insert(analyses)
+          .values({
+            ...rest,
+            landmarksJson: LANDMARKS_INLINE_PLACEHOLDER,
+            landmarksPath: null,
+          })
+          .returning()
+          .get();
+
+        const landmarksPath = persistAnalysisLandmarks(saved.id, landmarksJson);
+        return tx
+          .update(analyses)
+          .set({ landmarksPath })
+          .where(eq(analyses.id, saved.id))
+          .returning()
+          .get();
+      });
     }),
 
   getById: publicProcedure
@@ -62,10 +86,11 @@ export const analysisRouter = router({
         .get();
       if (!result) return null;
 
+      const landmarksJson = resolveLandmarksJson(result);
       const sourceJobId = resolveCompletedJobIdForAnalysis(input.id);
       const [ballRaw, racketRaw] = await Promise.all([
-        readAnalysisBallTracking(sourceJobId, result.landmarksJson),
-        readAnalysisRacketTracking(sourceJobId, result.landmarksJson),
+        readAnalysisBallTracking(sourceJobId, landmarksJson),
+        readAnalysisRacketTracking(sourceJobId, landmarksJson),
       ]);
 
       const trackingMeta = trackingMetaSchema.parse({
@@ -76,6 +101,7 @@ export const analysisRouter = router({
 
       return {
         ...result,
+        landmarksJson,
         ballTracking: sanitizeBallTrackingPayload(ballRaw),
         racketTracking: sanitizeRacketTrackingPayload(racketRaw),
         trackingMeta,
@@ -117,6 +143,12 @@ export const analysisRouter = router({
   delete: publicProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input }) => {
+      const row = db
+        .select({ landmarksPath: analyses.landmarksPath })
+        .from(analyses)
+        .where(eq(analyses.id, input.id))
+        .get();
+      deleteLandmarksFile(row?.landmarksPath);
       db.delete(analyses).where(eq(analyses.id, input.id)).run();
       return { success: true };
     }),

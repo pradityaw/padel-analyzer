@@ -4,6 +4,7 @@ import { db } from "../db.js";
 import { annotations, analyses } from "../../drizzle/schema.js";
 import { eq, desc, sql, isNull } from "drizzle-orm";
 import { SHOT_TYPES } from "../../shared/types.js";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 
 const shotTypeEnum = z.enum(SHOT_TYPES as unknown as [string, ...string[]]);
 
@@ -127,6 +128,7 @@ export const annotationRouter = router({
         sampleFps: analyses.sampleFps,
         frameCount: analyses.frameCount,
         landmarksJson: analyses.landmarksJson,
+        landmarksPath: analyses.landmarksPath,
         phasesJson: analyses.phasesJson,
       })
       .from(annotations)
@@ -143,7 +145,7 @@ export const annotationRouter = router({
         isProReference: r.isProReference,
         dominantSide: r.dominantSide,
         frameCount: r.frameCount,
-        landmarks: JSON.parse(r.landmarksJson),
+        landmarks: JSON.parse(resolveLandmarksJson(r)),
         phases: JSON.parse(r.phasesJson),
       })),
     };
