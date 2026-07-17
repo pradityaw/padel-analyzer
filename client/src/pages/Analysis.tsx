@@ -189,7 +189,7 @@ export default function Analysis() {
             : "Analysis not found."}
         </p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/sessions")}
           className="text-padel-green hover:underline"
         >
           Back to sessions
