@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.cursor.com/schemas/environment.schema.json",
   "name": "padel-analyzer-cloud-pilot",
-  "install": "npm ci && npx playwright install --with-deps chromium && npm run db:push",
+  "install": "npm ci && npx playwright install --with-deps chromium && mkdir -p data && npm run db:push",
   "ports": [
     {
       "name": "Padel Analyzer",

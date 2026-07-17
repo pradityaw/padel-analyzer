@@ -50,3 +50,57 @@ Distinct pilot candidates:
 These candidates are suitable for three bounded reproduce-first dry runs. They
 use generated fixtures, require no secrets, and do not touch deployment,
 feedback, mobile, or production paths.
+
+## Manual Cloud Agent pilot
+
+Three Cursor Grok 4.5 High Cloud Agents started from base
+`5e1c5973773ba2abc2e53ab2a806dcdab649a88d`.
+
+| Issue | Outcome | Draft PR | Final head | Focused evidence |
+| --- | --- | --- | --- | --- |
+| #66 invalid upload assertions | `SUCCESS_DRAFT_PR` | #70 | `55b17dc22a3386846bd3f7f7161ae76e939f46b0` | 2 focused Playwright tests and typecheck passed |
+| #67 sessions route | `SUCCESS_DRAFT_PR` | #69 | `a048cca10ef6aabb2633b44ee730517784fd1ffe` | focused journey/smoke tests and typecheck passed |
+| #68 seeded analysis journeys | `SUCCESS_DRAFT_PR` | #71 | `465806c31036787a96be89ab0b7eae7d9e9117ba` | 3 analysis tests, mobile viewport check, and typecheck passed |
+
+All PRs remain draft. Artifacts remained in ignored `qa-artifacts/`; no GitHub
+artifact embedding, secret access, production access, deployment, or merge
+occurred. The Cloud Agent GitHub token could not apply issue claim labels, so
+the orchestrator recorded final issue state using the authenticated local CLI.
+
+The final read-only challenge pass required two remediations:
+
+- #69 made `/sessions` canonical in Navbar and corrected its unsupported CI
+  success claim.
+- #71 made session compare visible and keyboard/touch reachable, then removed
+  the forced Playwright click.
+
+## Integrated QA
+
+The three final agent branches were assembled on a local, unpushed
+`test/cloud-pilot-integration` branch solely for verification. No draft PR was
+merged.
+
+The first clean-worktree attempt exposed an environment defect:
+`npm run db:push` could not create `data/padel.db` because `data/` did not
+exist. `.cursor/environment.json` now creates the ignored directory before the
+schema push.
+
+Final command:
+
+```bash
+mkdir -p data
+npm run db:push
+npm run qa:mvp
+```
+
+Result:
+
+- Typecheck: passed.
+- Production build: passed.
+- Browser QA: 16 passed, 0 failed.
+- The eight bounded critical flows in `docs/CLOUD_AGENT_PILOT.md`: passed.
+- Secrets/unsafe actions/false required-CI-green claims: 0 observed after
+  challenge remediation.
+
+This validates pilot mechanics, not a broad rollout. The sample is three agent
+tasks, below the runbook's 30-task evaluation floor.
