@@ -9,6 +9,7 @@ import {
   Star,
   Target,
   Layers,
+  GitCompareArrows,
 } from "lucide-react";
 import {
   LineChart,
@@ -318,17 +319,32 @@ export default function History() {
                         {a.frameCount} fr
                       </span>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm("Delete this analysis?")) {
-                          deleteMutation.mutate({ id: a.id });
-                        }
-                      }}
-                      className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        aria-label="Compare with another swing"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/compare?a=${a.id}`);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-padel-green hover:bg-padel-green/10 transition-colors"
+                      >
+                        <GitCompareArrows className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Delete analysis"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Delete this analysis?")) {
+                            deleteMutation.mutate({ id: a.id });
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               );

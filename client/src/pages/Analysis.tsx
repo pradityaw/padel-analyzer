@@ -1,7 +1,15 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Film, Ruler, Scissors, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  Film,
+  GitCompareArrows,
+  Ruler,
+  Scissors,
+  Trophy,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import VideoPlayer, { type VideoPlayerHandle } from "@/components/VideoPlayer";
 import { buildFrameSyncIndex, getPhaseAtFrameIndex } from "@/lib/frameSync";
@@ -313,6 +321,14 @@ export default function Analysis() {
               >
                 <Trophy className="w-3.5 h-3.5" />
                 Compare with Pro
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/compare?a=${data.id}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-padel-border text-slate-300 hover:border-padel-green/50 hover:text-white transition-colors text-xs"
+              >
+                <GitCompareArrows className="w-3.5 h-3.5 text-padel-green" />
+                Compare with another swing
               </button>
             </div>
           </div>
