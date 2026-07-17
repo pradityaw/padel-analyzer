@@ -288,11 +288,11 @@ export default function ProCompare() {
   const { data: proAnalyses } = trpc.proCompare.listProAnalyses.useQuery();
 
   const { data: playerData } = trpc.analysis.getById.useQuery(
-    { id: selectedPlayerId! },
+    { id: selectedPlayerId!, includeLandmarks: true },
     { enabled: selectedPlayerId !== null }
   );
   const { data: proData } = trpc.analysis.getById.useQuery(
-    { id: selectedProId! },
+    { id: selectedProId!, includeLandmarks: true },
     { enabled: selectedProId !== null && proMode === "video" }
   );
 
@@ -310,7 +310,10 @@ export default function ProCompare() {
     [playerData]
   );
   const playerFrames = useMemo<FrameLandmarks[]>(
-    () => (playerData ? JSON.parse(playerData.landmarksJson) : []),
+    () =>
+      playerData?.landmarksJson
+        ? JSON.parse(playerData.landmarksJson)
+        : [],
     [playerData]
   );
 
@@ -346,7 +349,10 @@ export default function ProCompare() {
   }, [proMode, proData, benchmark]);
 
   const proFrames = useMemo<FrameLandmarks[]>(
-    () => (proMode === "video" && proData ? JSON.parse(proData.landmarksJson) : []),
+    () =>
+      proMode === "video" && proData?.landmarksJson
+        ? JSON.parse(proData.landmarksJson)
+        : [],
     [proMode, proData]
   );
 

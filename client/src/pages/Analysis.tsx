@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
@@ -45,7 +45,14 @@ function ShotTypeBadge({
   const utils = trpc.useUtils();
   const createAnnotation = trpc.annotation.create.useMutation({
     onSuccess: () => {
-      utils.analysis.getById.invalidate({ id: analysisId });
+      void utils.analysis.getById.invalidate({
+        id: analysisId,
+        includeLandmarks: false,
+      });
+      void utils.analysis.getById.invalidate({
+        id: analysisId,
+        includeLandmarks: true,
+      });
       utils.annotation.stats.invalidate();
       setOpen(false);
     },
@@ -112,12 +119,25 @@ export default function Analysis() {
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
   const [onlyRallies, setOnlyRallies] = useState(false);
   const [courtCalibrationEnabled, setCourtCalibrationEnabled] = useState(false);
+  const [replayMounted, setReplayMounted] = useState(false);
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
 
   const analysisId = Number(id);
+  const analysisIdValid =
+    !!id && Number.isFinite(analysisId) && analysisId > 0;
+
+  useEffect(() => {
+    setReplayMounted(true);
+  }, []);
+
   const { data, isLoading, error } = trpc.analysis.getById.useQuery(
-    { id: analysisId },
-    { enabled: !!id }
+    { id: analysisId, includeLandmarks: false },
+    { enabled: analysisIdValid }
+  );
+
+  const landmarksQuery = trpc.analysis.getById.useQuery(
+    { id: analysisId, includeLandmarks: true },
+    { enabled: analysisIdValid && replayMounted }
   );
 
   // Lazy rally detection — first call may spawn the Python detector (audio
@@ -125,7 +145,7 @@ export default function Analysis() {
   const rallyQuery = trpc.analysis.getRallies.useQuery(
     { analysisId },
     {
-      enabled: !!id && Number.isFinite(analysisId) && analysisId > 0,
+      enabled: analysisIdValid,
       retry: false,
       staleTime: 5 * 60 * 1000,
     }
@@ -134,32 +154,45 @@ export default function Analysis() {
   const rallyDetectionInFlight = rallyQuery.isLoading;
   const rallyDetectionFailed = !!rallyQuery.error;
 
-  const parsedData = useMemo(() => {
+  const parsedShell = useMemo(() => {
     if (!data) return null;
     const phasesR = tryParseJson<SwingPhase[]>(data.phasesJson);
-    const framesR = tryParseJson<FrameLandmarks[]>(data.landmarksJson);
-    if (!phasesR.ok || !framesR.ok) return null;
-    if (!Array.isArray(phasesR.value) || !Array.isArray(framesR.value)) {
-      return null;
-    }
+    if (!phasesR.ok || !Array.isArray(phasesR.value)) return null;
     const phases = phasesR.value;
-    const frames = framesR.value;
 
     const ballParsed = ballTrackingSchema.safeParse(data.ballTracking);
     const racketParsed = racketTrackingSchema.safeParse(data.racketTracking);
 
     return {
       phases,
-      frames,
       ballTracking: ballParsed.success
         ? (ballParsed.data as BallTrackSample[])
         : [],
       racketTracking: racketParsed.success
         ? (racketParsed.data as RacketTrackSample[])
         : [],
-      frameSync: buildFrameSyncIndex(frames, data.sampleFps),
     };
   }, [data]);
+
+  const replayFrames = useMemo(() => {
+    const landmarksJson = landmarksQuery.data?.landmarksJson;
+    if (landmarksJson == null) return null;
+    const framesR = tryParseJson<FrameLandmarks[]>(landmarksJson);
+    if (!framesR.ok || !Array.isArray(framesR.value)) return null;
+    return framesR.value;
+  }, [landmarksQuery.data?.landmarksJson]);
+
+  const parsedData = useMemo(() => {
+    if (!data || !parsedShell || replayFrames == null) return null;
+    return {
+      ...parsedShell,
+      frames: replayFrames,
+      frameSync: buildFrameSyncIndex(replayFrames, data.sampleFps),
+    };
+  }, [data, parsedShell, replayFrames]);
+
+  const replayLoading = landmarksQuery.isLoading || replayFrames == null;
+  const replayError = landmarksQuery.error;
 
   const videoUrl = useMemo(() => {
     if (!data) return "";
@@ -170,11 +203,11 @@ export default function Analysis() {
   }, [data]);
 
   const activePhase = useMemo<SwingPhaseType | undefined>(() => {
-    if (!parsedData) return undefined;
+    if (!parsedShell || !parsedData) return undefined;
     const frame = parsedData.frames[currentFrameIdx];
     if (!frame) return undefined;
-    return getPhaseAtFrameIndex(parsedData.phases, frame.frameIndex)?.type;
-  }, [parsedData, currentFrameIdx]);
+    return getPhaseAtFrameIndex(parsedShell.phases, frame.frameIndex)?.type;
+  }, [parsedShell, parsedData, currentFrameIdx]);
 
   const handleSeek = useCallback((frameIndex: number) => {
     videoPlayerRef.current?.seekToFrameIndex(frameIndex);
@@ -188,11 +221,11 @@ export default function Analysis() {
     );
   }
 
-  if (error || !data || !parsedData) {
+  if (error || !data || !parsedShell) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
         <p className="text-red-400 mb-4">
-          {data && !parsedData
+          {data && !parsedShell
             ? "Analysis data is corrupted or unreadable."
             : "Analysis not found."}
         </p>
@@ -276,26 +309,38 @@ export default function Analysis() {
               {courtCalibrationEnabled ? "Editing" : "Calibrate"}
             </button>
           </div>
-          <VideoPlayer
-            ref={videoPlayerRef}
-            videoUrl={videoUrl}
-            frames={parsedData.frames}
-            phases={parsedData.phases}
-            sampleFps={data.sampleFps}
-            onFrameChange={setCurrentFrameIdx}
-            rallies={rallies}
-            onlyRallies={onlyRallies && rallies.length > 0}
-            videoId={`${data.id}:${data.videoStorageKey ?? data.videoFileName}`}
-            courtCalibrationEnabled={courtCalibrationEnabled}
-            dominantSide={data.dominantSide}
-            ballTracking={parsedData.ballTracking}
-            racketTracking={parsedData.racketTracking}
-          />
+          <div className="relative">
+            <VideoPlayer
+              ref={videoPlayerRef}
+              videoUrl={videoUrl}
+              frames={parsedData?.frames ?? []}
+              phases={parsedShell.phases}
+              sampleFps={data.sampleFps}
+              onFrameChange={setCurrentFrameIdx}
+              rallies={rallies}
+              onlyRallies={onlyRallies && rallies.length > 0}
+              videoId={`${data.id}:${data.videoStorageKey ?? data.videoFileName}`}
+              courtCalibrationEnabled={courtCalibrationEnabled}
+              dominantSide={data.dominantSide}
+              ballTracking={parsedShell.ballTracking}
+              racketTracking={parsedShell.racketTracking}
+            />
+            {replayLoading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60 pointer-events-none">
+                <div className="w-8 h-8 border-2 border-padel-green border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+          {replayError && !replayLoading && (
+            <div className="mt-2 text-xs text-red-400">
+              Skeleton replay data failed to load.
+            </div>
+          )}
           <PhaseTimeline
-            phases={parsedData.phases}
+            phases={parsedShell.phases}
             totalFrames={data.frameCount}
             currentFrame={
-              parsedData.frames[currentFrameIdx]?.frameIndex ?? 0
+              parsedData?.frames[currentFrameIdx]?.frameIndex ?? 0
             }
             onSeek={handleSeek}
           />
@@ -334,11 +379,11 @@ export default function Analysis() {
           </div>
 
           {/* Coaching tips */}
-          <SwingCoachingPanel phases={parsedData.phases} />
+          <SwingCoachingPanel phases={parsedShell.phases} />
 
           {/* Per-phase metrics */}
           <MetricsPanel
-            phases={parsedData.phases}
+            phases={parsedShell.phases}
             activePhase={activePhase}
           />
         </div>
