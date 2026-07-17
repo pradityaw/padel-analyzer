@@ -18,11 +18,18 @@ test("navbar links are present on home page", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: "Padel Analyzer" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sessions" })).toBeVisible();
+  const sessionsLink = page.getByRole("link", { name: "Sessions" });
+  await expect(sessionsLink).toBeVisible();
+  await expect(sessionsLink).toHaveAttribute("href", "/sessions");
+  await expect(sessionsLink).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "Analyze", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Compare", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Pro Compare", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Annotate", exact: true })).toBeVisible();
+
+  await sessionsLink.click();
+  await expect(page).toHaveURL(/\/sessions$/);
+  await expect(sessionsLink).toHaveAttribute("aria-current", "page");
 });
 
 test("upload route exposes core controls", async ({ page }) => {
