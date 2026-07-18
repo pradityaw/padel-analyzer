@@ -163,6 +163,7 @@ export default function Analysis() {
 
   const videoUrl = useMemo(() => {
     if (!data) return "";
+    if (data.videoPlaybackUrl) return data.videoPlaybackUrl;
     const key =
       data.videoStorageKey ??
       (data.videoFileName.startsWith("yt_") ? data.videoFileName : null);
