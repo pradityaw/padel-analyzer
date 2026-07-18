@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -255,4 +255,42 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
 
 export function scheduleAnalysisJob(jobId: number): void {
   enqueueAnalysisJob(jobId, processAnalysisJob);
+}
+
+/**
+ * Re-queue analysis jobs that were in-flight when the process restarted.
+ * Without this, DB rows stay `queued`/`processing` forever because the queue is in-memory.
+ */
+export function recoverPendingAnalysisJobs(): void {
+  const rows = db
+    .select({ id: analysisJobs.id, status: analysisJobs.status })
+    .from(analysisJobs)
+    .where(
+      or(
+        eq(analysisJobs.status, "queued"),
+        eq(analysisJobs.status, "processing")
+      )
+    )
+    .all();
+
+  if (rows.length === 0) return;
+
+  console.log(
+    `[analysis-job] Recovering ${rows.length} pending job(s) after server restart.`
+  );
+
+  const now = new Date().toISOString();
+  for (const row of rows) {
+    if (row.status === "processing") {
+      db.update(analysisJobs)
+        .set({
+          status: "queued",
+          statusMessage: "Re-queued after server restart.",
+          updatedAt: now,
+        })
+        .where(eq(analysisJobs.id, row.id))
+        .run();
+    }
+    scheduleAnalysisJob(row.id);
+  }
 }

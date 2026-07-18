@@ -11,6 +11,8 @@ import { MAX_UPLOAD_MB } from "../../shared/config.js";
 import { logger } from "../lib/logger.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { createRequestContext } from "./requestContext.js";
+import { registerSlackFeedbackRoutes } from "../lib/slackFeedbackEvents.js";
+import { recoverPendingAnalysisJobs } from "../lib/analysisJobProcessor.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -22,6 +24,8 @@ const app = express();
 // Fly (and most reverse proxies) terminate TLS in front of the app; trust the
 // forwarded client IP so rate limiting keys on the real caller, not the proxy.
 app.set("trust proxy", true);
+// Raw-body Slack route must register before express.json() so signature verification works.
+registerSlackFeedbackRoutes(app);
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
@@ -104,6 +108,7 @@ const server = app.listen(PORT, LISTEN_HOST, () => {
     { host: LISTEN_HOST, port: PORT, url: `http://localhost:${PORT}` },
     "Padel Analyzer listening",
   );
+  recoverPendingAnalysisJobs();
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {
