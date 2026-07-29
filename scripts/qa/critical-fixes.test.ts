@@ -6,9 +6,12 @@ import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
+import { fileURLToPath } from "url";
 import { downloadOnceToFile } from "../../server/lib/atomicDownload.js";
 import { resolveVideoPlaybackUrl } from "../../server/lib/videoAccess.js";
 import { isCloudStorageKey } from "../../server/lib/objectStorage.js";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function assert(name: string, fn: () => void | Promise<void>) {
   return Promise.resolve()
@@ -94,6 +97,27 @@ await assert("cloud storage keys are detected for playback routing", async () =>
     }
   );
 });
+
+await assert(
+  "Slack feedback routes register before express.json in server entry",
+  async () => {
+    const indexPath = path.join(repoRoot, "server/_core/index.ts");
+    const source = await readFile(indexPath, "utf8");
+    const slackIdx = source.indexOf("registerSlackFeedbackRoutes(app)");
+    const jsonIdx = source.indexOf("app.use(express.json(");
+    if (slackIdx === -1) {
+      throw new Error("registerSlackFeedbackRoutes(app) missing from server/_core/index.ts");
+    }
+    if (jsonIdx === -1) {
+      throw new Error("express.json middleware missing from server/_core/index.ts");
+    }
+    if (slackIdx > jsonIdx) {
+      throw new Error(
+        "registerSlackFeedbackRoutes must be called before express.json for HMAC raw-body verify",
+      );
+    }
+  },
+);
 
 if (process.exitCode) {
   process.exit(process.exitCode);
