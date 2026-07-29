@@ -19,10 +19,10 @@ mount, CV stdout settled guard).
 
 ## 2. Land one fix PR, close twins
 
-Keep a single open PR with those fixes (see the feedback-burst cleanup PR or
-historical draft [#76](https://github.com/pradityaw/padel-analyzer/pull/76)).
-After merge to `main`, close every other `cursor/critical-bug-investigation-*`
-draft as a duplicate.
+Keep a single open PR with those fixes (canonical:
+[#77](https://github.com/pradityaw/padel-analyzer/pull/77); older twins such as
+#76 were closed as duplicates). After merge to `main`, leave no open
+`cursor/critical-bug-investigation-*` drafts.
 
 ## 3. Re-enable only with this prompt
 
