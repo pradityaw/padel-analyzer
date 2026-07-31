@@ -12,6 +12,7 @@
     "qa:browser": "playwright test --config playwright.config.ts",
     "qa:mvp": "npm run typecheck && npm run build && npm run qa:browser",
     "test:contracts": "tsx scripts/qa/analysis-contract.test.ts && tsx scripts/qa/object-storage.test.ts",
+    "test:critical-fixes": "tsx scripts/qa/critical-fixes.test.ts",
     "test:court-calibration": "tsx scripts/qa/court-calibration.test.ts",
     "test:overlay-frame-budget": "tsx scripts/qa/overlay-frame-budget.test.ts",
     "test:mobile-ball-tracking": "tsx mobile/scripts/ball-tracking.test.ts",
