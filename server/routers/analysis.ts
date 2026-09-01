@@ -28,7 +28,7 @@ import {
 } from "../lib/trackingPayload.js";
 import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 import { deleteAnalysisArtifacts } from "../lib/analysisCleanup.js";
-import { ownerIdForInsert, requireOwnedAnalysis, requireOwner } from "../lib/ownership.js";
+import { ownerIdForInsert, requireOwnedAnalysis, requireOwner, assertCallerOwnsUploadKey } from "../lib/ownership.js";
 import { isBallTrackingEnabled } from "../../shared/config.js";
 
 const listSelectBase = {
@@ -64,6 +64,11 @@ export const analysisRouter = router({
     .input(createAnalysisInputSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = ownerIdForInsert(ctx.authMode, ctx.user?.id);
+      assertCallerOwnsUploadKey(
+        ctx.authMode,
+        ctx.user?.id,
+        input.videoStorageKey ?? input.videoFileName,
+      );
       const result = db
         .insert(analyses)
         .values({ ...input, userId })

@@ -10,6 +10,8 @@ import { fileURLToPath } from "url";
 import { downloadOnceToFile } from "../../server/lib/atomicDownload.js";
 import { resolveVideoPlaybackUrl } from "../../server/lib/videoAccess.js";
 import { isCloudStorageKey } from "../../server/lib/objectStorage.js";
+import { clientIpFromRequest } from "../../server/lib/clientIp.js";
+import type { Request } from "express";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -122,8 +124,54 @@ await assert(
         "registerSlackFeedbackRoutes must be called before express.json for HMAC raw-body verify",
       );
     }
+    if (source.includes('app.set("trust proxy", true)')) {
+      throw new Error("trust proxy true lets callers spoof X-Forwarded-For");
+    }
+    if (!source.includes('app.set("trust proxy", 1)')) {
+      throw new Error('expected app.set("trust proxy", 1)');
+    }
   },
 );
+
+function mockReq(opts: {
+  flyClientIp?: string;
+  remoteAddress?: string;
+}): Request {
+  return {
+    get(name: string) {
+      if (name.toLowerCase() === "fly-client-ip") return opts.flyClientIp;
+      return undefined;
+    },
+    socket: { remoteAddress: opts.remoteAddress },
+  } as Request;
+}
+
+await assert("clientIp uses Fly-Client-IP on Fly, not X-Forwarded-For", async () => {
+  await withEnv({ FLY_APP_NAME: "padel-analyzer" }, () => {
+    const ip = clientIpFromRequest(
+      mockReq({ flyClientIp: "203.0.113.9", remoteAddress: "10.0.0.1" }),
+    );
+    if (ip !== "203.0.113.9") {
+      throw new Error(`expected Fly-Client-IP, got ${ip}`);
+    }
+  });
+});
+
+await assert("clientIp uses the socket address off Fly", async () => {
+  const prev = process.env.FLY_APP_NAME;
+  delete process.env.FLY_APP_NAME;
+  try {
+    const ip = clientIpFromRequest(
+      mockReq({ flyClientIp: "203.0.113.9", remoteAddress: "10.0.0.5" }),
+    );
+    if (ip !== "10.0.0.5") {
+      throw new Error(`expected socket address, got ${ip}`);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.FLY_APP_NAME;
+    else process.env.FLY_APP_NAME = prev;
+  }
+});
 
 if (process.exitCode) {
   process.exit(process.exitCode);

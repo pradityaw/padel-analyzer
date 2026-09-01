@@ -35,7 +35,7 @@ import {
 import { getTrackingSyncDir } from "../lib/paths.js";
 import { assertVideoAccessible } from "../lib/videoAccess.js";
 import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
-import { ownerIdForInsert, requireOwner } from "../lib/ownership.js";
+import { ownerIdForInsert, requireOwner, assertCallerOwnsUploadKey } from "../lib/ownership.js";
 
 function trackingSyncPath(sessionId: string): string {
   return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
@@ -135,6 +135,7 @@ export const mobileAnalysisRouter = router({
               : "Uploaded video could not be found. Upload the file again.",
         });
       }
+      assertCallerOwnsUploadKey(ctx.authMode, ctx.user?.id, input.videoStorageKey);
       const courtCornersJson = input.courtCorners
         ? JSON.stringify(courtCornersInputSchema.parse(input.courtCorners))
         : null;
