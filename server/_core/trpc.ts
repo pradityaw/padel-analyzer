@@ -3,6 +3,7 @@ import type { Request } from "express";
 import superjson from "superjson";
 import type { Context } from "./context.js";
 import { getAuthMode } from "./context.js";
+import { clientIpFromRequest } from "../lib/clientIp.js";
 
 function sanitizeErrorMessage(message: string): string {
   const compact = message.replace(/\s+/g, " ").trim();
@@ -52,8 +53,8 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
  *
  * This is the tRPC-side counterpart of `createRateLimiter` (Express). Use it on
  * expensive procedures that are reached over tRPC — the analysis-create and
- * YouTube mutations. It keys on the Express `req.ip` (available because the
- * adapter is wired with `createRequestContext` and `trust proxy` is on).
+ * YouTube mutations. It keys on `clientIpFromRequest` (Fly-Client-IP on Fly,
+ * otherwise the TCP peer — not attacker-controlled X-Forwarded-For).
  *
  * On limit exceeded it throws a tRPC `TOO_MANY_REQUESTS` error, which the
  * client surfaces the same way as any other procedure error.
@@ -70,9 +71,8 @@ let lastSweepMs = Date.now();
 const MINUTE_MS = 60_000;
 
 function clientIpFromReq(req: unknown): string {
-  if (req && typeof req === "object" && "ip" in req) {
-    const ip = (req as Request).ip;
-    if (typeof ip === "string") return ip;
+  if (req && typeof req === "object") {
+    return clientIpFromRequest(req as Request);
   }
   return "unknown";
 }
