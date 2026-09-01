@@ -9,7 +9,7 @@ import {
   annotations,
 } from "../../drizzle/schema.js";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { ownerIdForInsert, requireOwnedAnalysis, requireOwner } from "../lib/ownership.js";
+import { ownerIdForInsert, requireOwnedAnalysis, requireOwner, requireAccessibleAnalysis, isProReferenceAnalysis } from "../lib/ownership.js";
 
 export const proCompareRouter = router({
   create: protectedProcedure
@@ -24,6 +24,9 @@ export const proCompareRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       requireOwnedAnalysis(ctx.authMode, ctx.user?.id, input.playerAnalysisId);
+      if (input.proAnalysisId != null) {
+        requireAccessibleAnalysis(ctx.authMode, ctx.user?.id, input.proAnalysisId);
+      }
       const userId = ownerIdForInsert(ctx.authMode, ctx.user?.id);
       return db
         .insert(proComparisons)
@@ -63,13 +66,20 @@ export const proCompareRouter = router({
       if (r.comparison.proAnalysisId) {
         const pro = db
           .select({
+            id: analyses.id,
+            userId: analyses.userId,
             videoFileName: analyses.videoFileName,
             overallScore: analyses.overallScore,
           })
           .from(analyses)
           .where(eq(analyses.id, r.comparison.proAnalysisId))
           .get();
-        if (pro) {
+        const allowed =
+          !!pro &&
+          (ctx.authMode === "off" ||
+            (ctx.user != null && pro.userId === ctx.user.id) ||
+            isProReferenceAnalysis(pro.id));
+        if (pro && allowed) {
           proFileName = pro.videoFileName;
           proScore = pro.overallScore;
         }
@@ -284,11 +294,19 @@ export const proCompareRouter = router({
 
       let pro = null;
       if (comp.proAnalysisId) {
-        pro = db
+        const candidate = db
           .select()
           .from(analyses)
           .where(eq(analyses.id, comp.proAnalysisId))
           .get();
+        const allowed =
+          !!candidate &&
+          (ctx.authMode === "off" ||
+            (ctx.user != null && candidate.userId === ctx.user.id) ||
+            isProReferenceAnalysis(candidate.id));
+        if (candidate && allowed) {
+          pro = candidate;
+        }
       }
 
       pairs.push({

@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { serialize } from "cookie";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { getAuthMode } from "../_core/context.js";
 import {
   SESSION_COOKIE,
@@ -19,6 +19,15 @@ export const authRouter = router({
   })),
 
   requestMagicLink: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_MAGIC_LINK_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_MAGIC_LINK_REFILL_PER_SEC ?? 0.05,
+        ),
+        id: "auth.magic-link",
+      }),
+    )
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ input }) => {
       if (getAuthMode() === "off") {

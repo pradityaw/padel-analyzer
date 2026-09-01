@@ -25,6 +25,9 @@ export const SAMPLE_FPS = 15;
 export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024; // 300 MB (beta; Fly volume is 3 GB)
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
+/** JSON/tRPC body cap. Video files use multer, not express.json. */
+export const MAX_JSON_BODY_BYTES = 2 * 1024 * 1024;
+
 export const YOUTUBE_MAX_DURATION_SEC = 30 * 60; // 30 minutes
 
 /** Soft total of uploads+artifacts on the Fly volume before we log a warning. */

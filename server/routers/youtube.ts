@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
+import { router, protectedProcedure, rateLimit } from "../_core/trpc.js";
 import { mkdirSync } from "fs";
 import path from "path";
 import { execFile } from "node:child_process";
@@ -122,7 +122,7 @@ const youtubeRateLimit = rateLimit({
 });
 
 export const youtubeRouter = router({
-  getInfo: publicProcedure
+  getInfo: protectedProcedure
     .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
@@ -138,10 +138,10 @@ export const youtubeRouter = router({
       };
     }),
 
-  download: publicProcedure
+  download: protectedProcedure
     .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const info = await getVideoInfo(input.url);
       assertWithinDurationLimit(info.duration);
 
@@ -151,10 +151,11 @@ export const youtubeRouter = router({
         .trim()
         .replace(/\s+/g, "_");
 
-      const fileName = `yt_${info.id}_${safeTitle}.mp4`;
+      const ownerPrefix = ctx.user?.id != null ? `u${ctx.user.id}_` : "";
+      const fileName = `${ownerPrefix}yt_${info.id}_${safeTitle}.mp4`;
       const filePath = path.join(uploadsDir, fileName);
 
-      await downloadOnceToFile(info.id, filePath, async (tempPath) => {
+      await downloadOnceToFile(`${ownerPrefix}${info.id}`, filePath, async (tempPath) => {
         await downloadVideo(input.url, tempPath);
       });
 

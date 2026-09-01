@@ -17,8 +17,9 @@ process.env.NODE_ENV = "test";
 const { ensureSchema } = await import("../../server/lib/ensureSchema.js");
 const { db } = await import("../../server/db.js");
 const { appRouter } = await import("../../server/routers/index.js");
-const { analyses } = await import("../../drizzle/schema.js");
+const { analyses, proComparisons } = await import("../../drizzle/schema.js");
 const { getOrCreateUserByEmail } = await import("../../server/lib/sessionAuth.js");
+const { canReadUploadFile } = await import("../../server/lib/uploadAccess.js");
 
 ensureSchema();
 
@@ -121,6 +122,67 @@ await assert("B getRallies cannot touch A's analysis", async () => {
     throw new Error("Bob loaded Alice's rallies");
   } catch (err) {
     if (!isNotFound(err)) throw err;
+  }
+});
+
+const bobOwned = db
+  .insert(analyses)
+  .values({
+    userId: userB.id,
+    videoFileName: "bob-swing.mp4",
+    overallScore: 60,
+    dominantSide: "right",
+    durationMs: 2000,
+    frameCount: 30,
+    sampleFps: 15,
+    phasesJson: "[]",
+    landmarksJson: "[]",
+  })
+  .returning()
+  .get();
+if (!bobOwned) throw new Error("failed to insert Bob analysis");
+
+await assert("B cannot use A's analysis as proCompare proAnalysisId", async () => {
+  try {
+    await callerB.proCompare.create({
+      playerAnalysisId: bobOwned.id,
+      proAnalysisId: owned.id,
+      shotType: "drive",
+      gapAnalysisJson: "{}",
+    });
+    throw new Error("Bob compared against Alice's analysis");
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
+  }
+});
+
+db.insert(proComparisons)
+  .values({
+    userId: userB.id,
+    playerAnalysisId: bobOwned.id,
+    proAnalysisId: owned.id,
+    shotType: "drive",
+    gapAnalysisJson: "{}",
+  })
+  .run();
+
+await assert("B list/export does not leak A's filename or landmarks", async () => {
+  const listed = await callerB.proCompare.list();
+  if (listed.some((row) => row.proFileName === "alice-swing.mp4")) {
+    throw new Error("Bob listed Alice's filename via proCompare");
+  }
+  const exported = await callerB.proCompare.exportPairedData();
+  if (exported.pairs.some((pair) => pair.pro?.analysisId === owned.id)) {
+    throw new Error("Bob exported Alice's landmarks via proCompare");
+  }
+});
+
+await assert("B cannot read A's upload filename", async () => {
+  if (canReadUploadFile(userB.id, "alice-swing.mp4")) {
+    throw new Error("Bob canReadUploadFile Alice's clip");
+  }
+  if (!canReadUploadFile(userA.id, "alice-swing.mp4")) {
+    throw new Error("Alice cannot read her own clip");
   }
 });
 

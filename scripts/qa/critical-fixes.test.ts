@@ -111,6 +111,12 @@ await assert(
     if (jsonIdx === -1) {
       throw new Error("express.json middleware missing from server/_core/index.ts");
     }
+    if (source.includes("express.json({ limit: `${MAX_UPLOAD_MB}mb` })")) {
+      throw new Error("express.json must not use the video upload cap");
+    }
+    if (!source.includes("express.json({ limit: MAX_JSON_BODY_BYTES })")) {
+      throw new Error("express.json should use MAX_JSON_BODY_BYTES");
+    }
     if (slackIdx > jsonIdx) {
       throw new Error(
         "registerSlackFeedbackRoutes must be called before express.json for HMAC raw-body verify",

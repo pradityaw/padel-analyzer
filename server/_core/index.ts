@@ -7,7 +7,7 @@ import { mkdirSync, readdirSync, statSync } from "fs";
 import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir, getDataRoot } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
-import { MAX_UPLOAD_MB, DATA_VOLUME_SOFT_CAP_BYTES } from "../../shared/config.js";
+import { MAX_UPLOAD_MB, MAX_JSON_BODY_BYTES, DATA_VOLUME_SOFT_CAP_BYTES } from "../../shared/config.js";
 import { logger } from "../lib/logger.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { createRequestContext } from "./requestContext.js";
@@ -16,6 +16,9 @@ import { recoverPendingAnalysisJobs } from "../lib/analysisJobProcessor.js";
 import { registerAuthRoutes } from "./authRoutes.js";
 import { ensureSchema } from "../lib/ensureSchema.js";
 import { initSentry } from "../lib/sentry.js";
+import { getAuthMode } from "./context.js";
+import { requireAuthWhenEnabled, type AuthedRequest } from "../lib/httpAuth.js";
+import { canReadUploadFile, safeUploadBasename } from "../lib/uploadAccess.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -30,7 +33,7 @@ app.set("trust proxy", true);
 // Raw-body Slack route must register before express.json() so signature verification works.
 registerSlackFeedbackRoutes(app);
 registerAuthRoutes(app);
-app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
+app.use(express.json({ limit: MAX_JSON_BODY_BYTES }));
 
 const upload = createUploadHandler(uploadsDir);
 
@@ -74,7 +77,12 @@ app.get("/healthz", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/upload", uploadLimiter, uploadSingleMiddleware, (req, res) => {
+app.post(
+  "/api/upload",
+  requireAuthWhenEnabled(),
+  uploadLimiter,
+  uploadSingleMiddleware,
+  (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -90,7 +98,23 @@ app.use(
   })
 );
 
-app.use("/uploads", express.static(uploadsDir));
+app.get("/uploads/:file", requireAuthWhenEnabled(), (req, res) => {
+  const raw = req.params.file;
+  const name = Array.isArray(raw) ? raw[0] : raw;
+  const safe = typeof name === "string" ? safeUploadBasename(name) : null;
+  if (!safe) {
+    res.status(400).json({ error: "Invalid file name." });
+    return;
+  }
+  if (getAuthMode() === "on") {
+    const user = (req as AuthedRequest).authUser;
+    if (!user || !canReadUploadFile(user.id, safe)) {
+      res.status(404).json({ error: "Not found." });
+      return;
+    }
+  }
+  res.sendFile(safe, { root: uploadsDir, dotfiles: "deny" });
+});
 
 // Inline NODE_ENV check so esbuild can dead-code-eliminate the dev branch in production bundles.
 if (process.env.NODE_ENV === "production") {

@@ -99,7 +99,7 @@ export function rateLimit(opts: {
     }
 
     const req = ctx.req;
-    const key = clientIpFromReq(req);
+    const key = `${opts.id}:${clientIpFromReq(req)}`;
     const bucket = buckets.get(key);
     if (!bucket) {
       buckets.set(key, { tokens: capacity - 1, lastRefillMs: now });
