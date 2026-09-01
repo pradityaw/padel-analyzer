@@ -1,33 +1,40 @@
-# Mobile Swing Replay Beta — scope
+# Web Swing Replay Beta — scope
 
-Product label for the current milestone: **Mobile Swing Replay Beta** (internal / closed testers).
+Product label for the current milestone: **Web Swing Replay Beta, pose-only** (internal / closed testers).
+
+Testers use the **hosted web app** from a phone browser. They upload a 20–30 second clip, wait for analysis, and review pose + swing phases. See [plan/BETA_LAUNCH_2026-09.md](../plan/BETA_LAUNCH_2026-09.md) for the launch plan.
 
 ## In scope
 
 | Surface | Capability |
 |---------|------------|
-| **Mobile** | Upload video, poll job progress, skeleton overlay on replay, ball marker when `ballTracking` is present, relative ball speed badge |
-| **Web** | Full analysis replay with skeleton, ball overlay, racket-head speed (with wrist fallback), Safari overlay worker fallback |
-| **Server** | Pose phases, scores, `analysis.getById` enriched with `ballTracking` and `racketTracking` from latest completed job artifacts |
+| **Web** | Magic-link sign-in, upload a swing clip (20–30 s, up to 300 MB), poll job progress, skeleton overlay on replay, phase scores and coaching copy, history, delete-my-data, in-app feedback |
+| **Server** | Pose extraction + phase scoring on a single Fly machine; per-user data isolation; boot-time job recovery; structured logging and rate limits |
+| **Feedback** | Rating + free-text on Analysis and History; Slack webhook for the operator; Sentry when `SENTRY_DSN` is set |
 
 ## Out of scope (this beta)
 
-- Mobile racket-head overlay or speed (web-only until a follow-up)
-- Match CV: rallies, heatmaps, condensed rally video, scoring (`MATCH_CV_ENABLED` is off on mobile)
-- Guaranteed ball track on glass reflections or heavy occlusion
+- Ball overlay, TrackNet, racket-head speed (license-unclear model; Docker image has no onnxruntime)
+- Match CV: rallies, heatmaps, condensed rally video, scoring
+- YouTube ingestion for testers
+- Mobile TestFlight / Play internal track (Beta 2)
 - Public App Store / Play Store release (see `mobile/STORE_READINESS.md`)
-- Metric km/h ball speed on mobile without court calibration payload
+- Multi-instance queue, Postgres, object storage required for scale
+- Offline PWA / service worker
+- Share / export of an analysis
 
 ## Tester expectations
 
-1. **Pose + phases** are the primary deliverable; ball overlay is **best-effort** when the server CV ball stage succeeds.
-2. Empty `ballTracking` is normal for older analyses, failed ball stage, or missing `data/analysis-agents/` artifacts after redeploy.
-3. Racket-head tracking and live km/h speed badges are **web** features for this beta.
-4. Demo analysis (`analysisId: -1` in the app) shows skeleton + synthetic ball without a server.
+1. **Pose + swing phases** are the only scoring deliverable. The Analysis page is labelled "Pose + swing phases (beta)".
+2. Empty `ballTracking` / `racketTracking` is expected. Those stages are skipped when `BALL_TRACKING_ENABLED=false`.
+3. Record from the side, 20–30 seconds, good lighting. Longer clips are slow (about 90 s overhead + ~1.4× video length).
+4. Each tester only sees their own uploads. Sign-in is a magic link emailed to them.
+5. Demo analysis still works without a server (web `id=demo`, mobile `analysisId: -1`).
 
-## Follow-up (post-beta)
+## Follow-up (Beta 2)
 
+- EAS preview / TestFlight against the hosted API
+- Cleanly-licensed ball model, or an explicit commercial license for TrackNetV2
 - Mobile `racketTracking` parity
-- Persist tracking tuples in DB or object storage (not only ephemeral job JSON)
-- Integration e2e: upload → job → non-empty tracking on device
-- Match CV API on mobile or remove dead UI paths
+- Persist tracking tuples in DB or object storage
+- Match CV on mobile or remove dead UI paths
