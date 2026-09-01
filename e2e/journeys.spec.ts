@@ -19,6 +19,8 @@ test("first-time upload journey explains primary actions", async ({ page }) => {
   await page.getByRole("button", { name: /Analyze a swing/i }).click();
 
   await expect(page).toHaveURL(/\/app\/upload/);
+  await expect(page.getByRole("dialog", { name: "How it works" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip tour" }).click();
   await expect(page.getByText(/How to film/)).toBeVisible();
   await expect(page.getByText("Drop your video here or click to browse")).toBeVisible();
 

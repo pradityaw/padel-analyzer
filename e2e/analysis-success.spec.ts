@@ -66,7 +66,7 @@ test("compare entry from analysis preselects the current swing", async ({
   seededIdsByTestId.get(testInfo.testId)!.push(analysisId);
 
   await page.goto(`/app/analysis/${analysisId}`);
-  await page.getByRole("button", { name: "Compare with Pro" }).first().click();
+  await page.getByTestId("compare-with-pro").click();
 
   await expect(page).toHaveURL(new RegExp(`/app/pro-compare\\?player=${analysisId}`));
 });

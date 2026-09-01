@@ -213,9 +213,20 @@ export default function PadelVideoAnalyzer({
             </p>
           </div>
         </div>
-        <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs text-ink-2 tabular-nums">
-          {analysis.frameCount} frames · {durationSec.toFixed(1)}s
-        </span>
+        <div className="relative z-10 flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs text-ink-2 tabular-nums">
+            {analysis.frameCount} frames · {durationSec.toFixed(1)}s
+          </span>
+          <button
+            type="button"
+            data-testid="compare-with-pro"
+            onClick={onNavigateProCompare}
+            className="flex items-center gap-1.5 rounded-full border border-sand/40 px-3 py-1.5 text-xs text-sand transition-colors hover:bg-sand/10"
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            Compare with Pro
+          </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
@@ -327,14 +338,6 @@ export default function PadelVideoAnalyzer({
                   confidence={analysis.shotConfidence ?? null}
                   analysisId={analysis.id}
                 />
-                <button
-                  type="button"
-                  onClick={onNavigateProCompare}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-sand/40 text-sand hover:bg-sand/10 transition-colors text-xs"
-                >
-                  <Trophy className="w-3.5 h-3.5" />
-                  Compare with Pro
-                </button>
               </div>
             </div>
           </div>
