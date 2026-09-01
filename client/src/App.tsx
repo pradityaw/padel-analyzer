@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentType, type ReactNode } from "react";
 import { Redirect, Route, Switch, useLocation, useSearch } from "wouter";
 import Upload from "./pages/Upload";
 import Analysis from "./pages/Analysis";
@@ -35,24 +35,32 @@ function WelcomeGuard() {
   return <Welcome />;
 }
 
-function AppShell() {
+function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
       <AppHeader />
-      <main className="flex-1 pb-24">
-        <Switch>
-          <Route path="/" component={History} />
-          <Route path="/upload" component={Upload} />
-          <Route path="/analysis/:id" component={Analysis} />
-          <Route path="/compare" component={Compare} />
-          <Route path="/pro-compare" component={ProCompare} />
-          <Route path="/annotate" component={Annotate} />
-        </Switch>
-      </main>
+      <main className="flex-1 pb-24">{children}</main>
       <FloatingNav />
     </div>
   );
 }
+
+function withAppShell(Page: ComponentType) {
+  return function PageWithAppShell() {
+    return (
+      <AppShell>
+        <Page />
+      </AppShell>
+    );
+  };
+}
+
+const AppHistory = withAppShell(History);
+const AppUpload = withAppShell(Upload);
+const AppAnalysis = withAppShell(Analysis);
+const AppCompare = withAppShell(Compare);
+const AppProCompare = withAppShell(ProCompare);
+const AppAnnotate = withAppShell(Annotate);
 
 export default function App() {
   return (
@@ -79,10 +87,13 @@ export default function App() {
       <Route path="/analysis/:id">
         {(params) => <Redirect to={`/app/analysis/${params.id}`} />}
       </Route>
-      <Route path="/app" nest>
-        <AppShell />
-      </Route>
+      {/* Full /app/* paths (no nest) so Link href="/app/upload" stays /app/upload. */}
+      <Route path="/app/upload" component={AppUpload} />
+      <Route path="/app/analysis/:id" component={AppAnalysis} />
+      <Route path="/app/compare" component={AppCompare} />
+      <Route path="/app/pro-compare" component={AppProCompare} />
+      <Route path="/app/annotate" component={AppAnnotate} />
+      <Route path="/app" component={AppHistory} />
     </Switch>
   );
 }
-

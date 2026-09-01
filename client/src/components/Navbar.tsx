@@ -16,7 +16,7 @@ export default function Navbar() {
     <nav className="border-b border-rule bg-paper/90 backdrop-blur-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <Link
-          href="/"
+          href="/app"
           className="font-display-condensed text-lg text-ink shrink-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           Padel&nbsp;Analyzer
