@@ -26,8 +26,10 @@ export default function Privacy() {
         <h2 className="text-lg font-semibold text-ink">Retention</h2>
         <p>
           Data stays on the server you connect to until you delete an analysis from
-          the Sessions screen or an operator removes it. Self-hosted deployments are
-          responsible for their own backups and retention policy.
+          the Sessions screen or an operator removes it. Deleting a session
+          cascade-removes the video file, pose landmarks, analysis jobs, annotations,
+          comparisons, and feedback tied to that analysis. Self-hosted deployments
+          are responsible for their own backups and retention policy.
         </p>
       </section>
       <section className="space-y-2">

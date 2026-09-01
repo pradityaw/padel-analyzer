@@ -106,36 +106,34 @@ export function AnalyzerFilterPanel({
         defaultValue={["players", "stroke", "spin"]}
         className="px-4"
       >
+        {playerIds.length > 0 ? (
         <AccordionItem value="players" className={accordionItemClass}>
           <AccordionTrigger className={accordionTriggerClass}>
             Players
           </AccordionTrigger>
           <AccordionContent>
-            {playerIds.length === 0 ? (
-              <p className="text-xs text-muted-2">No multi-player tracking</p>
-            ) : (
-              <ToggleGroup
-                multiple
-                value={selectedPlayerValues}
-                onValueChange={(next) =>
-                  onPlayerIdsChange(setFromNumericStrings(next))
-                }
-                className={filterToggleGroupClass}
-              >
-                {playerIds.map((id) => (
-                  <ToggleGroupItem
-                    key={id}
-                    value={String(id)}
-                    aria-label={`Player ${id}`}
-                    className={filterToggleItemClass}
-                  >
-                    Player {id}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            )}
+            <ToggleGroup
+              multiple
+              value={selectedPlayerValues}
+              onValueChange={(next) =>
+                onPlayerIdsChange(setFromNumericStrings(next))
+              }
+              className={filterToggleGroupClass}
+            >
+              {playerIds.map((id) => (
+                <ToggleGroupItem
+                  key={id}
+                  value={String(id)}
+                  aria-label={`Player ${id}`}
+                  className={filterToggleItemClass}
+                >
+                  Player {id}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </AccordionContent>
         </AccordionItem>
+        ) : null}
 
         <AccordionItem value="stroke" className={accordionItemClass}>
           <AccordionTrigger className={accordionTriggerClass}>

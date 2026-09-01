@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Redirect, Route, Switch, useLocation } from "wouter";
+import { Redirect, Route, Switch, useLocation, useSearch } from "wouter";
 import Upload from "./pages/Upload";
 import Analysis from "./pages/Analysis";
 import History from "./pages/History";
@@ -9,9 +9,16 @@ import ProCompare from "./pages/ProCompare";
 import Welcome from "./pages/Home";
 import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
+import HowToFilm from "./pages/HowToFilm";
 import AppHeader from "./components/AppHeader";
 import FloatingNav from "./components/ui/FloatingNav";
 import { trpc } from "@/lib/trpc";
+
+function RedirectPreserveSearch({ to }: { to: string }) {
+  const search = useSearch();
+  const suffix = search ? `?${search}` : "";
+  return <Redirect to={`${to}${suffix}`} />;
+}
 
 function WelcomeGuard() {
   const [, navigate] = useLocation();
@@ -53,20 +60,21 @@ export default function App() {
       <Route path="/" component={WelcomeGuard} />
       <Route path="/login" component={Login} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/how-to-film" component={HowToFilm} />
       <Route path="/sessions">
         <Redirect to="/app" />
       </Route>
       <Route path="/upload">
-        <Redirect to="/app/upload" />
+        <RedirectPreserveSearch to="/app/upload" />
       </Route>
       <Route path="/compare">
-        <Redirect to="/app/compare" />
+        <RedirectPreserveSearch to="/app/compare" />
       </Route>
       <Route path="/annotate">
         <Redirect to="/app/annotate" />
       </Route>
       <Route path="/pro-compare">
-        <Redirect to="/app/pro-compare" />
+        <RedirectPreserveSearch to="/app/pro-compare" />
       </Route>
       <Route path="/analysis/:id">
         {(params) => <Redirect to={`/app/analysis/${params.id}`} />}

@@ -29,6 +29,7 @@ export type DemoAnalysisRow = {
   skillConfidence: number | null;
   qualityScore: number | null;
   prHighlightsJson: string | null;
+  videoPlaybackUrl?: string | null;
 };
 
 const DEMO_PHASES: SwingPhase[] = [

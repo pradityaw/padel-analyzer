@@ -9,7 +9,7 @@ import {
   removeCourtCornersOverrideDir,
   writeCourtCornersOverrideFile,
 } from "./courtCornersOverride.js";
-import { MIN_FRAMES_FOR_PHASES } from "../../shared/config.js";
+import { MIN_FRAMES_FOR_PHASES, isBallTrackingEnabled } from "../../shared/config.js";
 import {
   AnalysisRunnerError,
   runMobileAnalysis,
@@ -22,6 +22,8 @@ import { detectRalliesForVideo } from "./rallyDetection.js";
 import {
   ballTrajectoryFallback,
   courtCalibrationFallback,
+  skippedBallTrajectory,
+  skippedRacketTracking,
 } from "./agentStageFallbacks.js";
 import {
   activeDurationSec,
@@ -168,6 +170,18 @@ async function runSoftReportedStage<T>(
   }
 }
 
+async function skipReportedStage(
+  stageId: AnalysisJobStageId,
+  message: string,
+  report: StageReporter
+): Promise<void> {
+  await report(
+    stageId,
+    { status: "skipped", progress: 100, message, errorMessage: null },
+    message
+  );
+}
+
 function assertSwingQuality(result: AnalysisResultPayload): void {
   if (result.frameCount < MIN_FRAMES_FOR_PHASES) {
     throw new AnalysisRunnerError(
@@ -288,16 +302,23 @@ export async function runParallelAnalysisOrchestration(
       })
   );
 
-  const ballPromise = runSoftReportedStage(
-    "ballTrajectory",
-    {
-      running: "Agent C is isolating ball trajectory inside active rallies.",
-      completed: "Agent C isolated ball trajectory.",
-    },
-    report,
-    () => runCvAgentStage("ball", videoPath, rallyStageArgs(rallyWindowsPath)),
-    ballTrajectoryFallback
-  );
+  const trackingEnabled = isBallTrackingEnabled();
+  const ballPromise = trackingEnabled
+    ? runSoftReportedStage(
+        "ballTrajectory",
+        {
+          running: "Agent C is isolating ball trajectory inside active rallies.",
+          completed: "Agent C isolated ball trajectory.",
+        },
+        report,
+        () => runCvAgentStage("ball", videoPath, rallyStageArgs(rallyWindowsPath)),
+        ballTrajectoryFallback
+      )
+    : skipReportedStage(
+        "ballTrajectory",
+        "Ball tracking skipped (pose-only beta).",
+        report
+      ).then(() => skippedBallTrajectory());
 
   const [courtCalibration, swing, ballTrajectory] = await Promise.all([
     courtPromise,
@@ -311,13 +332,19 @@ export async function runParallelAnalysisOrchestration(
     {
       status: "running",
       progress: 30,
-      message: "Tracking racket head from pose landmarks.",
+      message: trackingEnabled
+        ? "Tracking racket head from pose landmarks."
+        : "Skipping racket tracking (pose-only beta).",
       errorMessage: null,
     },
-    "Tracking racket head from pose landmarks..."
+    trackingEnabled
+      ? "Tracking racket head from pose landmarks..."
+      : "Skipping racket tracking..."
   );
 
-  const racketTracking = await runRacketStageOrFallback(videoPath, swing);
+  const racketTracking = trackingEnabled
+    ? await runRacketStageOrFallback(videoPath, swing)
+    : skippedRacketTracking();
 
   await report(
     "aggregation",

@@ -18,6 +18,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { DEMO_ANALYSIS_ID } from "@/lib/sampleAnalysis";
 import SessionLedgerCard from "@/components/ui/SessionLedgerCard";
+import FeedbackButton from "@/components/FeedbackButton";
 import type { RecordMode, ShotType } from "@shared/types";
 import {
   RECORD_MODE_LABELS,
@@ -465,6 +466,7 @@ export default function History() {
           </motion.div>
         )}
       </AnimatePresence>
+      <FeedbackButton />
     </motion.div>
   );
 }

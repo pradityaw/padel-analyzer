@@ -51,6 +51,7 @@ import {
   readActiveAnalysisJobId,
   writeActiveAnalysisJobId,
 } from "@/lib/activeAnalysisJob";
+import CoachMarks from "@/components/CoachMarks";
 
 type Stage =
   | "idle"
@@ -427,6 +428,7 @@ function syncUploadJobUrl(jobId: number) {
 export default function Upload() {
   const [, navigate] = useLocation();
   const search = useSearch();
+  const tourForced = new URLSearchParams(search).get("tour") === "1";
   const [tab, setTab] = useState<Tab>("upload");
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<File | null>(null);
@@ -786,13 +788,18 @@ export default function Upload() {
           Analyze your padel swing
         </h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-ink-2">
-          Upload a video or paste a YouTube link. Pose extraction and phase
-          scoring run on the server with MediaPipe — the same pipeline as the
-          mobile app.
+          Upload a side-on clip (20–30 s). Pose extraction and phase scoring run
+          on the server — ball and racket overlays are off in this beta.{" "}
+          <a href="/how-to-film" className="font-semibold text-accent hover:underline">
+            How to film
+          </a>
         </p>
       </motion.div>
 
-      <ol className="mb-10 flex flex-col gap-px overflow-hidden rounded-2xl border border-rule bg-rule sm:flex-row">
+      <ol
+        data-coach="how-it-works"
+        className="mb-10 flex flex-col gap-px overflow-hidden rounded-2xl border border-rule bg-rule sm:flex-row"
+      >
         {[
           {
             icon: Video,
@@ -837,6 +844,7 @@ export default function Upload() {
           <motion.div
             className="flex border-b border-rule"
             layout
+            data-coach="upload-tabs"
           >
             {(["upload", "youtube"] as Tab[]).map((t) => (
               <button
@@ -893,6 +901,7 @@ export default function Upload() {
                       ? "border-accent bg-flood/20 ring-2 ring-accent/40"
                       : "border-rule hover:border-muted-2 hover:bg-white/[0.02]"
                   )}
+                  data-testid="upload-dropzone"
                 >
                   <UploadIcon className="w-12 h-12 text-muted-2 mx-auto mb-4" />
                   <p className="text-lg font-medium mb-1">
@@ -1139,6 +1148,7 @@ export default function Upload() {
           </button>
         </motion.div>
       )}
+      <CoachMarks active={tourForced} force={tourForced} />
       </motion.div>
     </UploadErrorBoundary>
   );

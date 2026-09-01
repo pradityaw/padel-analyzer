@@ -23,10 +23,11 @@ const STEPS = [
 
 type Props = {
   active: boolean;
+  force?: boolean;
   onComplete?: () => void;
 };
 
-export default function CoachMarks({ active, onComplete }: Props) {
+export default function CoachMarks({ active, force, onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -47,13 +48,13 @@ export default function CoachMarks({ active, onComplete }: Props) {
   }, [step, dismiss]);
 
   useEffect(() => {
-    if (!active || hasSeenTour()) {
+    if (!active || (!force && hasSeenTour())) {
       setOpen(false);
       return;
     }
     setStep(0);
     setOpen(true);
-  }, [active]);
+  }, [active, force]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +77,7 @@ export default function CoachMarks({ active, onComplete }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, dismiss]);
 
-  if (!active || hasSeenTour()) return null;
+  if (!active || (!force && hasSeenTour())) return null;
 
   const current = STEPS[step];
   const tooltipTop = anchorRect ? anchorRect.bottom + 12 : "50%";

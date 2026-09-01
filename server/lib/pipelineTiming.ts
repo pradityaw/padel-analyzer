@@ -5,6 +5,10 @@ import path from "path";
 import { getAnalysisTimingDir } from "./paths.js";
 import { logger } from "./logger.js";
 
+function rssMb(): number {
+  return Math.round(process.memoryUsage().rss / (1024 * 1024));
+}
+
 export type PipelineTimingEvent = {
   step: string;
   elapsedMs: number;
@@ -40,23 +44,25 @@ export function createPipelineTimer(label: string): PipelineTimer {
     startedAt,
     mark(step, extra) {
       const elapsedMs = Date.now() - startedAt;
+      const rss = rssMb();
       events.push({
         step,
         elapsedMs,
         at: new Date().toISOString(),
-        ...(extra ? { extra } : {}),
+        extra: { rssMb: rss, ...extra },
       });
-      logger.debug({ label, step, elapsedMs, extra }, "pipeline mark");
+      logger.debug({ label, step, elapsedMs, rssMb: rss, extra }, "pipeline mark");
     },
     finish(extra) {
       const elapsedMs = Date.now() - startedAt;
+      const rss = rssMb();
       finished = {
         step: "finish",
         elapsedMs,
         at: new Date().toISOString(),
-        ...(extra ? { extra } : {}),
+        extra: { rssMb: rss, ...extra },
       };
-      logger.info({ label, elapsedMs, extra }, "pipeline done");
+      logger.info({ label, elapsedMs, rssMb: rss, extra }, "pipeline done");
     },
     snapshot() {
       return {

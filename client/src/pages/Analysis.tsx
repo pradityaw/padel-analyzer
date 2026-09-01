@@ -25,6 +25,7 @@ import {
   getDemoAnalysisData,
   isDemoAnalysisId,
 } from "@/lib/sampleAnalysis";
+import FeedbackButton from "@/components/FeedbackButton";
 
 export default function Analysis() {
   const { id } = useParams<{ id: string }>();
@@ -148,7 +149,8 @@ export default function Analysis() {
     >
       {showLowDetectionWarning ? (
         <div className="mb-4 rounded-2xl border border-sand/40 bg-sand/10 px-4 py-3 text-sm text-sand">
-          Low pose detection rate on this clip — scores and overlay may be less reliable.
+          Low pose detection — film side-on, 20–30 seconds, good light, full
+          body in frame. Scores and overlay may be less reliable.
         </div>
       ) : null}
       <PadelVideoAnalyzer
@@ -194,6 +196,7 @@ export default function Analysis() {
         onNavigateHome={() => navigate("/app")}
         onNavigateProCompare={() => navigate(`/app/pro-compare?player=${data.id}`)}
       />
+      {!isDemo ? <FeedbackButton analysisId={data.id} /> : null}
     </motion.div>
   );
 }

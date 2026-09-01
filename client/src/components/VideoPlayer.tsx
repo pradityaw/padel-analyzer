@@ -562,12 +562,16 @@ function VideoPlayerInner(
           />
         )}
 
+        {Boolean(ballTracking?.length || racketTracking?.length) ? (
         <LiveSpeedDash
           display={speedDisplay}
           calibrated={Boolean(calibratedHomography)}
           ballAvailable={Boolean(effectiveBallPositions)}
           racketSource={racketSpeedSource}
+          showBall={Boolean(ballTracking && ballTracking.length > 0)}
+          showRacket={Boolean(racketTracking && racketTracking.length > 0)}
         />
+        ) : null}
 
         {stageOverlay}
 
@@ -733,6 +737,8 @@ type LiveSpeedDashProps = {
   calibrated: boolean;
   ballAvailable: boolean;
   racketSource: RacketSpeedSource;
+  showBall: boolean;
+  showRacket: boolean;
 };
 
 function SpeedReadout({
@@ -771,6 +777,8 @@ function LiveSpeedDash({
   calibrated,
   ballAvailable,
   racketSource,
+  showBall,
+  showRacket,
 }: LiveSpeedDashProps) {
   const racketUnavailableLabel =
     racketSource === "racket-tracker"
@@ -789,16 +797,20 @@ function LiveSpeedDash({
     <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
       <div className="rounded-2xl border border-accent/25 bg-raised/55 p-1.5 shadow-2xl backdrop-blur-md">
         <div className="flex items-stretch gap-1.5">
+          {showBall ? (
           <SpeedReadout
             label="Ball Speed"
             value={display.ballKmh}
             unavailableLabel={ballAvailable ? "Tracking lost" : "No ball track"}
           />
+          ) : null}
+          {showRacket ? (
           <SpeedReadout
             label="Racket Speed"
             value={display.racketKmh}
             unavailableLabel={racketUnavailableLabel}
           />
+          ) : null}
         </div>
       </div>
       <div className="rounded-full border border-white/10 bg-raised/50 px-2 py-0.5 text-[10px] font-medium text-ink-2 backdrop-blur">

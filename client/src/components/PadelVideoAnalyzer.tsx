@@ -199,7 +199,7 @@ export default function PadelVideoAnalyzer({
           </button>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-              Swing analysis
+              Pose + swing phases (beta)
             </p>
             <h1 className="truncate font-display-condensed text-2xl text-ink">
               {analysis.videoFileName}
