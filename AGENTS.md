@@ -31,6 +31,13 @@ If two streams touch the same file, **serialize**: merge stream 1, then rebase s
 - `feat/server-<topic>` — e.g. `feat/server-auth-stub`
 - `chore/tooling-<topic>` — e.g. `chore/tooling-pwa-icons`
 
+## Branch hygiene
+
+- One integration branch at a time. Land it on `main`, then delete the head branch.
+- Delete automation branches (`cursor/critical-bug-investigation-*` and similar) when their PR closes. Do not leave closed-PR heads on `origin`.
+- Do not add extra remotes that mirror GitHub (`origin.cursor.com`, `origin-native`). `origin` is the only remote.
+- Before re-enabling the **Find bugs** automation (`95f71ec6-e12a-459e-bcce-d4f99f476bae`), use the dedupe prompt in [`docs/ops/FIND_BUGS_AUTOMATION.md`](./docs/ops/FIND_BUGS_AUTOMATION.md) (PR #77 if the file is not on `main` yet). Confirm it is paused in the Cursor Automations dashboard after a cleanup.
+
 ## Git worktrees (optional, true parallelism)
 
 Same repo, different folders and branches:
