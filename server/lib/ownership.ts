@@ -9,6 +9,7 @@ import {
   type Analysis,
   type AnalysisJob,
 } from "../../drizzle/schema.js";
+import { canReadUploadFile, safeUploadBasename } from "./uploadAccess.js";
 
 export function requireOwner(
   authMode: AuthMode,
@@ -114,4 +115,32 @@ export function requireOwnedJob(
   }
   requireOwner(authMode, userId, row.userId);
   return row;
+}
+
+export function assertCallerOwnsUploadKey(
+  authMode: AuthMode,
+  userId: number | null | undefined,
+  storageKey: string | null | undefined,
+): void {
+  if (authMode === "off" || !storageKey) return;
+  if (userId == null) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Sign in to continue.",
+    });
+  }
+  if (storageKey.startsWith("s3://") || storageKey.includes("/")) return;
+  const safe = safeUploadBasename(storageKey);
+  if (!safe) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid video key.",
+    });
+  }
+  if (!canReadUploadFile(userId, safe)) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Video not found.",
+    });
+  }
 }

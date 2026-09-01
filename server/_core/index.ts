@@ -29,7 +29,7 @@ mkdirSync(getThumbnailsDir(), { recursive: true });
 const app = express();
 // Fly (and most reverse proxies) terminate TLS in front of the app; trust the
 // forwarded client IP so rate limiting keys on the real caller, not the proxy.
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 // Raw-body Slack route must register before express.json() so signature verification works.
 registerSlackFeedbackRoutes(app);
 registerAuthRoutes(app);

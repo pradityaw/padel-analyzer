@@ -2,6 +2,7 @@
  * Two-user isolation: B cannot list/get/delete A's analysis when AUTH_MODE=on.
  * Run via npm run test:contracts.
  */
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { mkdtemp, rm } from "fs/promises";
 import os from "os";
 import path from "path";
@@ -20,6 +21,8 @@ const { appRouter } = await import("../../server/routers/index.js");
 const { analyses, proComparisons } = await import("../../drizzle/schema.js");
 const { getOrCreateUserByEmail } = await import("../../server/lib/sessionAuth.js");
 const { canReadUploadFile } = await import("../../server/lib/uploadAccess.js");
+const { getUploadsDir } = await import("../../server/lib/paths.js");
+const { deleteAnalysisArtifacts } = await import("../../server/lib/analysisCleanup.js");
 
 ensureSchema();
 
@@ -47,6 +50,47 @@ function stubCtx(user: { id: number; email: string }) {
 
 function isNotFound(err: unknown): boolean {
   return err instanceof TRPCError && err.code === "NOT_FOUND";
+}
+
+const createPayload = {
+  overallScore: 70,
+  dominantSide: "right" as const,
+  durationMs: 1000,
+  frameCount: 15,
+  sampleFps: 15,
+  phasesJson: "[]",
+  landmarksJson: JSON.stringify([
+    {
+      frameIndex: 0,
+      timestamp: 0,
+      landmarks: [{ x: 0, y: 0, z: 0, visibility: 1 }],
+    },
+  ]),
+};
+
+function insertOwnedRow(
+  userId: number,
+  videoFileName: string,
+  videoStorageKey?: string,
+) {
+  const row = db
+    .insert(analyses)
+    .values({
+      userId,
+      videoFileName,
+      videoStorageKey: videoStorageKey ?? null,
+      overallScore: 71,
+      dominantSide: "right",
+      durationMs: 2000,
+      frameCount: 30,
+      sampleFps: 15,
+      phasesJson: "[]",
+      landmarksJson: "[]",
+    })
+    .returning()
+    .get();
+  if (!row) throw new Error("failed to insert analysis");
+  return row;
 }
 
 const userA = getOrCreateUserByEmail("alice@isolation.test");
@@ -183,6 +227,52 @@ await assert("B cannot read A's upload filename", async () => {
   }
   if (!canReadUploadFile(userA.id, "alice-swing.mp4")) {
     throw new Error("Alice cannot read her own clip");
+  }
+});
+
+await assert("A create accepts a display title with an owned storage key", async () => {
+  const created = await callerA.analysis.create({
+    ...createPayload,
+    videoFileName: "My swing.mp4",
+    videoStorageKey: `u${userA.id}_owned.mp4`,
+  });
+  if (!created?.id) throw new Error("Alice create did not return a row");
+  await callerA.analysis.delete({ id: created.id });
+});
+
+await assert("B create cannot steal A's videoStorageKey", async () => {
+  try {
+    await callerB.analysis.create({
+      ...createPayload,
+      videoFileName: "stolen.mp4",
+      videoStorageKey: "alice-swing.mp4",
+    });
+    throw new Error("Bob created an analysis pointing at Alice's file");
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
+  }
+});
+
+await assert("delete keeps a shared upload until the last analysis is gone", async () => {
+  const uploadsDir = getUploadsDir();
+  mkdirSync(uploadsDir, { recursive: true });
+  const sharedName = `u${userA.id}_shared.mp4`;
+  const sharedPath = path.join(uploadsDir, sharedName);
+  writeFileSync(sharedPath, "shared-bytes");
+
+  const first = insertOwnedRow(userA.id, sharedName, sharedName);
+  const second = insertOwnedRow(userA.id, sharedName, sharedName);
+
+  deleteAnalysisArtifacts(first.id);
+  if (!existsSync(sharedPath)) {
+    throw new Error("shared upload was unlinked while another analysis still referenced it");
+  }
+  const firstGone = db.select().from(analyses).where(eq(analyses.id, first.id)).get();
+  if (firstGone) throw new Error("first shared analysis was not deleted");
+
+  deleteAnalysisArtifacts(second.id);
+  if (existsSync(sharedPath)) {
+    throw new Error("shared upload was not unlinked after the last analysis");
   }
 });
 
