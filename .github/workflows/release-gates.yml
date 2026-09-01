@@ -1,0 +1,43 @@
+name: Release gates
+
+on:
+  push:
+    branches: [main, "release/**", "cursor/beta-launch-2c87"]
+  pull_request:
+    branches: [main, "release/**"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AUTH_MODE: off
+  BALL_TRACKING_ENABLED: "false"
+
+concurrency:
+  group: release-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  beta-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python CV deps
+        run: pip install -r scripts/cv/requirements.txt
+
+      - name: Release beta gates
+        run: npm run release:beta-gates
