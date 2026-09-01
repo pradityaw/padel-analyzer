@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { Video, ResizeMode } from "expo-av";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useRoute, type RouteProp } from "@react-navigation/native";
 import {
+  Alert,
+  Linking,
   ActivityIndicator,
   Dimensions,
   Pressable,
@@ -10,15 +13,36 @@ import {
   Text,
   View,
 } from "react-native";
+import CourtAlignmentOverlay from "../components/CourtAlignmentOverlay";
 import {
   createMobileAnalysisJob,
   uploadVideoAsset,
 } from "../lib/api";
+import {
+  createDefaultCourtCorners,
+  loadSavedCourtCorners,
+  normalizeCourtCornersForApi,
+  saveCourtCorners,
+  type CourtCornersPayload,
+} from "../lib/courtCorners";
 import type { RootStackParamList } from "../lib/navigation";
+import {
+  RECORD_MODE_LABELS,
+  saveLastRecordMode,
+  type RecordMode,
+} from "../lib/recordMode";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Record">;
+type RecordRoute = RouteProp<RootStackParamList, "Record">;
 
-type Stage = "idle" | "countdown" | "recording" | "preview" | "uploading";
+type Stage =
+  | "aligning"
+  | "idle"
+  | "countdown"
+  | "recording"
+  | "preview"
+  | "uploading";
 
 const MAX_RECORD_SECONDS = 30;
 const COUNTDOWN_START = 3;
@@ -34,6 +58,7 @@ function sleep(ms: number) {
 }
 
 export default function RecordScreen({ navigation }: Props) {
+  const route = useRoute<RecordRoute>();
   const cameraRef = useRef<CameraView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingActiveRef = useRef(false);
@@ -41,7 +66,17 @@ export default function RecordScreen({ navigation }: Props) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
-  const [stage, setStage] = useState<Stage>("idle");
+  const [recordMode] = useState<RecordMode>(() => route.params?.mode ?? "rally");
+  const [courtCorners, setCourtCorners] = useState<CourtCornersPayload>(() =>
+    route.params?.courtCorners ?? createDefaultCourtCorners()
+  );
+  const [hasCourtAlignment, setHasCourtAlignment] = useState(
+    () => route.params?.courtCorners != null
+  );
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
+  const [stage, setStage] = useState<Stage>(() =>
+    route.params?.alignedInWizard ? "idle" : "aligning"
+  );
   const [countdown, setCountdown] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [clipUri, setClipUri] = useState<string | null>(null);
@@ -49,6 +84,16 @@ export default function RecordScreen({ navigation }: Props) {
 
   const { width, height } = Dimensions.get("window");
   const isPortrait = height >= width;
+
+  useEffect(() => {
+    if (route.params?.courtCorners) return;
+    void loadSavedCourtCorners().then((saved) => {
+      if (saved) {
+        setCourtCorners(saved);
+        setHasCourtAlignment(true);
+      }
+    });
+  }, [route.params?.courtCorners]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -65,6 +110,28 @@ export default function RecordScreen({ navigation }: Props) {
       }
     };
   }, [clearTimer]);
+
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (e) => {
+      if (stage !== "recording") return;
+      e.preventDefault();
+      Alert.alert(
+        "Discard recording?",
+        "Going back will discard your current take.",
+        [
+          { text: "Keep recording", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              cameraRef.current?.stopRecording();
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ]
+      );
+    });
+  }, [navigation, stage]);
 
   const ensurePermissions = async () => {
     let cam = cameraPermission;
@@ -90,6 +157,30 @@ export default function RecordScreen({ navigation }: Props) {
       await sleep(1000);
     }
     setCountdown(null);
+  };
+
+  const confirmAlignment = async () => {
+    setError(null);
+    try {
+      await ensurePermissions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Permission required.");
+      return;
+    }
+    const payload = normalizeCourtCornersForApi({
+      ...courtCorners,
+      previewWidth: previewSize.width || courtCorners.previewWidth,
+      previewHeight: previewSize.height || courtCorners.previewHeight,
+    });
+    await saveCourtCorners(payload);
+    setCourtCorners(payload);
+    setHasCourtAlignment(true);
+    setStage("idle");
+  };
+
+  const skipAlignment = () => {
+    setHasCourtAlignment(false);
+    setStage("idle");
   };
 
   const startRecording = async () => {
@@ -155,7 +246,14 @@ export default function RecordScreen({ navigation }: Props) {
         name: `swing-${Date.now()}.mp4`,
         mimeType: "video/mp4",
       });
-      const job = await createMobileAnalysisJob(uploaded);
+      await saveLastRecordMode(recordMode);
+      const job = await createMobileAnalysisJob({
+        ...uploaded,
+        courtCorners: hasCourtAlignment
+          ? normalizeCourtCornersForApi(courtCorners)
+          : undefined,
+        mode: recordMode,
+      });
       navigation.replace("JobStatus", { jobId: job.id });
     } catch (err) {
       setStage("preview");
@@ -168,21 +266,28 @@ export default function RecordScreen({ navigation }: Props) {
   if (!cameraPermission) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#a3e635" />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
 
-  if (!cameraPermission.granted && stage === "idle") {
+  if (!cameraPermission.granted && (stage === "idle" || stage === "aligning")) {
+    const canAsk = cameraPermission.canAskAgain !== false;
     return (
       <View style={styles.centered}>
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionBody}>
-          Record side-view swing clips directly in the app for analysis.
+          {canAsk
+            ? "Record side-view swing clips directly in the app for analysis."
+            : "Camera access was denied. Enable it in Settings to record clips."}
         </Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Pressable
           onPress={async () => {
+            if (!canAsk) {
+              await Linking.openSettings();
+              return;
+            }
             try {
               await ensurePermissions();
             } catch (err) {
@@ -196,7 +301,9 @@ export default function RecordScreen({ navigation }: Props) {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.primaryButtonText}>Allow camera</Text>
+          <Text style={styles.primaryButtonText}>
+            {canAsk ? "Allow camera" : "Open Settings"}
+          </Text>
         </Pressable>
       </View>
     );
@@ -236,7 +343,7 @@ export default function RecordScreen({ navigation }: Props) {
             ]}
           >
             {stage === "uploading" ? (
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color={theme.ctaInk} />
             ) : (
               <Text style={styles.primaryButtonText}>Use this clip</Text>
             )}
@@ -246,55 +353,101 @@ export default function RecordScreen({ navigation }: Props) {
     );
   }
 
+  const showCamera =
+    stage === "aligning" || stage === "idle" || stage === "countdown" || stage === "recording";
+
   return (
     <View style={styles.screen}>
-      <View style={styles.cameraWrap}>
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing="back"
-          mode="video"
-          videoQuality="1080p"
-        />
+      {showCamera ? (
+        <View
+          style={styles.cameraWrap}
+          onLayout={(e) => {
+            const { width: w, height: h } = e.nativeEvent.layout;
+            setPreviewSize({ width: w, height: h });
+          }}
+        >
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            mode="video"
+            videoQuality="1080p"
+          />
 
-        <View style={styles.overlay} pointerEvents="none">
-          {isPortrait ? (
-            <View style={styles.landscapeHint}>
-              <Text style={styles.landscapeHintText}>
-                Rotate to landscape for best side-view framing
+          <View style={styles.overlay} pointerEvents="box-none">
+            {isPortrait ? (
+              <View style={styles.landscapeHint}>
+                <Text style={styles.landscapeHintText}>
+                  Rotate to landscape for best side-view framing
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.hintChip}>
+              <Text style={styles.hintChipText}>
+                {RECORD_MODE_LABELS[recordMode]} · Stand to the side — full body in frame
               </Text>
             </View>
-          ) : null}
 
-          <View style={styles.hintChip}>
-            <Text style={styles.hintChipText}>
-              Stand to the side of the player — keep full body in frame
-            </Text>
+            {stage === "aligning" &&
+            previewSize.width > 0 &&
+            previewSize.height > 0 ? (
+              <CourtAlignmentOverlay
+                width={previewSize.width}
+                height={previewSize.height}
+                corners={courtCorners.corners}
+                onChange={(next) =>
+                  setCourtCorners((c) => ({ ...c, corners: next }))
+                }
+              />
+            ) : null}
+
+            {stage === "countdown" && countdown !== null ? (
+              <View style={styles.countdownWrap}>
+                <Text style={styles.countdownText}>{countdown}</Text>
+              </View>
+            ) : null}
+
+            {stage === "recording" ? (
+              <View style={styles.recordingBadge}>
+                <View style={styles.recordingDot} />
+                <Text style={styles.recordingText}>
+                  {formatTimer(elapsed)} / {formatTimer(MAX_RECORD_SECONDS)}
+                </Text>
+              </View>
+            ) : null}
           </View>
-
-          <View style={styles.guideLine} />
-
-          {stage === "countdown" && countdown !== null ? (
-            <View style={styles.countdownWrap}>
-              <Text style={styles.countdownText}>{countdown}</Text>
-            </View>
-          ) : null}
-
-          {stage === "recording" ? (
-            <View style={styles.recordingBadge}>
-              <View style={styles.recordingDot} />
-              <Text style={styles.recordingText}>
-                {formatTimer(elapsed)} / {formatTimer(MAX_RECORD_SECONDS)}
-              </Text>
-            </View>
-          ) : null}
         </View>
-      </View>
+      ) : null}
 
       {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
       <View style={styles.controls}>
-        {stage === "recording" ? (
+        {stage === "aligning" ? (
+          <>
+            <Text style={styles.alignBody}>
+              Drag the pink corners to match the court. This improves speed and court metrics.
+            </Text>
+            <Pressable
+              onPress={() => void confirmAlignment()}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>Confirm alignment</Text>
+            </Pressable>
+            <Pressable
+              onPress={skipAlignment}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>Skip alignment</Text>
+            </Pressable>
+          </>
+        ) : stage === "recording" ? (
           <Pressable
             onPress={stopRecordingEarly}
             style={({ pressed }) => [
@@ -305,19 +458,32 @@ export default function RecordScreen({ navigation }: Props) {
             <Text style={styles.stopButtonText}>Stop</Text>
           </Pressable>
         ) : (
-          <Pressable
-            onPress={startRecording}
-            disabled={stage === "countdown"}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.buttonPressed,
-              stage === "countdown" && styles.buttonDisabled,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>
-              {stage === "countdown" ? "Get ready..." : "Start recording"}
-            </Text>
-          </Pressable>
+          <>
+            {stage === "idle" ? (
+              <Pressable
+                onPress={() => setStage("aligning")}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>Adjust court box</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={startRecording}
+              disabled={stage === "countdown"}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.buttonPressed,
+                stage === "countdown" && styles.buttonDisabled,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {stage === "countdown" ? "Get ready..." : "Start recording"}
+              </Text>
+            </Pressable>
+          </>
         )}
         <Text style={styles.capHint}>Max {MAX_RECORD_SECONDS}s per clip</Text>
       </View>
@@ -328,11 +494,11 @@ export default function RecordScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
   },
   centered: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -350,13 +516,13 @@ const styles = StyleSheet.create({
   },
   landscapeHint: {
     alignSelf: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.9)",
+    backgroundColor: theme.sand,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   landscapeHintText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
@@ -364,29 +530,24 @@ const styles = StyleSheet.create({
   hintChip: {
     alignSelf: "center",
     marginTop: 8,
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    backgroundColor: "rgba(7,11,34,0.75)",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(163, 230, 53, 0.4)",
+    borderColor: theme.white15,
   },
   hintChipText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
   },
-  guideLine: {
-    position: "absolute",
-    left: "50%",
-    top: "12%",
-    bottom: "12%",
-    width: 2,
-    marginLeft: -1,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    borderColor: "rgba(163, 230, 53, 0.55)",
+  alignBody: {
+    color: theme.ink2,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
   countdownWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -395,9 +556,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   countdownText: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 96,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   recordingBadge: {
     alignSelf: "center",
@@ -426,42 +588,42 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: theme.rule,
   },
   capHint: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 12,
     textAlign: "center",
   },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     minHeight: 48,
     justifyContent: "center",
   },
   primaryButtonText: {
-    color: "#0f172a",
+    color: theme.ctaInk,
     fontWeight: "700",
     fontSize: 16,
   },
   secondaryButton: {
-    flex: 1,
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#475569",
+    borderColor: theme.white15,
   },
   secondaryButtonText: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontWeight: "600",
     fontSize: 16,
   },
   stopButton: {
     backgroundColor: "#dc2626",
-    borderRadius: 12,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
   },
@@ -479,27 +641,27 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: theme.rule,
   },
   permissionTitle: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 20,
     fontWeight: "700",
     textAlign: "center",
   },
   permissionBody: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
   },
   errorText: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
     textAlign: "center",
   },
   errorBanner: {
-    color: "#fca5a5",
+    color: theme.danger,
     fontSize: 13,
     paddingHorizontal: 16,
     paddingVertical: 8,

@@ -3,6 +3,11 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { getAnalysisTimingDir } from "./paths.js";
+import { logger } from "./logger.js";
+
+function rssMb(): number {
+  return Math.round(process.memoryUsage().rss / (1024 * 1024));
+}
 
 export type PipelineTimingEvent = {
   step: string;
@@ -32,32 +37,32 @@ export function createPipelineTimer(label: string): PipelineTimer {
   const startedAtIso = new Date(startedAt).toISOString();
   const events: PipelineTimingEvent[] = [];
   let finished: PipelineTimingEvent | undefined;
-  console.log(`[pipeline] ${label} start`);
+  logger.debug({ label }, "pipeline start");
 
   return {
     label,
     startedAt,
     mark(step, extra) {
       const elapsedMs = Date.now() - startedAt;
-      const suffix = extra ? ` ${JSON.stringify(extra)}` : "";
+      const rss = rssMb();
       events.push({
         step,
         elapsedMs,
         at: new Date().toISOString(),
-        ...(extra ? { extra } : {}),
+        extra: { rssMb: rss, ...extra },
       });
-      console.log(`[pipeline] ${label} +${elapsedMs}ms ${step}${suffix}`);
+      logger.debug({ label, step, elapsedMs, rssMb: rss, extra }, "pipeline mark");
     },
     finish(extra) {
       const elapsedMs = Date.now() - startedAt;
-      const suffix = extra ? ` ${JSON.stringify(extra)}` : "";
+      const rss = rssMb();
       finished = {
         step: "finish",
         elapsedMs,
         at: new Date().toISOString(),
-        ...(extra ? { extra } : {}),
+        extra: { rssMb: rss, ...extra },
       };
-      console.log(`[pipeline] ${label} done ${elapsedMs}ms${suffix}`);
+      logger.info({ label, elapsedMs, rssMb: rss, extra }, "pipeline done");
     },
     snapshot() {
       return {

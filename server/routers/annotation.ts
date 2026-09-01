@@ -1,14 +1,37 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "../_core/trpc.js";
 import { db } from "../db.js";
 import { annotations, analyses } from "../../drizzle/schema.js";
-import { eq, desc, sql, isNull } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { SHOT_TYPES } from "../../shared/types.js";
+import { ownerIdForInsert, requireOwnedAnalysis, requireOwner } from "../lib/ownership.js";
 
 const shotTypeEnum = z.enum(SHOT_TYPES as unknown as [string, ...string[]]);
 
+function requireOwnedAnnotation(
+  authMode: Parameters<typeof requireOwner>[0],
+  userId: number | null | undefined,
+  annotationId: number,
+) {
+  const row = db
+    .select()
+    .from(annotations)
+    .where(eq(annotations.id, annotationId))
+    .get();
+  if (!row) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Annotation not found." });
+  }
+  if (row.userId != null) {
+    requireOwner(authMode, userId, row.userId);
+  } else {
+    requireOwnedAnalysis(authMode, userId, row.analysisId);
+  }
+  return row;
+}
+
 export const annotationRouter = router({
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         analysisId: z.number(),
@@ -17,11 +40,14 @@ export const annotationRouter = router({
         notes: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      requireOwnedAnalysis(ctx.authMode, ctx.user?.id, input.analysisId);
+      const userId = ownerIdForInsert(ctx.authMode, ctx.user?.id);
       const result = db
         .insert(annotations)
         .values({
           analysisId: input.analysisId,
+          userId,
           shotType: input.shotType,
           isProReference: input.isProReference,
           notes: input.notes ?? null,
@@ -29,7 +55,6 @@ export const annotationRouter = router({
         .returning()
         .get();
 
-      // Also update the analysis shotType for quick access
       db.update(analyses)
         .set({ shotType: input.shotType })
         .where(eq(analyses.id, input.analysisId))
@@ -38,20 +63,25 @@ export const annotationRouter = router({
       return result;
     }),
 
-  list: publicProcedure.query(async () => {
-    return db
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(annotations.userId, ctx.user.id)
+        : undefined;
+    const base = db
       .select({
         annotation: annotations,
         videoFileName: analyses.videoFileName,
         overallScore: analyses.overallScore,
       })
       .from(annotations)
-      .innerJoin(analyses, eq(annotations.analysisId, analyses.id))
+      .innerJoin(analyses, eq(annotations.analysisId, analyses.id));
+    return (ownerFilter ? base.where(ownerFilter) : base)
       .orderBy(desc(annotations.annotatedAt))
       .all();
   }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.number(),
@@ -60,8 +90,9 @@ export const annotationRouter = router({
         notes: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...updates } = input;
+      requireOwnedAnnotation(ctx.authMode, ctx.user?.id, id);
       const result = db
         .update(annotations)
         .set(updates)
@@ -69,7 +100,6 @@ export const annotationRouter = router({
         .returning()
         .get();
 
-      // Sync shotType to analysis if changed
       if (result && updates.shotType) {
         db.update(analyses)
           .set({ shotType: updates.shotType })
@@ -80,45 +110,52 @@ export const annotationRouter = router({
       return result;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      requireOwnedAnnotation(ctx.authMode, ctx.user?.id, input.id);
       db.delete(annotations).where(eq(annotations.id, input.id)).run();
       return { success: true };
     }),
 
-  stats: publicProcedure.query(async () => {
-    const rows = db
+  stats: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(annotations.userId, ctx.user.id)
+        : undefined;
+    const base = db
       .select({
         shotType: annotations.shotType,
         count: sql<number>`count(*)`,
         proCount: sql<number>`sum(case when ${annotations.isProReference} = 1 then 1 else 0 end)`,
       })
-      .from(annotations)
+      .from(annotations);
+    return (ownerFilter ? base.where(ownerFilter) : base)
       .groupBy(annotations.shotType)
       .all();
-    return rows;
   }),
 
-  unannotated: publicProcedure.query(async () => {
-    // Get analyses that have no annotation
-    const annotated = db
-      .select({ analysisId: annotations.analysisId })
-      .from(annotations);
-
+  unannotated: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(analyses.userId, ctx.user.id)
+        : undefined;
+    const notAnnotated = sql`${analyses.id} NOT IN (SELECT ${annotations.analysisId} FROM ${annotations})`;
+    const whereClause = ownerFilter ? and(ownerFilter, notAnnotated) : notAnnotated;
     return db
       .select()
       .from(analyses)
-      .where(
-        sql`${analyses.id} NOT IN (SELECT ${annotations.analysisId} FROM ${annotations})`
-      )
+      .where(whereClause)
       .orderBy(desc(analyses.createdAt))
       .all();
   }),
 
-  // Export all annotated data for training
-  exportTrainingData: publicProcedure.query(async () => {
-    const rows = db
+  exportTrainingData: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(annotations.userId, ctx.user.id)
+        : undefined;
+    const base = db
       .select({
         analysisId: analyses.id,
         shotType: annotations.shotType,
@@ -130,22 +167,36 @@ export const annotationRouter = router({
         phasesJson: analyses.phasesJson,
       })
       .from(annotations)
-      .innerJoin(analyses, eq(annotations.analysisId, analyses.id))
-      .all();
+      .innerJoin(analyses, eq(annotations.analysisId, analyses.id));
+    const rows = (ownerFilter ? base.where(ownerFilter) : base).all();
 
     return {
       version: "1.0",
       exportedAt: new Date().toISOString(),
       sampleFps: 15,
-      samples: rows.map((r) => ({
-        id: r.analysisId,
-        shotType: r.shotType,
-        isProReference: r.isProReference,
-        dominantSide: r.dominantSide,
-        frameCount: r.frameCount,
-        landmarks: JSON.parse(r.landmarksJson),
-        phases: JSON.parse(r.phasesJson),
-      })),
+      samples: rows.map((r) => {
+        let landmarks: unknown = [];
+        let phases: unknown = [];
+        try {
+          landmarks = JSON.parse(r.landmarksJson);
+        } catch {
+          landmarks = [];
+        }
+        try {
+          phases = JSON.parse(r.phasesJson);
+        } catch {
+          phases = [];
+        }
+        return {
+          id: r.analysisId,
+          shotType: r.shotType,
+          isProReference: r.isProReference,
+          dominantSide: r.dominantSide,
+          frameCount: r.frameCount,
+          landmarks,
+          phases,
+        };
+      }),
     };
   }),
 });

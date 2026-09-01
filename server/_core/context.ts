@@ -1,3 +1,6 @@
+/**
+ * tRPC context: auth session + Express req/res (for rate limiting).
+ */
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import { findUserBySessionToken } from "../lib/sessionAuth.js";
 import { readSessionCookie } from "./authRoutes.js";

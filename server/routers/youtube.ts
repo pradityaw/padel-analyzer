@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
-import { mkdirSync, existsSync } from "fs";
+import { router, protectedProcedure, rateLimit } from "../_core/trpc.js";
+import { mkdirSync } from "fs";
 import path from "path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getUploadsDir } from "../lib/paths.js";
+import { downloadOnceToFile } from "../lib/atomicDownload.js";
 import {
   YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS,
   YOUTUBE_MAX_DURATION_SEC,
@@ -112,8 +113,17 @@ async function downloadVideo(
   );
 }
 
+// YouTube routes shell out to yt-dlp (network fetch + disk write) — rate-limit
+// per client IP to bound abuse. Tunable via env.
+const youtubeRateLimit = rateLimit({
+  capacity: Number(process.env.RATE_LIMIT_YOUTUBE_CAPACITY ?? 8),
+  refillPerSecond: Number(process.env.RATE_LIMIT_YOUTUBE_REFILL_PER_SEC ?? 0.2),
+  id: "youtube",
+});
+
 export const youtubeRouter = router({
-  getInfo: publicProcedure
+  getInfo: protectedProcedure
+    .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);
@@ -128,9 +138,10 @@ export const youtubeRouter = router({
       };
     }),
 
-  download: publicProcedure
+  download: protectedProcedure
+    .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const info = await getVideoInfo(input.url);
       assertWithinDurationLimit(info.duration);
 
@@ -140,12 +151,13 @@ export const youtubeRouter = router({
         .trim()
         .replace(/\s+/g, "_");
 
-      const fileName = `yt_${info.id}_${safeTitle}.mp4`;
+      const ownerPrefix = ctx.user?.id != null ? `u${ctx.user.id}_` : "";
+      const fileName = `${ownerPrefix}yt_${info.id}_${safeTitle}.mp4`;
       const filePath = path.join(uploadsDir, fileName);
 
-      if (!existsSync(filePath)) {
-        await downloadVideo(input.url, filePath);
-      }
+      await downloadOnceToFile(`${ownerPrefix}${info.id}`, filePath, async (tempPath) => {
+        await downloadVideo(input.url, tempPath);
+      });
 
       return {
         fileName,

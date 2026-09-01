@@ -22,3 +22,21 @@ CREATE TABLE `annotations` (
 	`annotated_at` text NOT NULL,
 	`notes` text
 );
+--> statement-breakpoint
+CREATE TABLE `pro_benchmarks` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`shot_type` text NOT NULL,
+	`sample_count` integer NOT NULL,
+	`metrics_json` text NOT NULL,
+	`updated_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `pro_comparisons` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`player_analysis_id` integer NOT NULL,
+	`pro_analysis_id` integer,
+	`shot_type` text NOT NULL,
+	`gap_analysis_json` text NOT NULL,
+	`created_at` text NOT NULL,
+	`notes` text
+);

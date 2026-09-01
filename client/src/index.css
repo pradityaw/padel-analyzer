@@ -1,111 +1,94 @@
+/* Hallmark · design-system: design.md · genre: modern-minimal · macrostructure: per-page family
+ * theme: studied-DNA "Court Flood" (source: image — Fixtured concept, DNA only)
+ * paper #0a0f2e · flood #2b3fbd · accent #5b8cff · cta white-pill · sand #e8c468
+ * display: Archivo Variable (wdth 62.5%, wght 800, uppercase) · body: Geist Variable
+ * studied: yes · designed-as-app · supersedes: Tennis Neon (retired 2026-06-10)
+ */
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/archivo";
 
-/* ---------------------------------------------------------------------------
-   Tennis Neon x Nike — design tokens
-   Nike design language (pill geometry, extreme type contrast, flat surfaces,
-   8px spacing + 48px section rhythm, restrained accent) ported onto the dark
-   Tennis Neon palette. Full spec: docs/DESIGN_SYSTEM.md
---------------------------------------------------------------------------- */
+@custom-variant dark (&:is(.dark *));
+
 @theme {
-  /* Brand palette */
-  --color-padel-green: #a3e635;
-  --color-padel-green-deep: #84cc16;
-  --color-padel-court: #1a5632;
-  --color-padel-gold: #f59e0b;
-  --color-padel-dark: #0f172a;
-  --color-padel-surface: #1e293b;
-  --color-padel-border: #334155;
+  /* Court Flood — locked tokens (see design.md) */
+  --color-paper: #0a0f2e;
+  --color-surface: #131a40;
+  --color-raised: #070b22;
+  --color-rule: #28315e;
+  --color-flood: #2b3fbd;
+  --color-flood-2: #2336a8;
+  --color-ink: #f4f6ff;
+  --color-ink-2: #aab3d6;
+  --color-muted-2: #6b75a3;
+  --color-accent: #5b8cff;
+  --color-cta: #ffffff;
+  --color-cta-ink: #0a0f2e;
+  --color-sand: #e8c468;
+  /* Fixtured-style white ledger rows on dark paper */
+  --color-card-paper: #eef1f8;
+  --color-card-paper-ink: #0a0f2e;
+  --color-card-paper-muted: #5a6280;
+  /* Court surface green — data encoding for court diagrams only, not brand */
+  --color-court: #1a5632;
 
-  /* Hairline — Nike's only "depth" cue */
-  --color-hairline: #334155;
-  --color-hairline-soft: #1e293b;
+  --font-display: "Archivo Variable", system-ui, sans-serif;
+  --font-body: "Geist Variable", system-ui, sans-serif;
 
-  /* Text ramp (slate) */
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
-
-  /* Radius scale — Nike pill geometry; no sharp-cornered buttons */
-  --radius-button: 9999px;
-  --radius-pill: 9999px;
-  --radius-card: 16px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-
-  /* Spacing — 8px base, 48px section rhythm */
-  --space-xxs: 2px;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 18px;
-  --space-xl: 24px;
-  --space-xxl: 30px;
-  --space-section: 48px;
-  --space-card: 20px;
-
-  /* Typography — extreme contrast: quiet UI sans + towering display tier */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  --font-display: "Bebas Neue", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --ease-out-quart: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Nike display tier — uppercase, tight, billboard-scale headlines */
-.display {
-  font-family: var(--font-display);
+/* Condensed display caps — the system's display voice (design.md § Typography) */
+.font-display-condensed {
+  font-family: "Archivo Variable", system-ui, sans-serif;
+  font-stretch: 62.5%;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  line-height: 0.9;
-  font-weight: 400;
+  line-height: 0.95;
 }
 
-/* Accent focus ring (used across interactive elements) */
-.focus-ring {
-  outline: none;
-}
-.focus-ring:focus-visible {
-  outline: 2px solid var(--color-padel-green);
-  outline-offset: 2px;
-  border-radius: inherit;
+/* Tabular numerals for scores, counts, durations (column alignment) */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-.skeleton-pulse {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-.shimmer-bar {
-  background: linear-gradient(
-    90deg,
-    #a3e635 0%,
-    #34d399 40%,
-    #a3e635 60%,
-    #bef264 100%
+/* Sport-card background textures (Tier-A CSS, design.md) */
+.sport-pattern-mesh {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgb(255 255 255 / 0.12) 1px,
+    transparent 0
   );
-  background-size: 200% auto;
-  animation: shimmer 2s linear infinite;
+  background-size: 14px 14px;
+}
+.sport-pattern-diagonal {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(255 255 255 / 0.06) 0,
+    rgb(255 255 255 / 0.06) 2px,
+    transparent 2px,
+    transparent 10px
+  );
+}
+.sport-pattern-dots {
+  background-image: radial-gradient(
+    rgb(255 255 255 / 0.14) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 12px 12px;
+}
+
+.glass-panel {
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: color-mix(in oklch, var(--color-surface) 75%, transparent);
+  backdrop-filter: blur(16px);
 }
 
 body {
   min-height: 100dvh;
-  font-family: var(--font-sans);
 }
 
 ::-webkit-scrollbar {
@@ -115,6 +98,102 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #28315e;
   border-radius: 3px;
+}
+
+@theme inline {
+  --font-heading: var(--font-display);
+  --font-sans: "Geist Variable", sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Dark-first: the app has one theme — Court Flood. shadcn vars map to it. */
+:root {
+  --background: oklch(0.18 0.06 275); /* paper   #0a0f2e */
+  --foreground: oklch(0.97 0.01 275); /* ink     #f4f6ff */
+  --card: oklch(0.24 0.07 275); /* surface #131a40 */
+  --card-foreground: oklch(0.97 0.01 275);
+  --popover: oklch(0.24 0.07 275);
+  --popover-foreground: oklch(0.97 0.01 275);
+  --primary: oklch(1 0 0); /* cta — white pill */
+  --primary-foreground: oklch(0.18 0.06 275); /* cta-ink */
+  --secondary: oklch(0.24 0.07 275);
+  --secondary-foreground: oklch(0.97 0.01 275);
+  --muted: oklch(0.24 0.07 275);
+  --muted-foreground: oklch(0.76 0.05 275); /* ink-2 */
+  --accent: oklch(0.66 0.17 265); /* #5b8cff */
+  --accent-foreground: oklch(0.97 0.01 275);
+  --destructive: oklch(0.6 0.21 25);
+  --border: oklch(0.32 0.07 275); /* rule */
+  --input: oklch(0.32 0.07 275);
+  --ring: oklch(0.66 0.17 265); /* focus */
+  --chart-1: oklch(0.66 0.17 265);
+  --chart-2: oklch(0.82 0.11 85);
+  --chart-3: oklch(0.76 0.05 275);
+  --chart-4: oklch(0.57 0.07 275);
+  --chart-5: oklch(0.45 0.19 268);
+  --radius: 1rem;
+  --sidebar: oklch(0.14 0.05 275);
+  --sidebar-foreground: oklch(0.97 0.01 275);
+  --sidebar-primary: oklch(0.66 0.17 265);
+  --sidebar-primary-foreground: oklch(0.97 0.01 275);
+  --sidebar-accent: oklch(0.24 0.07 275);
+  --sidebar-accent-foreground: oklch(0.97 0.01 275);
+  --sidebar-border: oklch(0.32 0.07 275);
+  --sidebar-ring: oklch(0.66 0.17 265);
+}
+
+/* Single dark theme — .dark mirrors :root so dark-mode toggles are inert. */
+.dark {
+  --background: oklch(0.18 0.06 275);
+  --foreground: oklch(0.97 0.01 275);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-paper text-ink;
+  }
+  html {
+    @apply font-sans;
+  }
 }

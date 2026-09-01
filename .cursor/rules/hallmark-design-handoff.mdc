@@ -1,0 +1,48 @@
+---
+description: Hallmark design pass context — Court Flood design.md, what was redesigned, follow-ups
+globs: client/src/pages/**,client/src/components/**,mobile/src/screens/**,mobile/src/components/**,design.md
+alwaysApply: false
+---
+
+# Hallmark design handoff (2026-06-10 — "Court Flood")
+
+Read [design.md](mdc:design.md) before any UI work on listed paths. The system is
+**studied DNA** ("Court Flood", extracted image-mode from a Fixtured sports-app
+reference): navy paper `#0a0f2e`, royal-blue **flood** surfaces `#2b3fbd` (max
+one per viewport), accent `#5b8cff`, **white-pill primary CTAs**, sand `#e8c468`
+for PB/pro, Archivo Variable condensed 800 uppercase display + Geist body.
+**Tennis Neon (lime `#a3e635` on slate) is retired — never reintroduce it.**
+
+## Where tokens live
+
+- Web: `client/src/index.css` `@theme` (semantic: paper/surface/raised/rule/flood/ink/ink-2/muted-2/accent/cta/cta-ink/sand) + `.font-display-condensed` utility.
+- Web canvas/SVG draw colours: `client/src/lib/uiColors.ts` (`UI`, `OVERLAY`) — never hardcode hexes in drawing code.
+- Mobile: `mobile/src/lib/theme.ts`.
+- shadcn vars in `:root` map to the system (dark-first; `.dark` is inert).
+
+## Voice rules (quick)
+
+- Primary CTA = white pill (`bg-cta text-cta-ink rounded-full`); secondary = `bg-white/10 border-white/15 rounded-full`.
+- Cards `rounded-2xl bg-surface border-rule`; buttons/chips pill.
+- Page H1/section h2 = `.font-display-condensed`; micro-labels uppercase `tracking-[0.16em]`.
+- Scores/counts always `tabular-nums`; one loud number per card.
+- Max ONE `bg-flood` surface per viewport. `SHOT_TYPE_COLORS` = data encoding, exempt.
+- Honest copy: no invented metrics/ratings/testimonials.
+
+## History
+
+- 2026-06-03: Strava-DNA structural pass (structure kept). 2026-06-10: Court Flood
+  rebrand swept every web page/component + mobile screens. See `.hallmark/log.json`
+  and `plan/ui-overhaul-broadcast-blue.md` (amended to Court Flood).
+
+## Deferred follow-ups
+
+1. Migrate `AnalyzerFilterPanel` to shadcn `accordion` / `toggle-group` (component-scope).
+2. Wire real match scores in `AnalyzerScoreOverlay` (still You/Op placeholders).
+3. New screens must read `design.md` first — diversification inverted (shared system).
+
+## Do not
+
+- Rebrand away from Court Flood or invent metrics in empty states.
+- Reintroduce lime/slate, icon-prefixed headings, shimmer gradients, or hover-scale cards.
+- Edit `client/src/lib/` pipeline (except `uiColors.ts`), `shared/*`, or `server/` for UI-only tasks.

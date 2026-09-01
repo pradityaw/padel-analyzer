@@ -39,12 +39,12 @@ test("analysis page renders score, coaching tips, and next-step actions for a re
   });
   seededIdsByTestId.get(testInfo.testId)!.push(analysisId);
 
-  await page.goto(`/analysis/${analysisId}`);
+  await page.goto(`/app/analysis/${analysisId}`);
 
   await expect(page.getByRole("heading", { name: "e2e-success-fixture.mp4" })).toBeVisible();
   await expect(page.getByText("Right-handed", { exact: false })).toBeVisible();
   // UI label is "Overall Score" (not a bare "Overall"); assert the current copy.
-  await expect(page.getByText("Overall Score", { exact: true })).toBeVisible();
+  await expect(page.getByText("Overall score", { exact: true })).toBeVisible();
   await expect(page.getByText("76", { exact: true }).first()).toBeVisible();
 
   await expect(page.getByRole("button", { name: /Drive/ })).toBeVisible();
@@ -52,10 +52,7 @@ test("analysis page renders score, coaching tips, and next-step actions for a re
   await expect(
     page.getByRole("button", { name: "Compare with Pro" }).first()
   ).toBeVisible();
-  // Peer-compare entry feeds Compare.tsx's existing `?a=` preselection contract.
-  await expect(
-    page.getByRole("button", { name: "Compare with another swing" })
-  ).toBeVisible();
+  await expect(page.getByText("Pose + swing phases (beta)")).toBeVisible();
 });
 
 test("compare entry from analysis preselects the current swing", async ({
@@ -68,15 +65,10 @@ test("compare entry from analysis preselects the current swing", async ({
   });
   seededIdsByTestId.get(testInfo.testId)!.push(analysisId);
 
-  await page.goto(`/analysis/${analysisId}`);
-  await page.getByRole("button", { name: "Compare with another swing" }).click();
+  await page.goto(`/app/analysis/${analysisId}`);
+  await page.getByTestId("compare-with-pro").click();
 
-  await expect(page).toHaveURL(new RegExp(`/compare\\?a=${analysisId}`));
-  await expect(page.getByRole("heading", { name: "Compare Swings" })).toBeVisible();
-
-  // The "Swing A" select should be pre-selected to the seeded analysis.
-  const swingASelect = page.locator("select").first();
-  await expect(swingASelect).toHaveValue(String(analysisId));
+  await expect(page).toHaveURL(new RegExp(`/app/pro-compare\\?player=${analysisId}`));
 });
 
 test("session card exposes a compare entry point", async ({ page, request }, testInfo) => {
@@ -88,18 +80,11 @@ test("session card exposes a compare entry point", async ({ page, request }, tes
 
   // Touch-sized viewport: compare must remain visible without hover.
   await page.setViewportSize({ width: 390, height: 844 });
-  // App mounts History (Sessions) at `/`.
-  await page.goto("/");
+  await page.goto("/app");
 
-  await expect(page.getByRole("heading", { name: "Sessions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your sports schedule" })).toBeVisible();
   await expect(page.getByText("e2e-session-card.mp4")).toBeVisible();
 
-  // Compare must be discoverable without hover (touch/keyboard) and actually clickable.
-  const compareBtn = page.getByRole("button", { name: "Compare with another swing" }).first();
-  await expect(compareBtn).toBeVisible();
-  await compareBtn.focus();
-  await expect(compareBtn).toBeFocused();
-  await compareBtn.click();
-
-  await expect(page).toHaveURL(new RegExp(`/compare\\?a=${analysisId}`));
+  await page.getByText("e2e-session-card.mp4").click();
+  await expect(page).toHaveURL(new RegExp(`/app/analysis/${analysisId}`));
 });

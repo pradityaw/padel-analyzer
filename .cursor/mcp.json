@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "ghost": {
+      "command": "/Users/dubski/.local/bin/ghost",
+      "args": ["mcp", "start"]
+    },
+    "agent-device": {
+      "command": "agent-device",
+      "args": ["mcp"]
+    },
+    "XcodeBuildMCP": {
+      "command": "npx",
+      "args": ["-y", "xcodebuildmcp@latest", "mcp"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "Mobbin": {
+      "type": "http",
+      "url": "https://api.mobbin.com/mcp",
+      "headers": {}
+    }
+  }
+}

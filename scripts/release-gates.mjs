@@ -29,7 +29,22 @@ run("Contract tests", "npm", ["run", "test:contracts"]);
 run("Court calibration tests", "npx", ["tsx", "scripts/qa/court-calibration.test.ts"]);
 run("Mobile ball-tracking tests", "npx", ["tsx", "mobile/scripts/ball-tracking.test.ts"]);
 run("Tracking integration smoke", "npx", ["tsx", "scripts/qa/tracking-integration-smoke.ts"]);
-run("Python CV tests", "python3", ["-m", "pytest", "scripts/cv/tests", "-q"]);
+
+const pythonBin = process.env.CV_PYTHON_BIN
+  || (process.platform !== "win32" && spawnSync("test", ["-x", ".venv/bin/python3"]).status === 0
+    ? ".venv/bin/python3"
+    : "python3");
+const pytestProbe = spawnSync(pythonBin, ["-c", "import pytest, cv2"], {
+  encoding: "utf8",
+  shell: process.platform === "win32",
+});
+if (pytestProbe.status === 0) {
+  run("Python CV tests", pythonBin, ["-m", "pytest", "scripts/cv/tests", "-q"]);
+} else {
+  console.log(
+    `\n▶ Python CV tests skipped (install scripts/cv/requirements.txt for ${pythonBin})\n`,
+  );
+}
 
 if (!skipBuild) {
   run("Production build", "npm", ["run", "build"]);

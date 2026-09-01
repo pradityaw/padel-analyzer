@@ -112,6 +112,24 @@ assert("createMobileAnalysisJobInputSchema requires storage key", () => {
   if (bad.success) throw new Error("expected empty key to fail");
 });
 
+assert("createMobileAnalysisJobInputSchema accepts court corners and mode", () => {
+  const ok = createMobileAnalysisJobInputSchema.safeParse({
+    videoFileName: "a.mp4",
+    videoStorageKey: "upload_x.mp4",
+    mode: "rally",
+    courtCorners: {
+      corners: [
+        { x: 0.1, y: 0.2 },
+        { x: 0.9, y: 0.2 },
+        { x: 0.9, y: 0.8 },
+        { x: 0.1, y: 0.8 },
+      ],
+    },
+  });
+  if (!ok.success) throw new Error(ok.error.message);
+  if (ok.data.mode !== "rally") throw new Error("expected rally mode default parse");
+});
+
 assert("initiateUploadResponseSchema accepts cloud single PUT plan", () => {
   initiateUploadResponseSchema.parse({
     mode: "single",

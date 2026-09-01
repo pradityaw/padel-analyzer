@@ -16,10 +16,12 @@ test.afterEach(async ({}, testInfo) => {
 
 test("first-time upload journey explains primary actions", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Analyze", exact: true }).click();
+  await page.getByRole("button", { name: /Analyze a swing/i }).click();
 
-  await expect(page).toHaveURL(/\/upload$/);
-  await expect(page.getByText("Upload a video or paste a YouTube link")).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/upload/);
+  await expect(page.getByRole("dialog", { name: "How it works" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip tour" }).click();
+  await expect(page.getByText(/How to film/)).toBeVisible();
   await expect(page.getByText("Drop your video here or click to browse")).toBeVisible();
 
   await page.getByRole("button", { name: "YouTube Link" }).click();
@@ -28,7 +30,7 @@ test("first-time upload journey explains primary actions", async ({ page }) => {
 });
 
 test("invalid upload gives recoverable feedback", async ({ page }) => {
-  await page.goto("/upload");
+  await page.goto("/app/upload");
   await page.setInputFiles('input[type="file"]', {
     name: "notes.txt",
     mimeType: "text/plain",
@@ -47,33 +49,34 @@ test("invalid upload gives recoverable feedback", async ({ page }) => {
 
 test("mobile viewport keeps the main journey navigable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/app");
 
-  await expect(page.getByRole("navigation")).toBeVisible();
-  await page.locator('a[href="/upload"]').click();
-  await expect(page).toHaveURL(/\/upload$/);
+  await expect(page.getByRole("navigation", { name: "App navigation" })).toBeVisible();
+  await page.locator('a[href="/app/upload"]').click();
+  await expect(page).toHaveURL(/\/app\/upload/);
   await expect(page.getByRole("button", { name: "Upload Video" })).toBeVisible();
 
-  await page.locator('a[href="/compare"]').click();
+  await page.locator('a[href="/app/compare"]').click();
   await expect(page.getByRole("heading", { name: "Compare Swings" })).toBeVisible();
 });
 
 test("analysis not found state provides a path back", async ({ page }) => {
   await page.goto("/analysis/99999999");
-  await expect(page.getByText("Analysis not found.")).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/analysis\/99999999/);
+  await expect(page.getByText("Analysis not found")).toBeVisible();
 
   await page.getByRole("button", { name: "Back to sessions" }).click();
-  await expect(page).toHaveURL(/\/sessions$/);
+  await expect(page).toHaveURL(/\/app\/?$/);
 });
 
 test("secondary product surfaces expose clear empty or selection states", async ({ page }) => {
-  await page.goto("/compare");
+  await page.goto("/app/compare");
   await expect(page.getByText("Select two analyses above to compare them side by side.")).toBeVisible();
 
-  await page.goto("/pro-compare");
+  await page.goto("/app/pro-compare");
   await expect(page.getByText("Select both swings to compare")).toBeVisible();
   await expect(page.getByText("Choose your swing on the left and a pro reference on the right.")).toBeVisible();
 
-  await page.goto("/annotate");
+  await page.goto("/app/annotate");
   await expect(page.getByRole("button", { name: /Export Training Data/ })).toBeVisible();
 });

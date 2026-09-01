@@ -23,10 +23,11 @@ const STEPS = [
 
 type Props = {
   active: boolean;
+  force?: boolean;
   onComplete?: () => void;
 };
 
-export default function CoachMarks({ active, onComplete }: Props) {
+export default function CoachMarks({ active, force, onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -47,13 +48,13 @@ export default function CoachMarks({ active, onComplete }: Props) {
   }, [step, dismiss]);
 
   useEffect(() => {
-    if (!active || hasSeenTour()) {
+    if (!active || (!force && hasSeenTour())) {
       setOpen(false);
       return;
     }
     setStep(0);
     setOpen(true);
-  }, [active]);
+  }, [active, force]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +77,7 @@ export default function CoachMarks({ active, onComplete }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, dismiss]);
 
-  if (!active || hasSeenTour()) return null;
+  if (!active || (!force && hasSeenTour())) return null;
 
   const current = STEPS[step];
   const tooltipTop = anchorRect ? anchorRect.bottom + 12 : "50%";
@@ -104,7 +105,7 @@ export default function CoachMarks({ active, onComplete }: Props) {
             onClick={dismiss}
           />
           <motion.div
-            className="absolute rounded-xl ring-2 ring-padel-green pointer-events-none"
+            className="absolute rounded-xl ring-2 ring-accent pointer-events-none"
             style={{
               top: anchorRect.top - 4,
               left: anchorRect.left - 4,
@@ -114,16 +115,16 @@ export default function CoachMarks({ active, onComplete }: Props) {
             }}
           />
           <motion.div
-            className="absolute z-[70] w-[min(100vw-2rem,360px)] rounded-xl border border-padel-border bg-padel-surface p-5 shadow-2xl"
+            className="absolute z-[70] w-[min(100vw-2rem,360px)] rounded-2xl border border-rule bg-surface p-5 shadow-2xl"
             style={{ top: tooltipTop, left: tooltipLeft }}
           >
-            <p className="text-xs text-padel-green font-semibold uppercase tracking-wider mb-1">
+            <p className="text-xs text-accent font-semibold uppercase tracking-[0.16em] mb-1">
               Step {step + 1} of {STEPS.length}
             </p>
-            <p id="coach-title" className="font-semibold text-white mb-2">
+            <p id="coach-title" className="font-semibold text-ink mb-2">
               {current?.title}
             </p>
-            <p className="text-sm text-slate-400 mb-4">{current?.body}</p>
+            <p className="text-sm text-ink-2 mb-4">{current?.body}</p>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" className="flex-1" onClick={dismiss}>
                 Skip tour

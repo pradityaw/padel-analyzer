@@ -7,7 +7,7 @@ Use this when splitting work across **multiple Cursor chats**, **Composer sessio
 
 | ID                           | Scope                          | Primary paths                                                              | Typical tasks                                                                              |
 | ---------------------------- | ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **A — Client / analysis UX** | UI, MediaPipe, canvas, routing | `client/src/`**, `client/index.html`, `client/public/**`                   | Upload flow, results video player, metrics UI, skeleton overlay, performance of frame loop |
+| **A — Client / analysis UX** | UI, MediaPipe, canvas, routing | `client/src/`**, `client/index.html`, `client/public/**`                   | Upload flow, results video player, metrics UI, skeleton overlay, performance of frame loop; MagicPath UI exploration — see [docs/MAGICPATH.md](./docs/MAGICPATH.md) |
 | **B — Server / data**        | API, DB, YouTube pipeline      | `server/`**, `drizzle/**`, `data/` (runtime only; don’t commit DB blobs)   | tRPC routers, SQLite schema, `youtube.ts` / `yt-dlp`, static `/uploads`                    |
 | **C — Tooling / PWA / docs** | Build, deploy, installability  | `vite.config.ts`, `package.json`, `tsconfig.json`, `README.md`, PWA assets | Service worker, manifest icons, env docs, CI scripts                                       |
 | **D — ML Models**            | ONNX models, inference libs, training scripts | `client/public/models/`, `client/src/lib/analysisPipeline.ts`, `client/src/lib/tracknet.ts`, `client/src/lib/courtCalibration.ts`, `training/` | Export/quantize ONNX models, TrackNet ball tracking, court homography, stroke classifier |
@@ -30,6 +30,13 @@ If two streams touch the same file, **serialize**: merge stream 1, then rebase s
 - `feat/client-<topic>` — e.g. `feat/client-timeline-scrub`
 - `feat/server-<topic>` — e.g. `feat/server-auth-stub`
 - `chore/tooling-<topic>` — e.g. `chore/tooling-pwa-icons`
+
+## Branch hygiene
+
+- One integration branch at a time. Land it on `main`, then delete the head branch.
+- Delete automation branches (`cursor/critical-bug-investigation-*` and similar) when their PR closes. Do not leave closed-PR heads on `origin`.
+- Do not add extra remotes that mirror GitHub (`origin.cursor.com`, `origin-native`). `origin` is the only remote.
+- Before re-enabling the **Find bugs** automation (`95f71ec6-e12a-459e-bcce-d4f99f476bae`), use the dedupe prompt in [`docs/ops/FIND_BUGS_AUTOMATION.md`](./docs/ops/FIND_BUGS_AUTOMATION.md) (PR #77 if the file is not on `main` yet). Confirm it is paused in the Cursor Automations dashboard after a cleanup.
 
 ## Git worktrees (optional, true parallelism)
 

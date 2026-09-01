@@ -3,7 +3,7 @@ import path from "path";
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, protectedProcedure, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -14,7 +14,9 @@ import {
   analysisJobGetInputSchema,
   analysisJobIdInputSchema,
   analysisJobSchema,
+  courtCornersInputSchema,
   createMobileAnalysisJobInputSchema,
+  recordModeSchema,
   trackingSyncInputSchema,
   type TrackingSyncInput,
 } from "../../shared/schema.js";
@@ -32,6 +34,8 @@ import {
 } from "../lib/analysisJobProgress.js";
 import { getTrackingSyncDir } from "../lib/paths.js";
 import { assertVideoAccessible } from "../lib/videoAccess.js";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
+import { ownerIdForInsert, requireOwner } from "../lib/ownership.js";
 
 function trackingSyncPath(sessionId: string): string {
   return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
@@ -49,12 +53,19 @@ async function appendTrackingSync(input: TrackingSyncInput) {
 function createJobRecord(input: {
   videoFileName: string;
   videoStorageKey: string;
+  courtCornersJson?: string | null;
+  mode?: string;
+  userId?: number | null;
 }): ReturnType<typeof analysisJobSchema.parse> {
+  const mode = recordModeSchema.parse(input.mode ?? "match");
   const created = db
     .insert(analysisJobs)
     .values({
       videoFileName: input.videoFileName,
       videoStorageKey: input.videoStorageKey,
+      courtCornersJson: input.courtCornersJson ?? null,
+      mode,
+      userId: input.userId ?? null,
       status: "queued",
       progress: 0,
       statusMessage: "Queued for analysis.",
@@ -97,9 +108,22 @@ async function hydrateJobTracking(
 }
 
 export const mobileAnalysisRouter = router({
-  create: publicProcedure
+  // The create/retry mutations kick off the full Python CV pipeline (the most
+  // expensive work on the server). Rate-limit per client IP so a single caller
+  // cannot queue unbounded jobs. Tune via env; auth-exempt by design (see
+  // rateLimit docs in trpc.ts).
+  create: protectedProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.create",
+      }),
+    )
     .input(createMobileAnalysisJobInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         await assertVideoAccessible(input.videoStorageKey);
       } catch (error) {
@@ -111,7 +135,16 @@ export const mobileAnalysisRouter = router({
               : "Uploaded video could not be found. Upload the file again.",
         });
       }
-      return createJobRecord(input);
+      const courtCornersJson = input.courtCorners
+        ? JSON.stringify(courtCornersInputSchema.parse(input.courtCorners))
+        : null;
+      return createJobRecord({
+        videoFileName: input.videoFileName,
+        videoStorageKey: input.videoStorageKey,
+        courtCornersJson,
+        mode: input.mode,
+        userId: ownerIdForInsert(ctx.authMode, ctx.user?.id),
+      });
     }),
 
   syncTracking: publicProcedure
@@ -124,15 +157,16 @@ export const mobileAnalysisRouter = router({
       };
     }),
 
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(analysisJobGetInputSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const job = db
         .select()
         .from(analysisJobs)
         .where(eq(analysisJobs.id, input.id))
         .get();
       if (!job) return null;
+      requireOwner(ctx.authMode, ctx.user?.id, job.userId);
 
       const base = hydrateJobProgress(job);
 
@@ -154,12 +188,14 @@ export const mobileAnalysisRouter = router({
       }
 
       const analysis = db
-        .select({ landmarksJson: analyses.landmarksJson })
+        .select()
         .from(analyses)
         .where(eq(analyses.id, job.analysisId))
         .get();
 
-      const landmarksJson = analysis?.landmarksJson ?? "[]";
+      const landmarksJson = analysis
+        ? resolveLandmarksJson(analysis)
+        : "[]";
       const tracking = await hydrateJobTracking(job, landmarksJson);
 
       return analysisJobDetailSchema.parse({
@@ -168,21 +204,26 @@ export const mobileAnalysisRouter = router({
       });
     }),
 
-  getProgress: publicProcedure
+  getProgress: protectedProcedure
     .input(analysisJobIdInputSchema)
-    .query(({ input }) => {
+    .query(({ ctx, input }) => {
       const job = db
         .select()
         .from(analysisJobs)
         .where(eq(analysisJobs.id, input.id))
         .get();
-      return job ? hydrateJobProgress(job) : null;
+      if (!job) return null;
+      requireOwner(ctx.authMode, ctx.user?.id, job.userId);
+      return hydrateJobProgress(job);
     }),
 
-  list: publicProcedure.query(() => {
-    return db
-      .select()
-      .from(analysisJobs)
+  list: protectedProcedure.query(({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(analysisJobs.userId, ctx.user.id)
+        : undefined;
+    const q = db.select().from(analysisJobs);
+    return (ownerFilter ? q.where(ownerFilter) : q)
       .orderBy(desc(analysisJobs.createdAt))
       .limit(20)
       .all()
@@ -195,9 +236,18 @@ export const mobileAnalysisRouter = router({
   }),
 
   /** Re-queue analysis for an existing upload (failed or completed jobs). */
-  retry: publicProcedure
+  retry: protectedProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.retry",
+      }),
+    )
     .input(z.object({ id: z.number().int().positive() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const job = db
         .select()
         .from(analysisJobs)
@@ -207,6 +257,7 @@ export const mobileAnalysisRouter = router({
       if (!job) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Job not found." });
       }
+      requireOwner(ctx.authMode, ctx.user?.id, job.userId);
 
       try {
         await assertVideoAccessible(job.videoStorageKey);
@@ -223,6 +274,9 @@ export const mobileAnalysisRouter = router({
       return createJobRecord({
         videoFileName: job.videoFileName,
         videoStorageKey: job.videoStorageKey,
+        courtCornersJson: job.courtCornersJson,
+        mode: job.mode,
+        userId: ownerIdForInsert(ctx.authMode, ctx.user?.id),
       });
     }),
 });

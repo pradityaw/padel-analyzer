@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "../_core/trpc.js";
 import { db } from "../db.js";
 import {
   proComparisons,
@@ -8,9 +9,10 @@ import {
   annotations,
 } from "../../drizzle/schema.js";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { ownerIdForInsert, requireOwnedAnalysis, requireOwner, requireAccessibleAnalysis, isProReferenceAnalysis } from "../lib/ownership.js";
 
 export const proCompareRouter = router({
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         playerAnalysisId: z.number(),
@@ -20,10 +22,16 @@ export const proCompareRouter = router({
         notes: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      requireOwnedAnalysis(ctx.authMode, ctx.user?.id, input.playerAnalysisId);
+      if (input.proAnalysisId != null) {
+        requireAccessibleAnalysis(ctx.authMode, ctx.user?.id, input.proAnalysisId);
+      }
+      const userId = ownerIdForInsert(ctx.authMode, ctx.user?.id);
       return db
         .insert(proComparisons)
         .values({
+          userId,
           playerAnalysisId: input.playerAnalysisId,
           proAnalysisId: input.proAnalysisId ?? null,
           shotType: input.shotType,
@@ -34,16 +42,20 @@ export const proCompareRouter = router({
         .get();
     }),
 
-  list: publicProcedure.query(async () => {
-    // Get all comparisons with player/pro filenames
-    const rows = db
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(proComparisons.userId, ctx.user.id)
+        : undefined;
+    const base = db
       .select({
         comparison: proComparisons,
         playerFileName: analyses.videoFileName,
         playerScore: analyses.overallScore,
       })
       .from(proComparisons)
-      .innerJoin(analyses, eq(proComparisons.playerAnalysisId, analyses.id))
+      .innerJoin(analyses, eq(proComparisons.playerAnalysisId, analyses.id));
+    const rows = (ownerFilter ? base.where(ownerFilter) : base)
       .orderBy(desc(proComparisons.createdAt))
       .all();
 
@@ -54,13 +66,20 @@ export const proCompareRouter = router({
       if (r.comparison.proAnalysisId) {
         const pro = db
           .select({
+            id: analyses.id,
+            userId: analyses.userId,
             videoFileName: analyses.videoFileName,
             overallScore: analyses.overallScore,
           })
           .from(analyses)
           .where(eq(analyses.id, r.comparison.proAnalysisId))
           .get();
-        if (pro) {
+        const allowed =
+          !!pro &&
+          (ctx.authMode === "off" ||
+            (ctx.user != null && pro.userId === ctx.user.id) ||
+            isProReferenceAnalysis(pro.id));
+        if (pro && allowed) {
           proFileName = pro.videoFileName;
           proScore = pro.overallScore;
         }
@@ -75,29 +94,39 @@ export const proCompareRouter = router({
     });
   }),
 
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      return (
+    .query(async ({ ctx, input }) => {
+      const row =
         db
           .select()
           .from(proComparisons)
           .where(eq(proComparisons.id, input.id))
-          .get() ?? null
-      );
+          .get() ?? null;
+      if (!row) return null;
+      requireOwner(ctx.authMode, ctx.user?.id, row.userId);
+      return row;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const row = db
+        .select()
+        .from(proComparisons)
+        .where(eq(proComparisons.id, input.id))
+        .get();
+      if (!row) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Comparison not found." });
+      }
+      requireOwner(ctx.authMode, ctx.user?.id, row.userId);
       db.delete(proComparisons)
         .where(eq(proComparisons.id, input.id))
         .run();
       return { success: true };
     }),
 
-  // List analyses annotated as pro references, grouped by shot type
-  listProAnalyses: publicProcedure.query(async () => {
+  listProAnalyses: protectedProcedure.query(async () => {
     const rows = db
       .select({
         analysisId: annotations.analysisId,
@@ -118,7 +147,7 @@ export const proCompareRouter = router({
   }),
 
   // Get aggregated pro benchmark for a shot type
-  getProBenchmark: publicProcedure
+  getProBenchmark: protectedProcedure
     .input(z.object({ shotType: z.string() }))
     .query(async ({ input }) => {
       // Count current pro annotations for this shot type
@@ -244,10 +273,13 @@ export const proCompareRouter = router({
     }),
 
   // Export all paired comparison data for training
-  exportPairedData: publicProcedure.query(async () => {
-    const rows = db
-      .select()
-      .from(proComparisons)
+  exportPairedData: protectedProcedure.query(async ({ ctx }) => {
+    const ownerFilter =
+      ctx.authMode === "on" && ctx.user
+        ? eq(proComparisons.userId, ctx.user.id)
+        : undefined;
+    const q = db.select().from(proComparisons);
+    const rows = (ownerFilter ? q.where(ownerFilter) : q)
       .orderBy(desc(proComparisons.createdAt))
       .all();
 
@@ -262,11 +294,19 @@ export const proCompareRouter = router({
 
       let pro = null;
       if (comp.proAnalysisId) {
-        pro = db
+        const candidate = db
           .select()
           .from(analyses)
           .where(eq(analyses.id, comp.proAnalysisId))
           .get();
+        const allowed =
+          !!candidate &&
+          (ctx.authMode === "off" ||
+            (ctx.user != null && candidate.userId === ctx.user.id) ||
+            isProReferenceAnalysis(candidate.id));
+        if (candidate && allowed) {
+          pro = candidate;
+        }
       }
 
       pairs.push({

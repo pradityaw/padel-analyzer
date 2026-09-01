@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, protectedProcedure } from "../_core/trpc.js";
 import {
   completeUploadInputSchema,
   completeUploadResponseSchema,
@@ -21,7 +21,7 @@ export const objectStorageRouter = router({
     });
   }),
 
-  initiateUpload: publicProcedure
+  initiateUpload: protectedProcedure
     .input(initiateUploadInputSchema)
     .mutation(async ({ input }) => {
       if (!isObjectStorageConfigured()) {
@@ -45,7 +45,7 @@ export const objectStorageRouter = router({
       }
     }),
 
-  completeUpload: publicProcedure
+  completeUpload: protectedProcedure
     .input(completeUploadInputSchema)
     .mutation(async ({ input }) => {
       if (!isObjectStorageConfigured()) {

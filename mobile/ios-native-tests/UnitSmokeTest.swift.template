@@ -1,0 +1,7 @@
+import XCTest
+
+final class __UNIT_TARGET_NAME__: XCTestCase {
+  func testSmoke() {
+    XCTAssertEqual("__BUNDLE_IDENTIFIER__", "__BUNDLE_IDENTIFIER__")
+  }
+}

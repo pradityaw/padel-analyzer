@@ -19,7 +19,7 @@ export function registerAuthRoutes(app: Express): void {
     }
     const user = consumeMagicLink(token);
     if (!user) {
-      res.status(400).send("Invalid or expired link");
+      res.redirect(302, "/login?error=expired");
       return;
     }
     const { token: sessionToken, expiresAt } = createSessionForUser(user.id);
@@ -37,7 +37,7 @@ export function registerAuthRoutes(app: Express): void {
         maxAge,
       })
     );
-    res.redirect(302, "/");
+    res.redirect(302, "/app");
   });
 }
 

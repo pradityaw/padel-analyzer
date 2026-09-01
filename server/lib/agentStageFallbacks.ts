@@ -46,3 +46,37 @@ export function ballTrajectoryFallback(error: unknown) {
     },
   };
 }
+
+export function skippedBallTrajectory() {
+  return {
+    agent: "ballTrajectory",
+    court: null,
+    ball_track: [],
+    shots: [],
+    summary: {
+      frames_processed: 0,
+      track_points: 0,
+      shot_count: 0,
+      backend: "disabled",
+      reason: "skipped",
+      error_message: "Ball tracking disabled (pose-only beta).",
+    },
+  };
+}
+
+export function skippedRacketTracking() {
+  return {
+    agent: "racketTracking",
+    players: [],
+    summary: {
+      sample_count: 0,
+      refined_count: 0,
+      interpolated_count: 0,
+      video_width: 0,
+      video_height: 0,
+      extrapolation_k: 1.2,
+      reason: "skipped",
+      error_message: "Racket tracking disabled (pose-only beta).",
+    },
+  };
+}

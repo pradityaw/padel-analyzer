@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line } from "react-native-svg";
 import { generateDemoSwingFrames } from "../lib/demoLandmarks";
 import { SKELETON_CONNECTIONS } from "../lib/skeletonConnections";
+import { theme, radius } from "../lib/theme";
 
 const FRAMES = generateDemoSwingFrames(48);
 
@@ -30,7 +31,7 @@ export default function SkeletonPreview() {
             y1={la.y}
             x2={lb.x}
             y2={lb.y}
-            stroke="#a3e635"
+            stroke={theme.accent}
             strokeWidth={0.004}
             strokeOpacity={0.85}
           />
@@ -49,7 +50,7 @@ export default function SkeletonPreview() {
             cx={lm.x}
             cy={lm.y}
             r={0.012}
-            fill="#f8fafc"
+            fill="#ffffff"
             fillOpacity={0.85}
           />
         );
@@ -73,23 +74,23 @@ export default function SkeletonPreview() {
 const styles = StyleSheet.create({
   wrap: {
     height: 220,
-    borderRadius: 16,
+    borderRadius: radius.card,
     overflow: "hidden",
-    backgroundColor: "#14532d",
+    backgroundColor: theme.raised,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.rule,
   },
   badge: {
     position: "absolute",
     bottom: 8,
     left: 8,
-    backgroundColor: "#0f172acc",
+    backgroundColor: "rgba(7,11,34,0.80)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   badgeText: {
-    color: "#a3e635",
+    color: theme.accent,
     fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",

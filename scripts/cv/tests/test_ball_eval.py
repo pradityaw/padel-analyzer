@@ -13,8 +13,11 @@ Example labels format:
 }
 
 The ``video`` path is resolved relative to the labels file first, then relative
-to the repository root. Actual video fixtures are intentionally not required in
-git; this test skips cleanly when the labels file or referenced video is absent.
+to the repository root, then under ``PADEL_BALL_DATASET_ROOT`` (default:
+``~/padel-ml-dataset``). ``PADEL_BALL_FIXTURE_VIDEO`` can point at an explicit
+local clip without editing the labels. Actual video fixtures are intentionally
+not required in git; this test skips cleanly when the labels file or referenced
+video is absent.
 
 Run directly:
     python scripts/cv/tests/test_ball_eval.py
@@ -52,6 +55,7 @@ except Exception:  # pragma: no cover - direct execution does not require pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LABELS_PATH = REPO_ROOT / "data" / "eval" / "ball" / "labels.json"
 DEFAULT_MATCH_TOLERANCE_PX = 25.0
+DEFAULT_DATASET_ROOT = Path.home() / "padel-ml-dataset"
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,63 @@ def _skip_or_return(reason: str) -> None:
     raise SystemExit(0)
 
 
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    seen: set[str] = set()
+    out: list[Path] = []
+    for path in paths:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
+def _dataset_root_from_env() -> Path:
+    raw = os.environ.get("PADEL_BALL_DATASET_ROOT")
+    return Path(raw).expanduser() if raw else DEFAULT_DATASET_ROOT
+
+
+def _video_candidates(raw_video: str, labels_path: Path) -> list[Path]:
+    """Return local clip candidates for a fixture ``video`` value.
+
+    The fixture JSON is often copied out of a private local dataset while the
+    actual video stays out of git. Keep path lookup flexible so the JSON can be
+    shared with relative names, dataset-relative paths, or old absolute paths.
+    """
+
+    candidates: list[Path] = []
+    override = os.environ.get("PADEL_BALL_FIXTURE_VIDEO")
+    if override:
+        candidates.append(Path(override).expanduser())
+
+    video_path = Path(raw_video).expanduser()
+    dataset_root = _dataset_root_from_env()
+
+    if video_path.is_absolute():
+        candidates.append(video_path)
+        candidates.append(labels_path.parent / video_path.name)
+        candidates.append(REPO_ROOT / video_path.name)
+        if dataset_root.exists():
+            candidates.extend(dataset_root.rglob(video_path.name))
+    else:
+        candidates.append(labels_path.parent / video_path)
+        candidates.append(REPO_ROOT / video_path)
+        candidates.append(dataset_root / video_path)
+        candidates.append(labels_path.parent / video_path.name)
+        if dataset_root.exists():
+            candidates.extend(dataset_root.rglob(video_path.name))
+
+    return _dedupe_paths(candidates)
+
+
+def _resolve_video_path(raw_video: str, labels_path: Path) -> Path | None:
+    for candidate in _video_candidates(raw_video, labels_path):
+        if candidate.exists():
+            return candidate.resolve()
+    return None
+
+
 def _load_fixture(labels_path: Path = LABELS_PATH) -> tuple[Path, list[LabelFrame]]:
     if not labels_path.exists():
         _skip_or_return(f"missing labels fixture: {labels_path}")
@@ -97,14 +158,13 @@ def _load_fixture(labels_path: Path = LABELS_PATH) -> tuple[Path, list[LabelFram
     if not isinstance(raw_video, str) or not raw_video:
         raise ValueError('labels.json must include a non-empty "video" string')
 
-    video_path = Path(raw_video).expanduser()
-    if not video_path.is_absolute():
-        labels_relative = labels_path.parent / video_path
-        repo_relative = REPO_ROOT / video_path
-        video_path = labels_relative if labels_relative.exists() else repo_relative
-
-    if not video_path.exists():
-        _skip_or_return(f"missing referenced video: {video_path}")
+    video_path = _resolve_video_path(raw_video, labels_path)
+    if video_path is None:
+        attempted = [str(path) for path in _video_candidates(raw_video, labels_path)[:8]]
+        _skip_or_return(
+            "missing referenced video. Set PADEL_BALL_FIXTURE_VIDEO or "
+            f"PADEL_BALL_DATASET_ROOT. raw={raw_video!r}; attempted={attempted}"
+        )
 
     raw_frames = payload.get("frames")
     if not isinstance(raw_frames, list) or not raw_frames:
@@ -352,6 +412,31 @@ def evaluate_fixture(
             for result in results
         ],
     }
+
+
+def test_fixture_video_resolver_prefers_explicit_override(monkeypatch, tmp_path) -> None:
+    labels_path = tmp_path / "labels.json"
+    override = tmp_path / "override.mp4"
+    stale = tmp_path / "stale.mp4"
+    override.write_bytes(b"fake mp4")
+    stale.write_bytes(b"fake mp4")
+
+    monkeypatch.setenv("PADEL_BALL_FIXTURE_VIDEO", str(override))
+
+    assert _resolve_video_path(str(stale), labels_path) == override.resolve()
+
+
+def test_fixture_video_resolver_falls_back_to_dataset_basename(monkeypatch, tmp_path) -> None:
+    labels_path = tmp_path / "labels.json"
+    dataset = tmp_path / "dataset"
+    clip = dataset / "clips" / "manual" / "clip001.mp4"
+    clip.parent.mkdir(parents=True)
+    clip.write_bytes(b"fake mp4")
+
+    monkeypatch.delenv("PADEL_BALL_FIXTURE_VIDEO", raising=False)
+    monkeypatch.setenv("PADEL_BALL_DATASET_ROOT", str(dataset))
+
+    assert _resolve_video_path("/old/machine/clip001.mp4", labels_path) == clip.resolve()
 
 
 def test_ball_backend_eval_fixture() -> None:

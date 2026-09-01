@@ -27,7 +27,7 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/scripts/requirements-server-analysis.txt ./scripts/
-RUN pip3 install --no-cache-dir --break-system-packages -r scripts/requirements-server-analysis.txt || true
+RUN pip3 install --no-cache-dir --break-system-packages -r scripts/requirements-server-analysis.txt
 
 ENV NODE_ENV=production
 ENV PORT=3001

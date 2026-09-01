@@ -46,7 +46,7 @@ export default function PhaseTimeline({
                 className="w-2.5 h-2.5 rounded-full"
                 style={{ backgroundColor: PHASE_COLORS[phase.type] }}
               />
-              <span className={isActive ? "text-white" : "text-slate-400"}>
+              <span className={isActive ? "text-ink" : "text-ink-2"}>
                 {PHASE_LABELS[phase.type]}
               </span>
               <span
@@ -66,7 +66,7 @@ export default function PhaseTimeline({
       {/* Timeline track — click anywhere to seek */}
       <div
         ref={trackRef}
-        className="relative h-9 bg-slate-800/60 rounded-lg overflow-hidden cursor-pointer select-none"
+        className="relative h-9 bg-raised/60 rounded-lg overflow-hidden cursor-pointer select-none"
         onClick={handleTrackClick}
       >
         {phases.map((phase) => {

@@ -30,16 +30,16 @@ export default function RecentSessionsTeaser({ analyses }: Props) {
       label="Welcome back"
       title="Your recent sessions"
       subtitle="Pick up where you left off or analyze another swing."
-      className="border-t border-padel-border"
+      className="border-t border-rule"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-2 tabular-nums">
           {analyses.length} session{analyses.length === 1 ? "" : "s"} saved
         </p>
         <button
           type="button"
-          onClick={() => navigate("/sessions")}
-          className="inline-flex items-center gap-1.5 text-sm text-padel-green hover:underline focus-ring rounded"
+          onClick={() => navigate("/app")}
+          className="inline-flex items-center gap-1.5 text-sm text-accent hover:underline focus-ring rounded"
         >
           View all sessions
           <ArrowRight className="w-4 h-4" />
@@ -53,13 +53,13 @@ export default function RecentSessionsTeaser({ analyses }: Props) {
             initial={{ opacity: 0, x: prefersReduced ? 0 : 16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: prefersReduced ? 0 : i * 0.08 }}
-            onClick={() => navigate(`/analysis/${a.id}`)}
-            className="snap-start shrink-0 w-[min(100%,280px)] text-left rounded-xl border border-padel-border bg-padel-surface p-4 hover:border-padel-green/40 hover:bg-padel-green/5 transition-colors focus-ring"
+            onClick={() => navigate(`/app/analysis/${a.id}`)}
+            className="snap-start shrink-0 w-[min(100%,280px)] text-left rounded-2xl border border-rule bg-surface p-4 hover:border-accent/40 hover:bg-white/[0.02] transition-colors focus-ring"
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <p className="font-medium text-sm truncate">{a.videoFileName}</p>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-muted-2 flex items-center gap-1 mt-1">
                   <Clock className="w-3 h-3" />
                   {new Date(a.createdAt).toLocaleDateString()}
                 </p>
@@ -67,7 +67,7 @@ export default function RecentSessionsTeaser({ analyses }: Props) {
               <ScoreCard score={a.overallScore} size="sm" />
             </div>
             {a.shotType ? (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-ink-2">
                 {SHOT_TYPE_LABELS[a.shotType as ShotType] ?? a.shotType}
               </span>
             ) : null}

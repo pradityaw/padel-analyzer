@@ -3,7 +3,13 @@ import type {
   AnalysisJobStageProgress,
   AnalysisResultPayload,
 } from "../../shared/schema.js";
-import { MIN_FRAMES_FOR_PHASES } from "../../shared/config.js";
+import { recordModeSchema } from "../../shared/schema.js";
+import type { RecordMode } from "../../shared/types.js";
+import {
+  removeCourtCornersOverrideDir,
+  writeCourtCornersOverrideFile,
+} from "./courtCornersOverride.js";
+import { MIN_FRAMES_FOR_PHASES, isBallTrackingEnabled } from "../../shared/config.js";
 import {
   AnalysisRunnerError,
   runMobileAnalysis,
@@ -16,6 +22,8 @@ import { detectRalliesForVideo } from "./rallyDetection.js";
 import {
   ballTrajectoryFallback,
   courtCalibrationFallback,
+  skippedBallTrajectory,
+  skippedRacketTracking,
 } from "./agentStageFallbacks.js";
 import {
   activeDurationSec,
@@ -23,6 +31,7 @@ import {
   writeRallyWindowsFile,
   type RallyWindowsPayload,
 } from "./rallyWindowsFile.js";
+import { logger } from "./logger.js";
 import { mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
@@ -47,6 +56,70 @@ export type ParallelAnalysisResult = {
   rallyWindows?: RallyWindowsPayload;
 };
 
+export type ParallelAnalysisOptions = {
+  courtCornersJson?: string | null;
+  recordMode?: RecordMode;
+};
+
+function shouldUseFullVideoForMode(mode: RecordMode): boolean {
+  return mode === "serve_practice" || mode === "drill";
+}
+
+function rallyPayloadForMode(
+  detection: Awaited<ReturnType<typeof detectRalliesOrFullVideo>>,
+  recordMode: RecordMode
+): RallyWindowsPayload {
+  const base = buildRallyWindowsPayload(detection);
+  if (!shouldUseFullVideoForMode(recordMode)) {
+    return base;
+  }
+  const durationSec =
+    detection.durationMs > 0
+      ? detection.durationMs / 1000
+      : base.windows.length > 0
+        ? Math.max(...base.windows.map((w) => w.endSec))
+        : 0;
+  if (durationSec <= 0) {
+    return base;
+  }
+  return {
+    ...base,
+    paddingSec: 0,
+    windows: [{ startSec: 0, endSec: durationSec }],
+  };
+}
+
+async function runCourtCalibrationStage(
+  videoPath: string,
+  courtCornersJson: string | null | undefined,
+  report: StageReporter
+): Promise<unknown> {
+  const override = await writeCourtCornersOverrideFile(courtCornersJson);
+  try {
+    const extraArgs =
+      override != null ? ["--court-corners", override.filePath] : undefined;
+    return await runSoftReportedStage(
+      "courtCalibration",
+      {
+        running: override
+          ? "Agent A is applying your court alignment corners."
+          : "Agent A is calibrating court boundaries and homography.",
+        completed: "Agent A calibrated court geometry.",
+      },
+      report,
+      () =>
+        runCvAgentStage("court", videoPath, {
+          extraArgs,
+        }),
+      courtCalibrationFallback
+    );
+  } finally {
+    if (override != null) {
+      await removeCourtCornersOverrideDir(override.dir);
+    }
+  }
+}
+
 async function runReportedStage<T>(
   stageId: AnalysisJobStageId,
   messages: { running: string; completed: string },
@@ -54,7 +127,7 @@ async function runReportedStage<T>(
   runner: () => Promise<T>
 ): Promise<T> {
   const startedAt = Date.now();
-  console.log(`[analysis-stage] ${stageId} start`);
+  logger.debug({ stageId }, "analysis stage start");
   await report(
     stageId,
     { status: "running", progress: 5, message: messages.running, errorMessage: null },
@@ -63,7 +136,7 @@ async function runReportedStage<T>(
   try {
     const result = await runner();
     const elapsedMs = Date.now() - startedAt;
-    console.log(`[analysis-stage] ${stageId} done ${elapsedMs}ms`);
+    logger.info({ stageId, elapsedMs }, "analysis stage done");
     await report(
       stageId,
       { status: "completed", progress: 100, message: messages.completed, errorMessage: null },
@@ -73,7 +146,7 @@ async function runReportedStage<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown stage failure.";
     const elapsedMs = Date.now() - startedAt;
-    console.warn(`[analysis-stage] ${stageId} failed ${elapsedMs}ms: ${message}`);
+    logger.warn({ stageId, elapsedMs, err: error, message }, "analysis stage failed");
     await report(
       stageId,
       { status: "failed", progress: 100, message: "Stage failed.", errorMessage: message },
@@ -95,6 +168,18 @@ async function runSoftReportedStage<T>(
   } catch (error) {
     return fallback(error);
   }
+}
+
+async function skipReportedStage(
+  stageId: AnalysisJobStageId,
+  message: string,
+  report: StageReporter
+): Promise<void> {
+  await report(
+    stageId,
+    { status: "skipped", progress: 100, message, errorMessage: null },
+    message
+  );
 }
 
 function assertSwingQuality(result: AnalysisResultPayload): void {
@@ -124,8 +209,9 @@ async function detectRalliesOrFullVideo(videoPath: string) {
     return await detectRalliesForVideo(videoPath);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown rally detection failure.";
-    console.warn(
-      `[analysis-stage] ingestion rally detection failed; processing full clip: ${message}`
+    logger.warn(
+      { err: error, message },
+      "ingestion rally detection failed; processing full clip",
     );
     return {
       fps: 30,
@@ -149,8 +235,11 @@ async function detectRalliesOrFullVideo(videoPath: string) {
 
 export async function runParallelAnalysisOrchestration(
   videoPath: string,
-  report: StageReporter
+  report: StageReporter,
+  options: ParallelAnalysisOptions = {}
 ): Promise<ParallelAnalysisResult> {
+  const recordMode = recordModeSchema.parse(options.recordMode ?? "match");
+  const courtCornersJson = options.courtCornersJson ?? null;
   await report(
     "ingestion",
     {
@@ -162,31 +251,30 @@ export async function runParallelAnalysisOrchestration(
     "Preparing video..."
   );
 
+  const rallyMessage = shouldUseFullVideoForMode(recordMode)
+    ? "Using full clip (serve practice / drill mode)."
+    : "Detecting active rally windows (trimming dead time).";
+
   await report(
     "ingestion",
     {
       status: "running",
       progress: 35,
-      message: "Detecting active rally windows (trimming dead time).",
+      message: rallyMessage,
       errorMessage: null,
     },
-    "Detecting rallies..."
+    shouldUseFullVideoForMode(recordMode) ? "Preparing full clip..." : "Detecting rallies..."
   );
 
   const rallyDetectionPromise = detectRalliesOrFullVideo(videoPath);
-  const courtPromise = runSoftReportedStage(
-    "courtCalibration",
-    {
-      running: "Agent A is calibrating court boundaries and homography.",
-      completed: "Agent A calibrated court geometry.",
-    },
-    report,
-    () => runCvAgentStage("court", videoPath),
-    courtCalibrationFallback
+  const courtPromise = runCourtCalibrationStage(
+    videoPath,
+    courtCornersJson,
+    report
   );
 
   const rallyDetection = await rallyDetectionPromise;
-  const rallyPayload = buildRallyWindowsPayload(rallyDetection);
+  const rallyPayload = rallyPayloadForMode(rallyDetection, recordMode);
   const rallyWindowsPath = await writeRallyWindowsFile(rallyPayload);
   const activeSec = activeDurationSec(rallyPayload);
 
@@ -214,16 +302,23 @@ export async function runParallelAnalysisOrchestration(
       })
   );
 
-  const ballPromise = runSoftReportedStage(
-    "ballTrajectory",
-    {
-      running: "Agent C is isolating ball trajectory inside active rallies.",
-      completed: "Agent C isolated ball trajectory.",
-    },
-    report,
-    () => runCvAgentStage("ball", videoPath, rallyStageArgs(rallyWindowsPath)),
-    ballTrajectoryFallback
-  );
+  const trackingEnabled = isBallTrackingEnabled();
+  const ballPromise = trackingEnabled
+    ? runSoftReportedStage(
+        "ballTrajectory",
+        {
+          running: "Agent C is isolating ball trajectory inside active rallies.",
+          completed: "Agent C isolated ball trajectory.",
+        },
+        report,
+        () => runCvAgentStage("ball", videoPath, rallyStageArgs(rallyWindowsPath)),
+        ballTrajectoryFallback
+      )
+    : skipReportedStage(
+        "ballTrajectory",
+        "Ball tracking skipped (pose-only beta).",
+        report
+      ).then(() => skippedBallTrajectory());
 
   const [courtCalibration, swing, ballTrajectory] = await Promise.all([
     courtPromise,
@@ -237,13 +332,19 @@ export async function runParallelAnalysisOrchestration(
     {
       status: "running",
       progress: 30,
-      message: "Tracking racket head from pose landmarks.",
+      message: trackingEnabled
+        ? "Tracking racket head from pose landmarks."
+        : "Skipping racket tracking (pose-only beta).",
       errorMessage: null,
     },
-    "Tracking racket head from pose landmarks..."
+    trackingEnabled
+      ? "Tracking racket head from pose landmarks..."
+      : "Skipping racket tracking..."
   );
 
-  const racketTracking = await runRacketStageOrFallback(videoPath, swing);
+  const racketTracking = trackingEnabled
+    ? await runRacketStageOrFallback(videoPath, swing)
+    : skippedRacketTracking();
 
   await report(
     "aggregation",

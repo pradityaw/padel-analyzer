@@ -199,3 +199,37 @@ export const METRIC_LABELS: Record<string, { name: string; unit: string }> = {
   spineAngle: { name: "Spine Lean", unit: "°" },
   wristVelocity: { name: "Wrist Speed", unit: "u/s" },
 };
+
+/** Normalized image-space court corner (0–1 relative to capture preview). */
+export type CourtCornerNormalized = {
+  x: number;
+  y: number;
+};
+
+/** Four corners in order: top-left, top-right, bottom-right, bottom-left. */
+export type CourtCornersNormalized = {
+  corners: [CourtCornerNormalized, CourtCornerNormalized, CourtCornerNormalized, CourtCornerNormalized];
+  /** Preview width when corners were captured (optional metadata). */
+  previewWidth?: number;
+  /** Preview height when corners were captured (optional metadata). */
+  previewHeight?: number;
+};
+
+export const COURT_CORNER_COUNT = 4 as const;
+
+/** Mobile / server record session mode (padel-oriented; mirrors competitor drill types). */
+export const RECORD_MODES = [
+  "match",
+  "rally",
+  "serve_practice",
+  "drill",
+] as const;
+
+export type RecordMode = (typeof RECORD_MODES)[number];
+
+export const RECORD_MODE_LABELS: Record<RecordMode, string> = {
+  match: "Match",
+  rally: "Rally",
+  serve_practice: "Serve practice",
+  drill: "Drill",
+};

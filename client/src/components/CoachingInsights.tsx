@@ -11,13 +11,13 @@ const statusIcon: Record<MetricStatus, typeof CheckCircle> = {
 
 const statusColor: Record<MetricStatus, string> = {
   good: "text-green-400",
-  improve: "text-amber-400",
+  improve: "text-sand",
   issue: "text-red-400",
 };
 
 const statusBg: Record<MetricStatus, string> = {
   good: "bg-green-400/10 border-green-400/20",
-  improve: "bg-amber-400/10 border-amber-400/20",
+  improve: "bg-sand/10 border-sand/20",
   issue: "bg-red-400/10 border-red-400/20",
 };
 
@@ -35,7 +35,7 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
       {topGaps.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-5 h-5 text-padel-green" />
+            <TrendingUp className="w-5 h-5 text-accent" />
             <h3 className="font-semibold text-lg">Top Improvements</h3>
           </div>
           <div className="space-y-3">
@@ -45,7 +45,7 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
                 <div
                   key={`${gap.phase}-${gap.metric}`}
                   className={cn(
-                    "rounded-xl border p-4",
+                    "rounded-2xl border p-4",
                     statusBg[gap.status]
                   )}
                 >
@@ -60,7 +60,7 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
                         <span className="font-medium text-sm">
                           {gap.name} — {PHASE_LABELS[gap.phase]}
                         </span>
-                        <span className="text-xs text-slate-500 font-mono">
+                        <span className="text-xs text-muted-2 font-mono">
                           #{i + 1} priority
                         </span>
                       </div>
@@ -68,19 +68,19 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
                       {/* Value comparison */}
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-sm">
-                          <span className="text-padel-green font-mono">
+                          <span className="text-ink font-mono tabular-nums">
                             {gap.playerValue}
                             {gap.unit}
                           </span>
-                          <span className="text-slate-500 mx-1">→</span>
-                          <span className="text-amber-400 font-mono">
+                          <span className="text-muted-2 mx-1">→</span>
+                          <span className="text-sand font-mono tabular-nums">
                             {gap.proValue}
                             {gap.unit}
                           </span>
                         </span>
                         <span
                           className={cn(
-                            "text-xs font-mono px-1.5 py-0.5 rounded",
+                            "text-xs font-mono px-1.5 py-0.5 rounded-full",
                             gap.delta > 0
                               ? "bg-red-500/10 text-red-400"
                               : "bg-blue-500/10 text-blue-400"
@@ -92,7 +92,7 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
                         </span>
                       </div>
 
-                      <p className="text-sm text-slate-300">{gap.tip}</p>
+                      <p className="text-sm text-ink-2">{gap.tip}</p>
                     </div>
                   </div>
                 </div>
@@ -104,11 +104,11 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
 
       {/* Full gap table */}
       <div>
-        <h3 className="font-semibold text-sm text-slate-400 mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-2 mb-3">
           All Metrics ({metricGaps.length})
         </h3>
-        <div className="bg-padel-surface rounded-xl border border-padel-border overflow-hidden">
-          <div className="divide-y divide-padel-border">
+        <div className="bg-surface rounded-2xl border border-rule overflow-hidden">
+          <div className="divide-y divide-rule">
             {metricGaps.map((gap) => {
               const Icon = statusIcon[gap.status];
               return (
@@ -119,28 +119,28 @@ export default function CoachingInsights({ metricGaps, topInsights }: Props) {
                   <Icon
                     className={cn("w-4 h-4 shrink-0", statusColor[gap.status])}
                   />
-                  <span className="text-slate-400 w-28 shrink-0 text-xs">
+                  <span className="text-ink-2 w-28 shrink-0 text-xs">
                     {PHASE_LABELS[gap.phase]}
                   </span>
                   <span className="font-medium w-36 shrink-0">{gap.name}</span>
-                  <span className="text-padel-green font-mono w-14 text-right shrink-0">
+                  <span className="text-ink font-mono tabular-nums w-14 text-right shrink-0">
                     {gap.playerValue}
                     {gap.unit}
                   </span>
-                  <span className="text-amber-400 font-mono w-14 text-right shrink-0">
+                  <span className="text-sand font-mono tabular-nums w-14 text-right shrink-0">
                     {gap.proValue}
                     {gap.unit}
                   </span>
                   <div className="flex-1 min-w-0">
                     {/* Importance bar */}
-                    <div className="h-1.5 bg-slate-700 rounded-full">
+                    <div className="h-1.5 bg-rule rounded-full">
                       <div
                         className={cn(
                           "h-full rounded-full",
                           gap.status === "good"
                             ? "bg-green-400"
                             : gap.status === "improve"
-                              ? "bg-amber-400"
+                              ? "bg-sand"
                               : "bg-red-400"
                         )}
                         style={{

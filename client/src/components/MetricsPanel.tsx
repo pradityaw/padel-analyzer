@@ -19,7 +19,7 @@ const statusIcon: Record<MetricStatus, typeof CheckCircle> = {
 
 const statusColor: Record<MetricStatus, string> = {
   good: "text-green-400",
-  improve: "text-amber-400",
+  improve: "text-sand",
   issue: "text-red-400",
 };
 
@@ -32,9 +32,9 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
   const feedback = phase ? getMetricFeedback(phase.type, phase.metrics) : [];
 
   return (
-    <div className="bg-padel-surface rounded-xl border border-padel-border overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-rule overflow-hidden">
       {/* Phase tabs */}
-      <div className="flex border-b border-padel-border overflow-x-auto">
+      <div className="flex border-b border-rule overflow-x-auto">
         {phases.map((p) => (
           <button
             key={p.type}
@@ -42,8 +42,8 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
             className={cn(
               "flex-1 min-w-0 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors border-b-2",
               selected === p.type
-                ? "border-current text-white"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-current text-ink"
+                : "border-transparent text-muted-2 hover:text-ink-2"
             )}
             style={
               selected === p.type
@@ -64,7 +64,7 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
               <h3 className="font-semibold text-lg">
                 {PHASE_LABELS[phase.type]}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-2 tabular-nums">
                 Frames {phase.startFrame}–{phase.endFrame}
               </p>
             </div>
@@ -80,7 +80,7 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
               return (
                 <div
                   key={m.name}
-                  className="bg-slate-800/50 rounded-lg p-3"
+                  className="bg-white/5 rounded-lg p-3"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -89,14 +89,14 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
                       />
                       <span className="text-sm font-medium">{m.name}</span>
                     </div>
-                    <span className="text-sm font-mono">
+                    <span className="text-sm font-mono tabular-nums text-ink">
                       {m.value}
                       {m.unit}
                     </span>
                   </div>
 
                   {/* Gauge bar */}
-                  <div className="relative h-1.5 bg-slate-700 rounded-full mt-2 mb-2">
+                  <div className="relative h-1.5 bg-rule rounded-full mt-2 mb-2">
                     <div
                       className="absolute h-full rounded-full"
                       style={{
@@ -114,7 +114,7 @@ export default function MetricsPanel({ phases, activePhase }: Props) {
                     />
                   </div>
 
-                  <p className="text-xs text-slate-400">{m.tip}</p>
+                  <p className="text-xs text-ink-2">{m.tip}</p>
                 </div>
               );
             })}

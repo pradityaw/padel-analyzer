@@ -21,7 +21,7 @@ export function Section({
 }: SectionProps) {
   return (
     <section
-      className={cn("py-[var(--space-section)] md:py-24", className)}
+      className={cn("py-16 md:py-24", className)}
       {...props}
     >
       <div
@@ -31,19 +31,19 @@ export function Section({
         )}
       >
         {(label || title || subtitle) && (
-          <header className="mb-10 md:mb-12 text-center max-w-2xl mx-auto">
+          <header className="mb-10 md:mb-12 max-w-2xl">
             {label ? (
-              <p className="text-xs font-semibold uppercase tracking-widest text-padel-green mb-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-2 mb-2">
                 {label}
               </p>
             ) : null}
             {title ? (
-              <h2 className="display text-4xl sm:text-5xl text-white mb-3">
+              <h2 className="font-display-condensed text-3xl sm:text-4xl text-ink mb-3">
                 {title}
               </h2>
             ) : null}
             {subtitle ? (
-              <p className="text-slate-400 text-base sm:text-lg">{subtitle}</p>
+              <p className="text-ink-2 text-base sm:text-lg">{subtitle}</p>
             ) : null}
           </header>
         )}

@@ -82,13 +82,13 @@ export default function WeeklyGoal({ analysisCreatedAts }: Props) {
       : 0;
 
   return (
-    <div className="bg-padel-surface rounded-xl border border-padel-border p-4 mb-6">
+    <div className="bg-surface rounded-2xl border border-rule p-4 mb-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <Target className="w-5 h-5 text-padel-green shrink-0" />
+          <Target className="w-5 h-5 text-accent shrink-0" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-white">This week</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-ink">This week</h2>
+            <p className="text-xs text-muted-2">
               Your goal — pause or change anytime. No streaks, no penalties if
               you miss it.
             </p>
@@ -100,7 +100,7 @@ export default function WeeklyGoal({ analysisCreatedAts }: Props) {
             onClick={() =>
               persist({ ...goal, paused: !goal.paused, weekStartIso })
             }
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-padel-border text-xs text-slate-300 hover:bg-white/5"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-rule text-xs text-ink-2 hover:bg-white/5"
           >
             {goal.paused ? (
               <>
@@ -112,11 +112,11 @@ export default function WeeklyGoal({ analysisCreatedAts }: Props) {
               </>
             )}
           </button>
-          <label className="flex items-center gap-1 text-xs text-slate-400">
+          <label className="flex items-center gap-1 text-xs text-ink-2">
             <span className="sr-only">Weekly target</span>
             <ChevronDown className="w-3 h-3 opacity-60" aria-hidden />
             <select
-              className="bg-slate-900 border border-padel-border rounded-lg px-2 py-1.5 text-slate-200"
+              className="bg-raised border border-rule rounded-xl px-2 py-1.5 text-ink-2"
               value={goal.targetAnalyses}
               onChange={(e) =>
                 persist({
@@ -138,20 +138,20 @@ export default function WeeklyGoal({ analysisCreatedAts }: Props) {
 
       <div className="mt-4">
         <div className="flex justify-between text-xs mb-1.5">
-          <span className="text-slate-400">
+          <span className="text-ink-2">
             {goal.paused
               ? "Paused — not tracking this week"
               : `${weekCount} / ${goal.targetAnalyses} analyses this week`}
           </span>
           {!goal.paused && done ? (
-            <span className="text-padel-green font-semibold">Goal met</span>
+            <span className="text-accent font-semibold">Goal met</span>
           ) : null}
         </div>
-        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-2 bg-raised rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-all duration-500",
-              goal.paused ? "bg-slate-600" : done ? "bg-padel-green" : "bg-padel-green/70"
+              goal.paused ? "bg-muted-2" : done ? "bg-accent" : "bg-accent/70"
             )}
             style={{ width: `${goal.paused ? 0 : progress * 100}%` }}
           />

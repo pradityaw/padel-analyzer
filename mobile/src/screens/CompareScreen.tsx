@@ -13,6 +13,7 @@ import SectionCard from "../components/SectionCard";
 import { getAnalysisById, listRecentAnalyses } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
 import type { AnalysisPhase } from "../lib/types";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compare">;
 
@@ -137,7 +138,7 @@ export default function CompareScreen({ route }: Props) {
       </SectionCard>
 
       {listQuery.isLoading ? (
-        <ActivityIndicator color="#a3e635" />
+        <ActivityIndicator color={theme.accent} />
       ) : (
         (listQuery.data?.items ?? []).map((item) => {
           const isSelected = item.id === selectedA || item.id === selectedB;
@@ -190,59 +191,76 @@ export default function CompareScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0f172a" },
+  screen: { flex: 1, backgroundColor: theme.paper },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
   slotRow: { flexDirection: "row", gap: 10 },
   slot: {
     flex: 1,
-    backgroundColor: "#0f172a",
-    borderRadius: 12,
+    backgroundColor: theme.paper,
+    borderRadius: radius.input,
     padding: 12,
     gap: 4,
   },
-  slotLabel: { color: "#94a3b8", fontSize: 12, fontWeight: "600" },
-  slotValue: { color: "#f8fafc", fontSize: 13 },
-  slotScore: { color: "#a3e635", fontSize: 22, fontWeight: "800" },
+  slotLabel: {
+    color: theme.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  slotValue: { color: theme.ink, fontSize: 13 },
+  slotScore: {
+    color: theme.ink,
+    fontSize: 22,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
   toggleRow: { flexDirection: "row", gap: 8 },
   toggle: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.rule,
     paddingVertical: 10,
     alignItems: "center",
   },
-  toggleActive: { borderColor: "#a3e635", backgroundColor: "#a3e63522" },
-  toggleText: { color: "#94a3b8", fontWeight: "600" },
-  toggleTextActive: { color: "#d9f99d" },
+  toggleActive: { borderColor: theme.accent, backgroundColor: theme.white10 },
+  toggleText: { color: theme.ink2, fontWeight: "600" },
+  toggleTextActive: { color: theme.accent },
   listCard: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 14,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 14,
     gap: 4,
   },
-  listCardSelected: { borderColor: "#a3e635" },
+  listCardSelected: { borderColor: theme.accent },
   listCardPressed: { opacity: 0.85 },
-  cardTitle: { color: "#f8fafc", fontSize: 15, fontWeight: "600" },
-  metaText: { color: "#94a3b8", fontSize: 13 },
+  cardTitle: { color: theme.ink, fontSize: 15, fontWeight: "600" },
+  metaText: { color: theme.ink2, fontSize: 13 },
   phaseRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: theme.rule,
   },
   phaseTitle: {
     flex: 1,
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 14,
     fontWeight: "600",
     textTransform: "capitalize",
   },
-  delta: { fontSize: 18, fontWeight: "800", minWidth: 48, textAlign: "right" },
-  deltaPositive: { color: "#a3e635" },
-  deltaNegative: { color: "#f87171" },
+  delta: {
+    fontSize: 18,
+    fontWeight: "800",
+    minWidth: 48,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
+  deltaPositive: { color: theme.accent },
+  deltaNegative: { color: theme.danger },
 });

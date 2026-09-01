@@ -14,11 +14,12 @@
     },
     "scheme": "padelanalyzer",
     "plugins": [
-      "expo-document-picker"
+      "expo-document-picker",
+      "./plugins/withPodfileWarningSuppressions"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.padelanalyzermobile",
+      "bundleIdentifier": "com.padelanalyzer.mobile",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Padel Analyzer needs local network access to reach your swing analysis API (for example a dev machine on Wi‑Fi).",
         "NSAppTransportSecurity": {
@@ -27,14 +28,13 @@
       }
     },
     "android": {
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.example.padelanalyzermobile"
+      "package": "com.padelanalyzer.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"

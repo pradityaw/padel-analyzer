@@ -24,6 +24,11 @@ Attach the volume in `fly.toml` under `[mounts]` (see repo `fly.toml`).
 fly secrets set NODE_ENV=production
 fly secrets set AUTH_MODE=on
 fly secrets set SESSION_SECRET="$(openssl rand -hex 32)"
+fly secrets set PUBLIC_APP_URL="https://<your-app>.fly.dev"
+fly secrets set EMAIL_PROVIDER=resend
+fly secrets set EMAIL_FROM="Padel Analyzer <noreply@yourdomain>"
+fly secrets set RESEND_API_KEY="re_..."
+fly secrets set AUTH_ADMIN_EMAIL="you@yourdomain"
 # Optional: error reporting
 fly secrets set SENTRY_DSN="https://...@sentry.io/..."
 # Optional: Postgres instead of SQLite on the volume (see docs/POSTGRES.md)
@@ -34,6 +39,8 @@ npm run feedback:fly-secrets
 # or secrets + build + deploy:
 npm run feedback:fly-deploy
 ```
+
+`BALL_TRACKING_ENABLED=false` is set in `fly.toml` `[env]` for the pose-only beta. Do not commit secrets in `fly.toml`. See `.env.example` for the local template.
 
 After deploy, set Slack **Event Subscriptions** request URL to:
 
@@ -56,9 +63,11 @@ fly deploy
 
 ## Post-deploy
 
-1. Run DB push once on the machine (or bake into release command): `fly ssh console -C "cd /app && npx drizzle-kit push"` when using SQLite on the volume.
-2. Persist **`data/analysis-agents/`** on the same Fly volume as SQLite and uploads. Ball/racket overlays read `job-{id}.json` from this directory; wiping the volume without re-running jobs yields empty tracking on `analysis.getById`.
-3. Open the app URL; with `AUTH_MODE=on`, use **Sign in** (magic link). In development, the sign-in URL is printed in server logs after `auth.requestMagicLink`. Configure outbound email for production magic links when you add an email provider.
+1. **Schema is created at boot.** `ensureSchema()` in `server/lib/ensureSchema.ts` creates missing SQLite tables/columns when the process starts, seeds `AUTH_ADMIN_EMAIL`, and backfills null `user_id` rows. You do **not** need `drizzle-kit push` as the only path on a fresh Fly volume. Optional: still run `npx drizzle-kit push` if you want Drizzle's migrator as a second check.
+2. Persist **`data/analysis-agents/`** on the same Fly volume as SQLite and uploads. Pose-only beta leaves ball/racket artifacts empty on purpose (`BALL_TRACKING_ENABLED=false`).
+3. Open the app URL; with `AUTH_MODE=on`, use **Sign in** (magic link via Resend). Set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`, and `PUBLIC_APP_URL`. In development, `EMAIL_PROVIDER=console` logs the URL after `auth.requestMagicLink`.
+
+`fly.toml` sets `swap_size_mb = 1024` so MediaPipe pose can survive a 1 GB VM. Do not `fly deploy` from Cloud Agent pilot sessions.
 
 ## Cursor SDK deploy gate
 

@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 test("upload page describes server-side analysis flow", async ({ page }) => {
-  await page.goto("/upload");
+  await page.goto("/app/upload");
 
   await expect(
-    page.getByText(/Analysis runs on the server with MediaPipe/i)
+    page.getByText(/Pose extraction and phase scoring run on the server/i)
   ).toBeVisible();
   await expect(page.getByText(/Server analysis/i)).toBeVisible();
   await expect(page.getByText(/scripts\/analyze_video\.py/i)).toBeHidden();
@@ -89,7 +89,7 @@ test("upload processing UI can be mocked via job polling", async ({ page }) => {
     });
   });
 
-  await page.goto("/upload");
+  await page.goto("/app/upload");
 
   await page.setInputFiles('input[type="file"]', {
     name: "mock.mp4",
@@ -103,5 +103,5 @@ test("upload processing UI can be mocked via job polling", async ({ page }) => {
     page.getByText(/Analyzing your swing on the server/i)
   ).toBeVisible({ timeout: 10_000 });
 
-  await expect(page).toHaveURL(/\/analysis\/42$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/app\/analysis\/42$/, { timeout: 15_000 });
 });
