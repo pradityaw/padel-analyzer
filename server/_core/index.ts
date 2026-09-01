@@ -3,16 +3,19 @@ import { MulterError } from "multer";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers/index.js";
 import path from "path";
-import { mkdirSync } from "fs";
+import { mkdirSync, readdirSync, statSync } from "fs";
 import { createUploadHandler } from "./upload.js";
-import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
+import { getThumbnailsDir, getUploadsDir, getDataRoot } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
-import { MAX_UPLOAD_MB } from "../../shared/config.js";
+import { MAX_UPLOAD_MB, DATA_VOLUME_SOFT_CAP_BYTES } from "../../shared/config.js";
 import { logger } from "../lib/logger.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { createRequestContext } from "./requestContext.js";
 import { registerSlackFeedbackRoutes } from "../lib/slackFeedbackEvents.js";
 import { recoverPendingAnalysisJobs } from "../lib/analysisJobProcessor.js";
+import { registerAuthRoutes } from "./authRoutes.js";
+import { ensureSchema } from "../lib/ensureSchema.js";
+import { initSentry } from "../lib/sentry.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -26,6 +29,7 @@ const app = express();
 app.set("trust proxy", true);
 // Raw-body Slack route must register before express.json() so signature verification works.
 registerSlackFeedbackRoutes(app);
+registerAuthRoutes(app);
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
@@ -100,12 +104,36 @@ if (process.env.NODE_ENV === "production") {
   await attachViteDevMiddleware(app, rootDir);
 }
 
+function directorySizeBytes(dir: string): number {
+  let total = 0;
+  try {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) total += directorySizeBytes(full);
+      else total += statSync(full).size;
+    }
+  } catch {
+    return total;
+  }
+  return total;
+}
+
+ensureSchema();
+await initSentry();
+
 const PORT = parseInt(process.env.PORT || "3001", 10);
 /** Bind all interfaces so phones on the LAN can reach the dev API (physical device uploads). */
 const LISTEN_HOST = process.env.HOST || "0.0.0.0";
 const server = app.listen(PORT, LISTEN_HOST, () => {
+  const usedBytes = directorySizeBytes(getDataRoot());
+  if (usedBytes > DATA_VOLUME_SOFT_CAP_BYTES) {
+    logger.warn(
+      { usedBytes, capBytes: DATA_VOLUME_SOFT_CAP_BYTES },
+      "data volume over soft cap — delete old analyses or enlarge the Fly volume",
+    );
+  }
   logger.info(
-    { host: LISTEN_HOST, port: PORT, url: `http://localhost:${PORT}` },
+    { host: LISTEN_HOST, port: PORT, url: `http://localhost:${PORT}`, usedBytes },
     "Padel Analyzer listening",
   );
   recoverPendingAnalysisJobs();

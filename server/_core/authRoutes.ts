@@ -37,7 +37,7 @@ export function registerAuthRoutes(app: Express): void {
         maxAge,
       })
     );
-    res.redirect(302, "/");
+    res.redirect(302, "/app");
   });
 }
 

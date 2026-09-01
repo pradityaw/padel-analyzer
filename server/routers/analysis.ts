@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
+import { router, protectedProcedure, rateLimit } from "../_core/trpc.js";
 import { db } from "../db.js";
 import { analyses } from "../../drizzle/schema.js";
 import {
@@ -27,6 +27,9 @@ import {
   sanitizeRacketTrackingPayload,
 } from "../lib/trackingPayload.js";
 import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
+import { deleteAnalysisArtifacts } from "../lib/analysisCleanup.js";
+import { ownerIdForInsert, requireOwner } from "../lib/ownership.js";
+import { isBallTrackingEnabled } from "../../shared/config.js";
 
 const listSelectBase = {
   id: analyses.id,
@@ -48,7 +51,7 @@ const listSelectBase = {
 } as const;
 
 export const analysisRouter = router({
-  create: publicProcedure
+  create: protectedProcedure
     .use(
       rateLimit({
         capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
@@ -59,35 +62,44 @@ export const analysisRouter = router({
       }),
     )
     .input(createAnalysisInputSchema)
-    .mutation(async ({ input }) => {
-      const result = db.insert(analyses).values(input).returning().get();
+    .mutation(async ({ ctx, input }) => {
+      const userId = ownerIdForInsert(ctx.authMode, ctx.user?.id);
+      const result = db
+        .insert(analyses)
+        .values({ ...input, userId })
+        .returning()
+        .get();
       return result;
     }),
 
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(
       z.object({
         id: z.number().int().positive(),
         includeLandmarks: z.boolean().optional().default(false),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const result = db
         .select()
         .from(analyses)
         .where(eq(analyses.id, input.id))
         .get();
       if (!result) return null;
+      requireOwner(ctx.authMode, ctx.user?.id, result.userId);
 
       const landmarksJson = input.includeLandmarks
         ? resolveLandmarksJson(result)
         : "[]";
 
       const sourceJobId = resolveCompletedJobIdForAnalysis(input.id);
-      const [ballRaw, racketRaw] = await Promise.all([
-        readAnalysisBallTracking(sourceJobId, landmarksJson),
-        readAnalysisRacketTracking(sourceJobId, landmarksJson),
-      ]);
+      const trackingEnabled = isBallTrackingEnabled();
+      const [ballRaw, racketRaw] = trackingEnabled
+        ? await Promise.all([
+            readAnalysisBallTracking(sourceJobId, landmarksJson),
+            readAnalysisRacketTracking(sourceJobId, landmarksJson),
+          ])
+        : [[], []];
 
       const trackingMeta = trackingMetaSchema.parse({
         sourceJobId,
@@ -116,9 +128,9 @@ export const analysisRouter = router({
       };
     }),
 
-  list: publicProcedure
+  list: protectedProcedure
     .input(analysisListInputSchema.optional())
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const limit = input?.limit ?? 20;
       const cursor = input?.cursor;
       const includePhasesJson = input?.includePhasesJson ?? false;
@@ -127,11 +139,18 @@ export const analysisRouter = router({
         ? { ...listSelectBase, phasesJson: analyses.phasesJson }
         : listSelectBase;
 
+      const ownerFilter =
+        ctx.authMode === "on" && ctx.user
+          ? eq(analyses.userId, ctx.user.id)
+          : undefined;
+      const cursorFilter = cursor != null ? lt(analyses.id, cursor) : undefined;
+      const whereClause =
+        ownerFilter && cursorFilter
+          ? and(ownerFilter, cursorFilter)
+          : ownerFilter ?? cursorFilter;
+
       const base = db.select(selectShape).from(analyses);
-      const rows = (cursor != null
-        ? base.where(lt(analyses.id, cursor))
-        : base
-      )
+      const rows = (whereClause != null ? base.where(whereClause) : base)
         .orderBy(desc(analyses.id))
         .limit(limit + 1)
         .all();
@@ -148,10 +167,17 @@ export const analysisRouter = router({
       });
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
-    .mutation(async ({ input }) => {
-      db.delete(analyses).where(eq(analyses.id, input.id)).run();
+    .mutation(async ({ ctx, input }) => {
+      const row = db
+        .select()
+        .from(analyses)
+        .where(eq(analyses.id, input.id))
+        .get();
+      if (!row) return { success: true };
+      requireOwner(ctx.authMode, ctx.user?.id, row.userId);
+      deleteAnalysisArtifacts(input.id);
       return { success: true };
     }),
 
@@ -162,7 +188,7 @@ export const analysisRouter = router({
    * is cached under `data/rallies/<id>.json`. First call may take several
    * seconds (audio extraction + frame scan); subsequent calls are instant.
    */
-  getRallies: publicProcedure
+  getRallies: protectedProcedure
     .input(detectRalliesInputSchema)
     .query(async ({ input }) => {
       try {
@@ -187,7 +213,7 @@ export const analysisRouter = router({
     }),
 
   /** Read-only fast path: return cached rallies or null without spawning Python. */
-  getCachedRallies: publicProcedure
+  getCachedRallies: protectedProcedure
     .input(z.object({ analysisId: z.number().int().positive() }))
     .query(async ({ input }) => {
       const cached = await getCachedRallies(input.analysisId);

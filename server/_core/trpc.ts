@@ -1,13 +1,51 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { Request } from "express";
 import superjson from "superjson";
+import type { Context } from "./context.js";
+import { getAuthMode } from "./context.js";
 
-const t = initTRPC.create({
+function sanitizeErrorMessage(message: string): string {
+  const compact = message.replace(/\s+/g, " ").trim();
+  if (
+    /sqlite|no such table|SQLITE_|better-sqlite|drizzle|yt-dlp|Traceback|ECONNREFUSED/i.test(
+      compact,
+    )
+  ) {
+    return "Something went wrong. Please try again.";
+  }
+  return compact.slice(0, 300);
+}
+
+const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    const production = process.env.NODE_ENV === "production";
+    return {
+      ...shape,
+      message: production ? sanitizeErrorMessage(error.message) : error.message,
+      data: {
+        ...shape.data,
+        stack: production ? undefined : shape.data.stack,
+      },
+    };
+  },
 });
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (getAuthMode() === "off") {
+    return next({ ctx });
+  }
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Sign in to continue.",
+    });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
 
 /**
  * tRPC rate-limit middleware factory (in-memory token bucket per client IP).
@@ -60,7 +98,7 @@ export function rateLimit(opts: {
       }
     }
 
-    const req = (ctx as { req?: unknown } | undefined)?.req;
+    const req = ctx.req;
     const key = clientIpFromReq(req);
     const bucket = buckets.get(key);
     if (!bucket) {

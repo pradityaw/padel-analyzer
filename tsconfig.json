@@ -20,10 +20,6 @@
   },
   "include": ["client/src", "shared", "server"],
   "exclude": [
-    "server/routers/auth.ts",
-    "server/_core/authRoutes.ts",
-    "server/_core/context.ts",
-    "server/lib/sessionAuth.ts",
     "client/src/components/CourtHeatmapOverlay.tsx",
     "client/src/components/RallyTimeline.tsx",
     "client/src/components/SwingRing.tsx",
