@@ -3,6 +3,8 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "../db.js";
 import { analyses, analysisJobs, annotations } from "../../drizzle/schema.js";
 
+const UPLOAD_OWNER_RE = /^u(\d+)_/;
+
 export function safeUploadBasename(raw: string): string | null {
   if (!raw || raw.includes("\0")) return null;
   const base = path.basename(raw);
@@ -11,10 +13,29 @@ export function safeUploadBasename(raw: string): string | null {
   return base;
 }
 
+/** `u{id}_` prefix used by local uploads and YouTube saves. */
+export function ownedUploadPrefix(userId: number): string {
+  return `u${userId}_`;
+}
+
+/**
+ * Owner id embedded in a storage basename. Compares the integer between `u`
+ * and `_` so user 1 does not match `u10_…` / `u11_…` (startsWith(`u${id}`)
+ * would). Returns null when the name is not an owned-upload key.
+ */
+export function uploadOwnerIdFromName(filename: string): number | null {
+  const match = UPLOAD_OWNER_RE.exec(filename);
+  if (!match) return null;
+  const id = Number(match[1]);
+  if (!Number.isSafeInteger(id) || id < 1) return null;
+  if (String(id) !== match[1]) return null;
+  return id;
+}
+
 export function canReadUploadFile(userId: number, filename: string): boolean {
   const safe = safeUploadBasename(filename);
   if (!safe) return false;
-  if (safe.startsWith(`u${userId}_`)) return true;
+  if (uploadOwnerIdFromName(safe) === userId) return true;
 
   const analysis = db
     .select({ id: analyses.id, userId: analyses.userId })
