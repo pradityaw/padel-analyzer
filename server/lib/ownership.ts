@@ -1,5 +1,8 @@
 import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import type { AuthMode } from "../_core/context.js";
+import { db } from "../db.js";
+import { analyses, analysisJobs, type Analysis, type AnalysisJob } from "../../drizzle/schema.js";
 
 export function requireOwner(
   authMode: AuthMode,
@@ -33,4 +36,40 @@ export function ownerIdForInsert(
     });
   }
   return userId;
+}
+
+export function requireOwnedAnalysis(
+  authMode: AuthMode,
+  userId: number | null | undefined,
+  analysisId: number,
+): Analysis {
+  const row = db.select().from(analyses).where(eq(analyses.id, analysisId)).get();
+  if (!row) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Analysis not found.",
+    });
+  }
+  requireOwner(authMode, userId, row.userId);
+  return row;
+}
+
+export function requireOwnedJob(
+  authMode: AuthMode,
+  userId: number | null | undefined,
+  jobId: number,
+): AnalysisJob {
+  const row = db
+    .select()
+    .from(analysisJobs)
+    .where(eq(analysisJobs.id, jobId))
+    .get();
+  if (!row) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Job not found.",
+    });
+  }
+  requireOwner(authMode, userId, row.userId);
+  return row;
 }

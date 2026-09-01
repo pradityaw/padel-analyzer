@@ -170,6 +170,7 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     const qualityWarning = qualityWarningForPoseRate(poseDetectionRate);
 
     const newAnalysis: NewAnalysis = {
+      userId: job.userId ?? null,
       videoFileName: job.videoFileName,
       videoStorageKey: job.videoStorageKey,
       overallScore: result.swing.overallScore,

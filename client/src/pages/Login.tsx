@@ -12,8 +12,14 @@ export default function Login() {
     new URLSearchParams(search).get("next")?.startsWith("/")
       ? new URLSearchParams(search).get("next")!
       : "/app";
+  const linkError = new URLSearchParams(search).get("error");
   const [email, setEmail] = useState("");
-  const [banner, setBanner] = useState("");
+  const [banner, setBanner] = useState(() => {
+    if (linkError === "expired" || linkError === "invalid") {
+      return "That sign-in link is invalid or has expired. Request a new one below.";
+    }
+    return "";
+  });
 
   const session = trpc.auth.getSession.useQuery(undefined, { retry: false });
   const requestLink = trpc.auth.requestMagicLink.useMutation({
@@ -65,7 +71,8 @@ export default function Login() {
             Sign in to Padel Analyzer
           </h1>
           <p className="mt-2 text-center text-sm text-muted-2">
-            Magic-link authentication — no password.
+            Magic-link authentication — no password. Links expire after 15
+            minutes.
           </p>
 
           <form
@@ -104,7 +111,14 @@ export default function Login() {
           </form>
 
           {banner ? (
-            <p className="mt-4 break-words text-xs text-ink-2">{banner}</p>
+            <p
+              className={`mt-4 break-words text-xs ${
+                linkError || requestLink.isError ? "text-sand" : "text-ink-2"
+              }`}
+              data-testid="login-banner"
+            >
+              {banner}
+            </p>
           ) : null}
         </div>
       </motion.div>

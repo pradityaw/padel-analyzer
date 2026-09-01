@@ -28,7 +28,7 @@ import {
 } from "../lib/trackingPayload.js";
 import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 import { deleteAnalysisArtifacts } from "../lib/analysisCleanup.js";
-import { ownerIdForInsert, requireOwner } from "../lib/ownership.js";
+import { ownerIdForInsert, requireOwnedAnalysis, requireOwner } from "../lib/ownership.js";
 import { isBallTrackingEnabled } from "../../shared/config.js";
 
 const listSelectBase = {
@@ -190,7 +190,8 @@ export const analysisRouter = router({
    */
   getRallies: protectedProcedure
     .input(detectRalliesInputSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      requireOwnedAnalysis(ctx.authMode, ctx.user?.id, input.analysisId);
       try {
         const result = await detectRalliesForAnalysis(input.analysisId, {
           force: input.force ?? false,
@@ -215,7 +216,8 @@ export const analysisRouter = router({
   /** Read-only fast path: return cached rallies or null without spawning Python. */
   getCachedRallies: protectedProcedure
     .input(z.object({ analysisId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      requireOwnedAnalysis(ctx.authMode, ctx.user?.id, input.analysisId);
       const cached = await getCachedRallies(input.analysisId);
       return cached ?? null;
     }),
