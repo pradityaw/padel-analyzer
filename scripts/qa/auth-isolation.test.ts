@@ -230,6 +230,27 @@ await assert("B cannot read A's upload filename", async () => {
   }
 });
 
+await assert("upload owner prefix does not grant access to longer user ids", async () => {
+  if (canReadUploadFile(1, "u10_clip.mp4")) {
+    throw new Error("user 1 matched u10_ clip");
+  }
+  if (canReadUploadFile(1, "u11_clip.mp4")) {
+    throw new Error("user 1 matched u11_ clip");
+  }
+  if (canReadUploadFile(1, "u12_clip.mp4")) {
+    throw new Error("user 1 matched u12_ clip");
+  }
+  if (canReadUploadFile(1, "u1clip.mp4")) {
+    throw new Error("user 1 matched unterminated u1 prefix");
+  }
+  if (!canReadUploadFile(1, "u1_clip.mp4")) {
+    throw new Error("user 1 could not read own u1_ clip");
+  }
+  if (!canReadUploadFile(10, "u10_clip.mp4")) {
+    throw new Error("user 10 could not read own u10_ clip");
+  }
+});
+
 await assert("A create accepts a display title with an owned storage key", async () => {
   const created = await callerA.analysis.create({
     ...createPayload,
