@@ -27,9 +27,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm ci --prefix mobile
 
       - name: Setup Python
         uses: actions/setup-python@v5
