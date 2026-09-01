@@ -266,8 +266,9 @@ function spawnDetector(
     }, timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
+      if (settled) return;
       stdoutBytes += chunk.length;
-      if (stdoutBytes > maxStdoutBytes && !settled) {
+      if (stdoutBytes > maxStdoutBytes) {
         settled = true;
         clearTimeout(timer);
         terminateChildWithEscalation(child);

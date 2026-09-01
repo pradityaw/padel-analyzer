@@ -10,6 +10,7 @@ import path from "path";
 const GUARDED_FILES = [
   "server/lib/cvAgentStageRunner.ts",
   "server/lib/cvPipeline.ts",
+  "server/lib/rallyDetection.ts",
 ] as const;
 
 function assert(name: string, fn: () => void | Promise<void>) {
