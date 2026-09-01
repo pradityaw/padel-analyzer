@@ -36,6 +36,13 @@
       "when": 1779979246188,
       "tag": "0004_court_corners",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1756752000000,
+      "tag": "0005_beta_auth",
+      "breakpoints": true
     }
   ]
 }

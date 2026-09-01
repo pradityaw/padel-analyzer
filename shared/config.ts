@@ -22,10 +22,25 @@ export const PHASE_ORDER: readonly SwingPhaseType[] = [
 
 export const SAMPLE_FPS = 15;
 
-export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+export const MAX_UPLOAD_BYTES = 300 * 1024 * 1024; // 300 MB (beta; Fly volume is 3 GB)
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
 export const YOUTUBE_MAX_DURATION_SEC = 30 * 60; // 30 minutes
+
+/** Soft total of uploads+artifacts on the Fly volume before we log a warning. */
+export const DATA_VOLUME_SOFT_CAP_BYTES = 2 * 1024 * 1024 * 1024;
+
+/**
+ * Hosted beta ships pose + phases only. TrackNet weights are license-unclear
+ * and are not in the Docker image. Override with BALL_TRACKING_ENABLED=true
+ * for local CV work.
+ */
+export function isBallTrackingEnabled(): boolean {
+  const raw = process.env.BALL_TRACKING_ENABLED;
+  if (raw === "false" || raw === "0") return false;
+  if (raw === "true" || raw === "1") return true;
+  return process.env.NODE_ENV !== "production";
+}
 
 export const PADEL_BALL_BACKENDS = ["opencv", "tracknet"] as const;
 export type PadelBallBackend = (typeof PADEL_BALL_BACKENDS)[number];

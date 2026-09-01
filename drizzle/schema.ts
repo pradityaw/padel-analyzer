@@ -1,7 +1,36 @@
 import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const sessions = sqliteTable("sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const magicLinkChallenges = sqliteTable("magic_link_challenges", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 export const analyses = sqliteTable("analyses", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
   videoFileName: text("video_file_name").notNull(),
   /** Filename under data/uploads (for /uploads/... playback). */
   videoStorageKey: text("video_storage_key"),
@@ -33,6 +62,7 @@ export const analyses = sqliteTable("analyses", {
 
 export const analysisJobs = sqliteTable("analysis_jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
   videoFileName: text("video_file_name").notNull(),
   videoStorageKey: text("video_storage_key").notNull(),
   status: text("status").notNull().default("queued"),
@@ -54,6 +84,7 @@ export const analysisJobs = sqliteTable("analysis_jobs", {
 
 export const annotations = sqliteTable("annotations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
   analysisId: integer("analysis_id").notNull(),
   shotType: text("shot_type").notNull(),
   isProReference: integer("is_pro_reference", { mode: "boolean" })
@@ -71,6 +102,7 @@ export const annotations = sqliteTable("annotations", {
 
 export const proComparisons = sqliteTable("pro_comparisons", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
   playerAnalysisId: integer("player_analysis_id").notNull(),
   proAnalysisId: integer("pro_analysis_id"),
   referenceTier: text("reference_tier").notNull().default("pro"),
@@ -102,6 +134,19 @@ export const proBenchmarks = sqliteTable(
   ]
 );
 
+export const feedback = sqliteTable("feedback", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
+  analysisId: integer("analysis_id"),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  tag: text("tag"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export type User = typeof users.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type NewAnalysis = typeof analyses.$inferInsert;
 export type AnalysisJob = typeof analysisJobs.$inferSelect;
@@ -110,3 +155,5 @@ export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
 export type ProComparison = typeof proComparisons.$inferSelect;
 export type ProBenchmark = typeof proBenchmarks.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;
