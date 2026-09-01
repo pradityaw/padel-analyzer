@@ -1,5 +1,7 @@
+/* Hallmark · design-system: design.md · designed-as-app · theme: studied-DNA "Court Flood" (source: image) */
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
+import MarketingNav from "@/components/home/MarketingNav";
 import Hero from "@/components/home/Hero";
 import HowItWorks from "@/components/home/HowItWorks";
 import TrustStrip from "@/components/home/TrustStrip";
@@ -15,6 +17,7 @@ export default function Home() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <MarketingNav />
       <Hero />
       <HowItWorks />
       <TrustStrip />

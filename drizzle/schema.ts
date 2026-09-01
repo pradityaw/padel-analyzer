@@ -21,6 +21,14 @@ export const analyses = sqliteTable("analyses", {
   skillLabel: text("skill_label"),
   skillConfidence: real("skill_confidence"),
   qualityScore: real("quality_score"),
+  poseDetectionRate: real("pose_detection_rate"),
+  qualityWarning: text("quality_warning"),
+  landmarksPath: text("landmarks_path"),
+  /** JSON: CourtCornersNormalized from mobile capture overlay. */
+  courtCornersJson: text("court_corners_json"),
+  mode: text("mode", { enum: ["match", "rally", "serve_practice", "drill"] })
+    .notNull()
+    .default("match"),
 });
 
 export const analysisJobs = sqliteTable("analysis_jobs", {
@@ -38,6 +46,10 @@ export const analysisJobs = sqliteTable("analysis_jobs", {
   updatedAt: text("updated_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
+  courtCornersJson: text("court_corners_json"),
+  mode: text("mode", { enum: ["match", "rally", "serve_practice", "drill"] })
+    .notNull()
+    .default("match"),
 });
 
 export const annotations = sqliteTable("annotations", {

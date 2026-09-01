@@ -219,6 +219,13 @@ export const analysisResultSchema = z.object({
   qualityScore: z.number().min(0).max(100).optional(),
 });
 
+export const recordModeSchema = z.enum([
+  "match",
+  "rally",
+  "serve_practice",
+  "drill",
+]);
+
 // ── Analysis list (metadata-only; no heavy JSON columns) ───────────────────
 
 /** List view: metadata-only row (no heavy JSON columns). */
@@ -238,6 +245,7 @@ export const analysisListItemSchema = z.object({
   skillLabel: qualityBandSchema.nullable().optional(),
   skillConfidence: z.number().nullable().optional(),
   qualityScore: z.number().nullable().optional(),
+  mode: recordModeSchema.optional(),
   /** Only present when `includePhasesJson` was requested on list. */
   phasesJson: z.string().optional(),
 });
@@ -293,9 +301,28 @@ export const analysisJobStageProgressSchema = z.object({
   errorMessage: z.string().nullable().optional(),
 });
 
+const courtCornerNormalizedSchema = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+});
+
+/** Four corners: top-left, top-right, bottom-right, bottom-left (normalized 0–1). */
+export const courtCornersInputSchema = z.object({
+  corners: z.tuple([
+    courtCornerNormalizedSchema,
+    courtCornerNormalizedSchema,
+    courtCornerNormalizedSchema,
+    courtCornerNormalizedSchema,
+  ]),
+  previewWidth: z.number().int().positive().optional(),
+  previewHeight: z.number().int().positive().optional(),
+});
+
 export const createMobileAnalysisJobInputSchema = z.object({
   videoFileName: z.string().min(1),
   videoStorageKey: z.string().min(1),
+  courtCorners: courtCornersInputSchema.optional(),
+  mode: recordModeSchema.optional().default("match"),
 });
 
 export const analysisJobSchema = z.object({
@@ -307,6 +334,8 @@ export const analysisJobSchema = z.object({
   statusMessage: z.string().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
   analysisId: z.number().int().positive().nullable().optional(),
+  courtCornersJson: z.string().nullable().optional(),
+  mode: recordModeSchema.default("match"),
   stages: z.array(analysisJobStageProgressSchema).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),

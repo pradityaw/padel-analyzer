@@ -1,4 +1,5 @@
 import type { RallyResult } from "@shared/types";
+import { UI } from "@/lib/uiColors";
 
 type Props = {
   rallies: RallyResult[];
@@ -17,13 +18,13 @@ export default function RallyTimeline({
 
   if (rallies.length === 0) {
     return (
-      <p className="text-sm text-slate-500 py-2">No active rallies detected in this clip.</p>
+      <p className="text-sm text-muted-2 py-2">No active rallies detected in this clip.</p>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="relative h-3 rounded-full bg-slate-800 overflow-hidden">
+      <div className="relative h-3 rounded-full bg-raised overflow-hidden">
         {rallies.map((rally) => {
           const left = (rally.start / duration) * 100;
           const width = Math.max(0.5, ((rally.end - rally.start) / duration) * 100);
@@ -35,12 +36,12 @@ export default function RallyTimeline({
               title={`Rally ${rally.rally_id}: ${rally.start.toFixed(1)}s – ${rally.end.toFixed(1)}s`}
               onClick={() => onRallyClick(rally)}
               className={`absolute top-0 h-full transition-opacity ${
-                active ? "opacity-100" : "opacity-70 hover:opacity-100"
+                active ? "opacity-100" : "opacity-60 hover:opacity-100"
               }`}
               style={{
                 left: `${left}%`,
                 width: `${width}%`,
-                backgroundColor: active ? "#a3e635" : "#4ade80",
+                backgroundColor: UI.accent,
               }}
             />
           );
@@ -55,16 +56,16 @@ export default function RallyTimeline({
               <button
                 type="button"
                 onClick={() => onRallyClick(rally)}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left text-sm transition-colors ${
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-full border text-left text-sm transition-colors ${
                   active
-                    ? "border-padel-green/50 bg-padel-green/10 text-white"
-                    : "border-padel-border text-slate-300 hover:bg-white/5"
+                    ? "border-accent/50 bg-accent/10 text-ink"
+                    : "border-rule text-ink-2 hover:bg-white/5"
                 }`}
               >
                 <span>
                   Rally {rally.rally_id} · {rally.start.toFixed(1)}s – {rally.end.toFixed(1)}s
                 </span>
-                <span className="text-xs text-slate-500 shrink-0">
+                <span className="text-xs text-muted-2 shrink-0 tabular-nums">
                   {rally.max_speed.toFixed(0)} px/f
                 </span>
               </button>

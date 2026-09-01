@@ -18,9 +18,9 @@
 | 6 | ~~TOCTOU race in YouTube download~~ | B | **Done** | Severity #6 |
 | 7 | ~~N+1 queries in proCompare list and export~~ | B | **Done** | Severity #7 |
 | 8 | ~~No pagination on `analysis.list` (returns all rows with JSON blobs)~~ | B | **Done** | Severity #8 |
-| 9 | True worker offload for the analysis pipeline — `pipeline.worker.ts` exists, but full MediaPipe/ONNX execution still runs on the main thread because of DOM/runtime constraints | A | Partial | Milestone 1 |
-| 10 | Persist “analysis in progress” and low-detection quality signals beyond sessionStorage so refresh/deep-link flows still show the right state | A + B + C | Open | UX gap |
-| 11 | Normalize analysis data storage so list/replay scale beyond large JSON blobs in SQLite rows | B + S + C | Open | Milestone 3 |
+| 9 | ~~True worker offload for the analysis pipeline~~ — **Decided (June 2026): closed as overtaken by events.** The web client switched to server-side analysis jobs (commit `c59322b`); the client pipeline (`analysisPipeline.ts`, `pipeline.worker.ts`) has zero call sites and should be deleted/quarantined. If client-side analysis ever returns, the verified-feasible design is hybrid main-thread-decode + worker-inference — see [`docs/WORKER_OFFLOAD_DECISION.md`](./docs/WORKER_OFFLOAD_DECISION.md) | A | **Decided** | Milestone 1 |
+| 10 | ~~Persist “analysis in progress” and low-detection quality signals beyond sessionStorage so refresh/deep-link flows still show the right state~~ | A + B + C | **Done** | UX gap |
+| 11 | ~~Normalize analysis data storage so list/replay scale beyond large JSON blobs in SQLite rows~~ | B + S + C | **Done** | Milestone 3 |
 
 ---
 
@@ -37,8 +37,8 @@ Goal: Decouple ML orchestration from `Upload.tsx` so it is testable, cancellable
 | `Upload.tsx` becomes a thin event consumer | A + C | **Done** |
 | Abort/cancel button during processing | C | **Done** |
 | Spike: MediaPipe in Worker on Safari | A | **Partial** (feature-detection and graceful fallback only; no verified Safari run) |
-| Persist in-progress analysis state across navigation / reload | A + C | Open |
-| Persist low-detection warning on the analysis record instead of sessionStorage-only handoff | S + B + C | Open |
+| Persist in-progress analysis state across navigation / reload | A + C | **Done** |
+| Persist low-detection warning on the analysis record instead of sessionStorage-only handoff | S + B + C | **Done** |
 
 ### Milestone 2 — Consolidate Scoring Configuration
 
@@ -63,7 +63,7 @@ Goal: Single source of truth for ranges, weights, labels, feedback. Most constan
 | Separate landmarks into file-based storage (write-once `.json`) | B + S | Not started |
 | ~~`analysis.list` returns metadata only (no JSON blobs)~~ | B | **Done by default** (`phasesJson` optional, `landmarksJson` excluded) |
 | ~~Cursor-based pagination on `analysis.list`~~ | B | **Done** |
-| Lazy-load landmarks on replay player mount | C | Not started |
+| Lazy-load landmarks on replay player mount | C | **Done** |
 
 ### Medium / low-severity fixes
 
@@ -77,14 +77,14 @@ Goal: Single source of truth for ranges, weights, labels, feedback. Most constan
 | — | ~~`MetricsPanel` tabs lack `role="tab"` / `aria-selected`~~ | C | **Done** | Review §3 |
 | — | ~~`Navbar` icon-only links missing `aria-label` / screen-reader text on mobile~~ | C | **Done** | Review §3 |
 | — | VideoPlayer keeps a black video stage for letterboxing; other surrounding surfaces now use theme tokens | C | Partial / acceptable | Review §3 |
-| — | History selected shot-type pills still use `color: "#000"` for contrast on colored backgrounds | C | Low-priority polish | Review §3 |
+| — | ~~History selected shot-type pills still use `color: "#000"` for contrast on colored backgrounds~~ | C | **Done** | Review §3 |
 
 ### UX journey gaps (from ARCHITECTURE_REVIEW.md §3)
 
 | Gap | Owner | Status |
 |-----|-------|--------|
 | ~~No "Processing Failed" recovery — must re-select video~~ | C | **Done** |
-| No "Analysis in Progress" persistence (navigate away = lost) | A + C | Open |
+| No "Analysis in Progress" persistence (navigate away = lost) | A + C | **Done** |
 | Video quality feedback now appears after upload via sessionStorage handoff; persistent replay/deep-link support still needs schema + storage | A → S/B → C | Partial |
 | ~~YouTube duration check is server-only — client should pre-validate~~ | C + B | **Done** |
 

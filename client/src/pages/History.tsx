@@ -1,16 +1,10 @@
-import { useState } from "react";
+/* Hallmark · genre: modern-minimal (dark, data-led sports) · macrostructure: Stat-Led
+ * design-system: design.md · designed-as-app · theme: studied-DNA "Court Flood" (source: image)
+ * pre-emit critique: P5 H5 E5 S5 R4 V4 */
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import {
-  Clock,
-  Trash2,
-  Activity,
-  Plus,
-  Star,
-  Target,
-  Layers,
-  GitCompareArrows,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, Plus, Star } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -22,9 +16,63 @@ import {
   ReferenceLine,
 } from "recharts";
 import { trpc } from "@/lib/trpc";
-import ScoreCard from "@/components/ScoreCard";
-import type { ShotType } from "@shared/types";
-import { SHOT_TYPE_LABELS, SHOT_TYPE_COLORS } from "@shared/types";
+import { DEMO_ANALYSIS_ID } from "@/lib/sampleAnalysis";
+import SessionLedgerCard from "@/components/ui/SessionLedgerCard";
+import type { RecordMode, ShotType } from "@shared/types";
+import {
+  RECORD_MODE_LABELS,
+  SHOT_TYPE_LABELS,
+  SHOT_TYPE_COLORS,
+} from "@shared/types";
+
+function recordModeLabel(mode: string | null | undefined): string | null {
+  if (!mode || !(mode in RECORD_MODE_LABELS)) return null;
+  return RECORD_MODE_LABELS[mode as RecordMode];
+}
+
+type AnalysisListItem = { id: number; videoFileName: string };
+
+const UNDO_WINDOW_MS = 5000;
+
+function formatSessionMeta(a: {
+  createdAt: string;
+  dominantSide: string;
+  durationMs?: number | null;
+  frameCount: number;
+}): string {
+  const date = new Date(a.createdAt).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const dur =
+    a.durationMs != null
+      ? `${Math.round(a.durationMs / 1000)}s`
+      : `${a.frameCount} fr`;
+  const hand = a.dominantSide === "right" ? "R" : "L";
+  return `${date} · ${dur} · ${hand}-hand`;
+}
+
+function groupAnalysesByDay<T extends { createdAt: string }>(
+  items: T[]
+): { key: string; label: string; dayNum: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const d = new Date(item.createdAt);
+    const key = d.toDateString();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  }
+  return [...map.entries()].map(([key, dayItems]) => {
+    const d = new Date(key);
+    return {
+      key,
+      label: d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(),
+      dayNum: String(d.getDate()),
+      items: dayItems,
+    };
+  });
+}
 
 export default function History() {
   const [, navigate] = useLocation();
@@ -35,6 +83,62 @@ export default function History() {
   const deleteMutation = trpc.analysis.delete.useMutation({
     onSuccess: () => utils.analysis.list.invalidate(),
   });
+
+  // Optimistic delete with an undo window. The actual server mutation only
+  // fires once the window elapses, so Undo is a true cancel (no surprise write).
+  const [pendingDelete, setPendingDelete] = useState<{
+    item: AnalysisListItem;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const pendingRef = useRef<typeof pendingDelete>(null);
+  pendingRef.current = pendingDelete;
+
+  const commitDelete = useCallback(
+    (id: number) => {
+      deleteMutation.mutate({ id });
+    },
+    [deleteMutation]
+  );
+
+  const handleDelete = useCallback(
+    (item: AnalysisListItem) => {
+      // Flush any in-flight pending delete before starting a new one.
+      if (pendingRef.current) {
+        clearTimeout(pendingRef.current.timer);
+        commitDelete(pendingRef.current.item.id);
+      }
+      utils.analysis.list.setData(undefined, (old) =>
+        old
+          ? { ...old, items: old.items.filter((a) => a.id !== item.id) }
+          : old
+      );
+      const timer = setTimeout(() => {
+        commitDelete(item.id);
+        setPendingDelete(null);
+      }, UNDO_WINDOW_MS);
+      setPendingDelete({ item, timer });
+    },
+    [commitDelete, utils.analysis.list]
+  );
+
+  const handleUndo = useCallback(() => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    setPendingDelete(null);
+    void utils.analysis.list.invalidate();
+  }, [utils.analysis.list]);
+
+  // On unmount, commit any pending delete so it is not silently dropped.
+  useEffect(() => {
+    return () => {
+      const pending = pendingRef.current;
+      if (pending) {
+        clearTimeout(pending.timer);
+        commitDelete(pending.item.id);
+      }
+    };
+  }, [commitDelete]);
 
   const bestScore = analyses
     ? Math.max(0, ...analyses.map((a) => a.overallScore))
@@ -60,6 +164,8 @@ export default function History() {
       ? analyses
       : analyses?.filter((a) => a.shotType === shotFilter);
 
+  const dayGroups = groupAnalysesByDay(filteredAnalyses ?? []);
+
   const chartData = analyses
     ?.slice()
     .reverse()
@@ -74,7 +180,7 @@ export default function History() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="w-8 h-8 border-2 border-padel-green border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -86,34 +192,49 @@ export default function History() {
       exit={{ opacity: 0 }}
       className="max-w-5xl mx-auto px-4 py-8"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <Clock className="w-6 h-6 text-padel-green shrink-0" />
-          <h1 className="display text-3xl sm:text-4xl truncate">Sessions</h1>
-        </div>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h1 className="font-display-condensed text-3xl text-ink sm:text-4xl">
+          Your sports schedule
+        </h1>
         <button
           type="button"
-          onClick={() => navigate("/upload")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-padel-green text-black text-sm font-bold hover:opacity-90 transition-opacity shrink-0"
+          onClick={() => navigate("/app/upload")}
+          className="flex shrink-0 items-center gap-2 rounded-full bg-cta px-5 py-2 text-sm font-bold text-cta-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
         >
-          <Plus className="w-4 h-4" />
-          New analysis
+          <Plus className="h-4 w-4" />
+          New
         </button>
       </div>
 
       {!analyses || analyses.length === 0 ? (
-        <div className="text-center py-16">
-          <Activity className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400 text-lg mb-2">No analyses yet</p>
-          <p className="text-sm text-slate-500 mb-6">
-            Upload a video to get started
+        <div className="mx-auto max-w-md rounded-2xl bg-flood px-6 py-12 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
+            <Activity className="h-7 w-7 text-ink" />
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
+            No sessions yet
+          </p>
+          <h2 className="mt-2 font-display-condensed text-2xl text-ink">
+            Analyze your first swing
+          </h2>
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/70">
+            Upload a side-view clip or paste a YouTube link. Your scores and
+            progress will land here.
           </p>
           <button
-            onClick={() => navigate("/upload")}
-            className="px-5 py-2.5 rounded-lg bg-padel-green text-black font-bold hover:opacity-90 transition-opacity"
+            type="button"
+            onClick={() => navigate("/app/upload")}
+            className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-cta px-5 font-bold text-cta-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            Analyze a Swing
+            <Plus className="h-4 w-4" />
+            Analyze a swing
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/app/analysis/${DEMO_ANALYSIS_ID}`)}
+            className="mt-3 text-sm font-medium text-white/70 underline-offset-4 transition-colors hover:text-ink hover:underline"
+          >
+            Preview the demo dashboard
           </button>
         </div>
       ) : (
@@ -122,56 +243,50 @@ export default function History() {
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[
               {
-                icon: Layers,
                 label: "Sessions",
                 value: analyses.length,
-                color: "text-padel-green",
+                color: "text-ink",
               },
               {
-                icon: Star,
                 label: "Personal Best",
                 value: bestScore,
-                color: "text-amber-400",
+                color: "text-sand",
               },
               {
-                icon: Target,
                 label: "Top Shot",
-                value: topShotType
-                  ? SHOT_TYPE_LABELS[topShotType]
-                  : "—",
-                color: topShotType
-                  ? undefined
-                  : "text-slate-400",
+                value: topShotType ? SHOT_TYPE_LABELS[topShotType] : "—",
+                color: topShotType ? undefined : "text-ink-2",
                 style: topShotType
                   ? { color: SHOT_TYPE_COLORS[topShotType] }
                   : undefined,
               },
-            ].map(({ icon: Icon, label, value, color, style }) => (
+            ].map(({ label, value, color, style }) => (
               <div
                 key={label}
-                className="bg-padel-surface rounded-xl border border-padel-border px-4 py-3 flex items-center gap-3"
+                className="flex flex-col gap-2 rounded-2xl border border-rule bg-surface px-4 py-3.5"
               >
-                <Icon className={`w-5 h-5 shrink-0 ${color ?? ""}`} style={style} />
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-500 truncate">{label}</p>
-                  <p
-                    className={`font-bold text-lg leading-tight truncate ${color ?? ""}`}
-                    style={style}
-                  >
-                    {value}
-                  </p>
-                </div>
+                <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-2">
+                  {label}
+                </span>
+                <p
+                  className={`truncate text-xl font-bold leading-none tabular-nums sm:text-2xl ${color ?? "text-ink"}`}
+                  style={style}
+                >
+                  {value}
+                </p>
               </div>
             ))}
           </div>
 
           {/* Progress chart */}
           {chartData && chartData.length > 1 && (
-            <div className="bg-padel-surface rounded-xl border border-padel-border p-5 mb-6">
+            <div className="bg-surface rounded-2xl border border-rule p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-400">Score Progress</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-2">
+                  Score Progress
+                </h2>
                 {bestScore > 0 && (
-                  <span className="text-xs text-amber-400 flex items-center gap-1">
+                  <span className="text-xs text-sand flex items-center gap-1 tabular-nums">
                     <Star className="w-3 h-3" />
                     PB: {bestScore}
                   </span>
@@ -179,32 +294,32 @@ export default function History() {
               </div>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#28315e" />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tick={{ fontSize: 11, fill: "#6b75a3" }}
                   />
                   <YAxis
                     domain={[0, 100]}
-                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tick={{ fontSize: 11, fill: "#6b75a3" }}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#0f172a",
-                      border: "1px solid #334155",
-                      borderRadius: 8,
+                      background: "#131a40",
+                      border: "1px solid #28315e",
+                      borderRadius: 12,
                       fontSize: 12,
                     }}
                   />
                   {bestScore > 0 && (
                     <ReferenceLine
                       y={bestScore}
-                      stroke="#f59e0b"
+                      stroke="#e8c468"
                       strokeDasharray="4 4"
                       strokeWidth={1.5}
                       label={{
                         value: `PB ${bestScore}`,
-                        fill: "#f59e0b",
+                        fill: "#e8c468",
                         fontSize: 10,
                         position: "insideTopRight",
                       }}
@@ -213,146 +328,143 @@ export default function History() {
                   <Line
                     type="monotone"
                     dataKey="score"
-                    stroke="#a3e635"
+                    stroke="#5b8cff"
                     strokeWidth={2}
-                    dot={{ fill: "#a3e635", r: 4 }}
-                    activeDot={{ r: 6, fill: "#a3e635", stroke: "#0f172a", strokeWidth: 2 }}
+                    dot={{ fill: "#5b8cff", r: 4 }}
+                    activeDot={{ r: 6, fill: "#5b8cff", stroke: "#0a0f2e", strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           )}
 
-          {/* Shot-type filter pills */}
+          {/* Shot-type filter — horizontal scroll circles (Fixtured team-strip voice) */}
           {presentShotTypes.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap mb-4">
+            <div className="mb-6 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
+                type="button"
                 onClick={() => setShotFilter("all")}
                 className={[
-                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                  "flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 text-[10px] font-bold uppercase transition-colors",
                   shotFilter === "all"
-                    ? "bg-padel-green text-black border-padel-green"
-                    : "border-padel-border text-slate-400 hover:border-slate-500 hover:text-white",
+                    ? "border-cta bg-cta text-cta-ink"
+                    : "border-rule bg-surface text-ink-2 hover:border-accent/40",
                 ].join(" ")}
               >
-                All ({analyses.length})
+                All
               </button>
               {presentShotTypes.map((type) => (
                 <button
                   key={type}
+                  type="button"
                   onClick={() =>
                     setShotFilter((prev) => (prev === type ? "all" : type))
                   }
-                  className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
+                  className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 text-[9px] font-bold uppercase leading-tight transition-all"
                   style={
                     shotFilter === type
                       ? {
                           backgroundColor: SHOT_TYPE_COLORS[type],
-                          color: "#000",
                           borderColor: SHOT_TYPE_COLORS[type],
+                          color: "#0a0f2e",
                         }
                       : {
-                          borderColor: `${SHOT_TYPE_COLORS[type]}44`,
+                          borderColor: `${SHOT_TYPE_COLORS[type]}55`,
                           color: SHOT_TYPE_COLORS[type],
-                          backgroundColor: `${SHOT_TYPE_COLORS[type]}10`,
+                          backgroundColor: `${SHOT_TYPE_COLORS[type]}12`,
                         }
                   }
                 >
-                  {SHOT_TYPE_LABELS[type]} ({shotTypeCounts[type]})
+                  {SHOT_TYPE_LABELS[type].slice(0, 6)}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Analysis cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(filteredAnalyses ?? []).map((a) => {
-              const isPB = a.overallScore === bestScore && bestScore > 0;
-              const shotColor = a.shotType
-                ? SHOT_TYPE_COLORS[a.shotType as ShotType]
-                : undefined;
-              return (
-                <motion.div
-                  key={a.id}
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-padel-surface rounded-xl border border-padel-border p-4 cursor-pointer group relative overflow-hidden"
-                  style={
-                    shotColor
-                      ? { borderLeftColor: shotColor, borderLeftWidth: 3 }
-                      : undefined
-                  }
-                  onClick={() => navigate(`/analysis/${a.id}`)}
-                >
-                  {isPB && (
-                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] text-amber-400 font-semibold">
-                      <Star className="w-3 h-3 fill-amber-400" />
-                      PB
-                    </div>
-                  )}
-
-                  <div className="flex items-start justify-between mb-3 pr-8">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate text-sm">{a.videoFileName}</p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(a.createdAt).toLocaleDateString()} —{" "}
-                        {a.dominantSide === "right" ? "R" : "L"}-hand
-                      </p>
-                    </div>
-                    <ScoreCard score={a.overallScore} size="sm" />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {a.shotType && (
-                        <span
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                          style={{
-                            backgroundColor: `${shotColor}22`,
-                            color: shotColor,
-                            border: `1px solid ${shotColor}44`,
-                          }}
-                        >
-                          {SHOT_TYPE_LABELS[a.shotType as ShotType]}
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-500">
-                        {a.frameCount} fr
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {/* Always visible so touch/keyboard users can reach compare without hover. */}
-                      <button
-                        type="button"
-                        aria-label="Compare with another swing"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/compare?a=${a.id}`);
-                        }}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-padel-green hover:bg-padel-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-padel-green/60 transition-colors"
-                      >
-                        <GitCompareArrows className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Delete analysis"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm("Delete this analysis?")) {
-                            deleteMutation.mutate({ id: a.id });
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+          {/* Timeline ledger — date rail + flood featured + white rows */}
+          <div className="space-y-8">
+            {dayGroups.map((group, groupIdx) => (
+              <div key={group.key} className="flex gap-4">
+                <div className="flex w-10 shrink-0 flex-col items-center pt-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-2">
+                    {group.label}
+                  </span>
+                  <span className="font-display-condensed text-2xl tabular-nums text-ink">
+                    {group.dayNum}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`mt-2 w-px flex-1 min-h-[2rem] ${
+                      groupIdx === dayGroups.length - 1 ? "bg-transparent" : "bg-rule"
+                    }`}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 space-y-3 pb-2">
+                  {group.items.map((a, idx) => {
+                    const isFirstOverall =
+                      groupIdx === 0 &&
+                      idx === 0 &&
+                      shotFilter === "all";
+                    const isPB = a.overallScore === bestScore && bestScore > 0;
+                    const shotType = a.shotType as ShotType | null | undefined;
+                    const shotColor = shotType
+                      ? SHOT_TYPE_COLORS[shotType]
+                      : undefined;
+                    return (
+                      <SessionLedgerCard
+                        key={a.id}
+                        title={a.videoFileName}
+                        meta={formatSessionMeta(a)}
+                        score={a.overallScore}
+                        shotType={shotType}
+                        shotColor={shotColor}
+                        recordModeLabel={recordModeLabel(a.mode)}
+                        frameCount={a.frameCount}
+                        isPersonalBest={isPB}
+                        featured={isFirstOverall && !!shotColor}
+                        onOpen={() => navigate(`/app/analysis/${a.id}`)}
+                        onDelete={() =>
+                          handleDelete({
+                            id: a.id,
+                            videoFileName: a.videoFileName,
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}
+
+      <AnimatePresence>
+        {pendingDelete && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            role="status"
+            className="fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-4 rounded-full border border-rule bg-surface/95 py-2.5 pl-5 pr-2.5 shadow-2xl backdrop-blur-lg"
+          >
+            <span className="truncate text-sm text-ink-2">
+              Deleted{" "}
+              <span className="font-medium text-ink">
+                {pendingDelete.item.videoFileName}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={handleUndo}
+              className="shrink-0 rounded-full bg-cta px-4 py-1.5 text-sm font-bold text-cta-ink transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              Undo
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { UI } from "@/lib/uiColors";
 
 type Props = {
   score: number;
@@ -8,8 +9,8 @@ type Props = {
 };
 
 function scoreColor(score: number): string {
-  if (score >= 80) return "#a3e635";
-  if (score >= 60) return "#f59e0b";
+  if (score >= 80) return UI.accent;
+  if (score >= 60) return UI.sand;
   return "#ef4444";
 }
 
@@ -52,7 +53,7 @@ export default function ScoreCard({ score, label, size = "lg" }: Props) {
           cy={dim / 2}
           r={r}
           fill="none"
-          stroke="#1e293b"
+          stroke={UI.surface}
           strokeWidth={stroke}
         />
         {/* Outer glow ring (subtle) */}
@@ -96,11 +97,11 @@ export default function ScoreCard({ score, label, size = "lg" }: Props) {
           {displayScore}
         </span>
         {size === "lg" && (
-          <span className="text-[10px] text-slate-500 tracking-widest uppercase mt-0.5">pts</span>
+          <span className="text-[10px] text-muted-2 tracking-widest uppercase mt-0.5">pts</span>
         )}
       </div>
       {label && (
-        <span className="text-xs text-slate-400 mt-1">{label}</span>
+        <span className="text-xs text-ink-2 mt-1">{label}</span>
       )}
     </div>
   );

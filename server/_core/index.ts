@@ -7,7 +7,10 @@ import { mkdirSync } from "fs";
 import { createUploadHandler } from "./upload.js";
 import { getThumbnailsDir, getUploadsDir } from "../lib/paths.js";
 import { resolveProjectRoot } from "../lib/projectRoot.js";
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../../shared/config.js";
+import { MAX_UPLOAD_MB } from "../../shared/config.js";
+import { logger } from "../lib/logger.js";
+import { createRateLimiter } from "../lib/rateLimiter.js";
+import { createRequestContext } from "./requestContext.js";
 
 const rootDir = resolveProjectRoot(import.meta.url);
 const uploadsDir = getUploadsDir();
@@ -16,6 +19,9 @@ mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(getThumbnailsDir(), { recursive: true });
 
 const app = express();
+// Fly (and most reverse proxies) terminate TLS in front of the app; trust the
+// forwarded client IP so rate limiting keys on the real caller, not the proxy.
+app.set("trust proxy", true);
 app.use(express.json({ limit: `${MAX_UPLOAD_MB}mb` }));
 
 const upload = createUploadHandler(uploadsDir);
@@ -47,11 +53,20 @@ function uploadSingleMiddleware(
   });
 }
 
+// Token-bucket limiter on the expensive public routes. Tuned for a single
+// Fly instance; bump via env if you scale out. Uploads are the heaviest
+// (disk + Python CV pipeline downstream), so they get the tightest budget.
+const uploadLimiter = createRateLimiter({
+  capacity: Number(process.env.RATE_LIMIT_UPLOAD_CAPACITY ?? 10),
+  refillPerSecond: Number(process.env.RATE_LIMIT_UPLOAD_REFILL_PER_SEC ?? 0.5),
+  id: "upload",
+});
+
 app.get("/healthz", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/upload", uploadSingleMiddleware, (req, res) => {
+app.post("/api/upload", uploadLimiter, uploadSingleMiddleware, (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -63,6 +78,7 @@ app.use(
   "/api/trpc",
   createExpressMiddleware({
     router: appRouter,
+    createContext: createRequestContext,
   })
 );
 
@@ -84,15 +100,17 @@ const PORT = parseInt(process.env.PORT || "3001", 10);
 /** Bind all interfaces so phones on the LAN can reach the dev API (physical device uploads). */
 const LISTEN_HOST = process.env.HOST || "0.0.0.0";
 const server = app.listen(PORT, LISTEN_HOST, () => {
-  console.log(
-    `Padel Analyzer listening on ${LISTEN_HOST}:${PORT} (browser: http://localhost:${PORT})`,
+  logger.info(
+    { host: LISTEN_HOST, port: PORT, url: `http://localhost:${PORT}` },
+    "Padel Analyzer listening",
   );
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {
-    console.error(
-      `Padel Analyzer could not start: ${LISTEN_HOST}:${PORT} is already in use.`,
+    logger.fatal(
+      { err, host: LISTEN_HOST, port: PORT },
+      "Padel Analyzer could not start: address already in use",
     );
     process.exit(1);
   }

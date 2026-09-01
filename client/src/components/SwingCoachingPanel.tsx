@@ -12,14 +12,8 @@ const statusIcon: Record<MetricStatus, typeof CheckCircle> = {
 
 const statusColor: Record<MetricStatus, string> = {
   good: "text-green-400",
-  improve: "text-amber-400",
+  improve: "text-sand",
   issue: "text-red-400",
-};
-
-const statusBg: Record<MetricStatus, string> = {
-  good: "bg-green-400/10 border-green-400/20",
-  improve: "bg-amber-400/10 border-amber-400/20",
-  issue: "bg-red-400/10 border-red-400/20",
 };
 
 type CoachingItem = {
@@ -68,22 +62,22 @@ export default function SwingCoachingPanel({ phases }: Props) {
 
   if (top.length === 0) {
     return (
-      <div className="bg-padel-surface rounded-xl border border-padel-border p-5 text-center">
-        <CheckCircle className="w-8 h-8 text-padel-green mx-auto mb-2" />
-        <p className="font-semibold text-padel-green">Great swing!</p>
-        <p className="text-sm text-slate-400 mt-1">All metrics are within ideal ranges.</p>
+      <div className="bg-surface rounded-2xl border border-rule p-5 text-center">
+        <CheckCircle className="w-8 h-8 text-accent mx-auto mb-2" />
+        <p className="font-semibold text-accent">Great swing!</p>
+        <p className="text-sm text-ink-2 mt-1">All metrics are within ideal ranges.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-padel-surface rounded-xl border border-padel-border overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-padel-border">
-        <TrendingUp className="w-4 h-4 text-padel-green" />
+    <div className="bg-surface rounded-2xl border border-rule overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-rule">
+        <TrendingUp className="w-4 h-4 text-accent" />
         <h3 className="font-semibold text-sm">Coaching Tips</h3>
-        <span className="ml-auto text-xs text-slate-500">{items.length} areas to improve</span>
+        <span className="ml-auto text-xs text-muted-2">{items.length} areas to improve</span>
       </div>
-      <div className="divide-y divide-padel-border">
+      <div className="divide-y divide-rule">
         {top.map((item, i) => {
           const Icon = statusIcon[item.status];
           const phaseColor = PHASE_COLORS[item.phaseType];
@@ -109,23 +103,23 @@ export default function SwingCoachingPanel({ phases }: Props) {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mb-1.5 text-xs">
-                    <span className="font-mono text-slate-300">
+                    <span className="font-mono tabular-nums text-ink-2">
                       {item.value}{item.unit}
                     </span>
-                    <span className="text-slate-600">→</span>
-                    <span className="font-mono text-slate-400">
+                    <span className="text-muted-2">→</span>
+                    <span className="font-mono tabular-nums text-ink-2">
                       ideal {item.idealRange[0]}–{item.idealRange[1]}{item.unit}
                     </span>
                     <span
                       className={cn(
-                        "font-mono px-1 py-0.5 rounded text-[10px]",
+                        "font-mono px-1 py-0.5 rounded-full text-[10px]",
                         delta > 0 ? "bg-blue-500/10 text-blue-400" : "bg-orange-500/10 text-orange-400"
                       )}
                     >
                       {delta > 0 ? "+" : ""}{delta}{item.unit}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">{item.tip}</p>
+                  <p className="text-xs text-ink-2 leading-relaxed">{item.tip}</p>
                 </div>
               </div>
             </div>
@@ -133,8 +127,8 @@ export default function SwingCoachingPanel({ phases }: Props) {
         })}
       </div>
       {items.length > 4 && (
-        <div className="px-4 py-2.5 border-t border-padel-border">
-          <p className="text-xs text-slate-500 text-center">
+        <div className="px-4 py-2.5 border-t border-rule">
+          <p className="text-xs text-muted-2 text-center">
             +{items.length - 4} more metrics in the panel →
           </p>
         </div>

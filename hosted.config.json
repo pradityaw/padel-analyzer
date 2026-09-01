@@ -1,0 +1,7 @@
+{
+  "flyApp": "padel-analyzer",
+  "hostedApiBaseUrl": "https://padel-analyzer.fly.dev",
+  "flyRegion": "ams",
+  "flyVolumeName": "padel_data",
+  "flyVolumeSizeGb": 3
+}

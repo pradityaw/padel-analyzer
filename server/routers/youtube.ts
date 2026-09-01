@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { mkdirSync, existsSync } from "fs";
 import path from "path";
 import { execFile } from "node:child_process";
@@ -112,8 +112,17 @@ async function downloadVideo(
   );
 }
 
+// YouTube routes shell out to yt-dlp (network fetch + disk write) — rate-limit
+// per client IP to bound abuse. Tunable via env.
+const youtubeRateLimit = rateLimit({
+  capacity: Number(process.env.RATE_LIMIT_YOUTUBE_CAPACITY ?? 8),
+  refillPerSecond: Number(process.env.RATE_LIMIT_YOUTUBE_REFILL_PER_SEC ?? 0.2),
+  id: "youtube",
+});
+
 export const youtubeRouter = router({
   getInfo: publicProcedure
+    .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);
@@ -129,6 +138,7 @@ export const youtubeRouter = router({
     }),
 
   download: publicProcedure
+    .use(youtubeRateLimit)
     .input(z.object({ url: ytUrlSchema }))
     .mutation(async ({ input }) => {
       const info = await getVideoInfo(input.url);

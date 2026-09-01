@@ -1,6 +1,7 @@
 import type { NavigationProp } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { RootStackParamList } from "../lib/navigation";
+import { theme, radius } from "../lib/theme";
 
 type NavTarget = {
   label: string;
@@ -70,10 +71,10 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: "48%",
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 14,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 14,
     gap: 4,
   },
@@ -81,12 +82,12 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 15,
     fontWeight: "700",
   },
   description: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 12,
   },
 });

@@ -1,3 +1,4 @@
+/* Hallmark · design-system: design.md · designed-as-app · theme: studied-DNA "Court Flood" (source: image) */
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { motion } from "framer-motion";
@@ -81,10 +82,10 @@ function RadarCompare({
   }, [selectedPhase, playerPhases, proPhases]);
 
   return (
-    <div className="bg-padel-surface rounded-xl border border-padel-border p-5">
+    <div className="bg-surface rounded-2xl border border-rule p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <BarChart2 className="w-4 h-4 text-padel-green" />
+          <BarChart2 className="w-4 h-4 text-accent" />
           <h3 className="font-semibold text-sm">Metrics Radar</h3>
         </div>
         {/* Phase selector */}
@@ -98,7 +99,7 @@ function RadarCompare({
                 selectedPhase === phase
                   ? {
                       backgroundColor: PHASE_COLORS[phase],
-                      color: "#000",
+                      color: "#0a0f2e",
                       borderColor: PHASE_COLORS[phase],
                     }
                   : {
@@ -117,15 +118,15 @@ function RadarCompare({
       {radarData.length > 0 ? (
         <ResponsiveContainer width="100%" height={260}>
           <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-            <PolarGrid stroke="#334155" />
+            <PolarGrid stroke="#28315e" />
             <PolarAngleAxis
               dataKey="metric"
-              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              tick={{ fontSize: 10, fill: "#aab3d6" }}
             />
             <RechartsTooltip
               contentStyle={{
-                background: "#0f172a",
-                border: "1px solid #334155",
+                background: "#0a0f2e",
+                border: "1px solid #28315e",
                 borderRadius: 8,
                 fontSize: 11,
               }}
@@ -133,16 +134,16 @@ function RadarCompare({
             <Radar
               name="You"
               dataKey="player"
-              stroke="#a3e635"
-              fill="#a3e635"
+              stroke="#5b8cff"
+              fill="#5b8cff"
               fillOpacity={0.15}
               strokeWidth={2}
             />
             <Radar
               name="Pro"
               dataKey="pro"
-              stroke="#f59e0b"
-              fill="#f59e0b"
+              stroke="#e8c468"
+              fill="#e8c468"
               fillOpacity={0.1}
               strokeWidth={2}
               strokeDasharray="4 2"
@@ -150,7 +151,7 @@ function RadarCompare({
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
               formatter={(value) => (
-                <span style={{ color: value === "You" ? "#a3e635" : "#f59e0b" }}>
+                <span style={{ color: value === "You" ? "#5b8cff" : "#e8c468" }}>
                   {value}
                 </span>
               )}
@@ -158,7 +159,7 @@ function RadarCompare({
           </RadarChart>
         </ResponsiveContainer>
       ) : (
-        <div className="h-64 flex items-center justify-center text-slate-500 text-sm">
+        <div className="h-64 flex items-center justify-center text-muted-2 text-sm">
           No data for this phase
         </div>
       )}
@@ -173,12 +174,12 @@ const statusIcon: Record<MetricStatus, typeof CheckCircle> = {
 };
 const statusColor: Record<MetricStatus, string> = {
   good: "text-green-400",
-  improve: "text-amber-400",
+  improve: "text-sand",
   issue: "text-red-400",
 };
 const statusBg: Record<MetricStatus, string> = {
   good: "bg-green-400/10 border-green-400/20",
-  improve: "bg-amber-400/10 border-amber-400/20",
+  improve: "bg-sand/10 border-sand/40",
   issue: "bg-red-400/10 border-red-400/20",
 };
 
@@ -193,11 +194,11 @@ function GapScoreboard({ gapAnalysis }: { gapAnalysis: GapAnalysis }) {
   const focusGap = top5[0];
 
   return (
-    <div className="bg-padel-surface rounded-xl border border-padel-border overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-padel-border">
-        <Target className="w-4 h-4 text-amber-400" />
+    <div className="bg-surface rounded-2xl border border-rule overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-rule">
+        <Target className="w-4 h-4 text-sand" />
         <h3 className="font-semibold text-sm">Gap Scoreboard</h3>
-        <span className="ml-auto text-xs text-slate-500">
+        <span className="ml-auto text-xs text-muted-2 tabular-nums">
           Top {top5.length} gaps ranked
         </span>
       </div>
@@ -206,19 +207,19 @@ function GapScoreboard({ gapAnalysis }: { gapAnalysis: GapAnalysis }) {
       {focusGap && focusGap.status !== "good" && (
         <div
           className={cn(
-            "mx-4 mt-4 rounded-lg border p-3 mb-2",
+            "mx-4 mt-4 rounded-xl border p-3 mb-2",
             statusBg[focusGap.status]
           )}
         >
-          <p className="text-xs text-slate-400 mb-0.5">Focus Area #1</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-2 mb-0.5">Focus Area #1</p>
           <p className="font-semibold text-sm">
             {focusGap.name} — {PHASE_LABELS[focusGap.phase]}
           </p>
-          <p className="text-xs text-slate-300 mt-1">{focusGap.tip}</p>
+          <p className="text-xs text-ink-2 mt-1">{focusGap.tip}</p>
         </div>
       )}
 
-      <div className="divide-y divide-padel-border">
+      <div className="divide-y divide-rule">
         {top5.map((gap, i) => {
           const Icon = statusIcon[gap.status];
           const absPercent = Math.min(100, Math.abs(gap.percentDelta));
@@ -227,7 +228,7 @@ function GapScoreboard({ gapAnalysis }: { gapAnalysis: GapAnalysis }) {
               key={`${gap.phase}-${gap.metric}`}
               className="flex items-center gap-3 px-4 py-2.5"
             >
-              <span className="text-xs text-slate-600 font-mono w-4 shrink-0">
+              <span className="text-xs text-muted-2 tabular-nums w-4 shrink-0">
                 #{i + 1}
               </span>
               <Icon className={cn("w-4 h-4 shrink-0", statusColor[gap.status])} />
@@ -235,7 +236,7 @@ function GapScoreboard({ gapAnalysis }: { gapAnalysis: GapAnalysis }) {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium truncate">{gap.name}</span>
                   <span
-                    className="text-[10px] px-1.5 py-0.5 rounded ml-2 shrink-0 font-mono"
+                    className="text-[10px] px-1.5 py-0.5 rounded-full ml-2 shrink-0"
                     style={{
                       color: PHASE_COLORS[gap.phase],
                       backgroundColor: `${PHASE_COLORS[gap.phase]}18`,
@@ -244,21 +245,21 @@ function GapScoreboard({ gapAnalysis }: { gapAnalysis: GapAnalysis }) {
                     {PHASE_LABELS[gap.phase]}
                   </span>
                 </div>
-                <div className="h-1.5 bg-slate-700 rounded-full">
+                <div className="h-1.5 bg-white/10 rounded-full">
                   <div
                     className={cn(
                       "h-full rounded-full",
                       gap.status === "good"
                         ? "bg-green-400"
                         : gap.status === "improve"
-                          ? "bg-amber-400"
+                          ? "bg-sand"
                           : "bg-red-400"
                     )}
                     style={{ width: `${absPercent}%` }}
                   />
                 </div>
               </div>
-              <span className="text-xs font-mono text-slate-400 shrink-0 w-16 text-right">
+              <span className="text-xs tabular-nums text-ink-2 shrink-0 w-16 text-right">
                 {gap.playerValue}{gap.unit} → {gap.proValue}{gap.unit}
               </span>
             </div>
@@ -435,14 +436,11 @@ export default function ProCompare() {
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <Trophy className="w-6 h-6 text-amber-400" />
-          <h1 className="text-2xl font-bold">Pro Compare</h1>
-        </div>
+        <h1 className="font-display-condensed text-3xl text-ink">Pro Compare</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-white/15 bg-white/10 text-ink hover:bg-white/15 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Export Pairs
@@ -454,7 +452,7 @@ export default function ProCompare() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Player selector */}
         <div>
-          <label className="flex items-center gap-2 text-sm text-padel-green mb-2">
+          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-accent mb-2">
             <User className="w-4 h-4" />
             Your Swing
           </label>
@@ -466,7 +464,7 @@ export default function ProCompare() {
               );
               setSelectedProId(null); // reset pro selection on player change
             }}
-            className="w-full bg-padel-surface border border-padel-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-padel-green"
+            className="w-full bg-surface border border-rule rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
           >
             <option value="">Select your analysis...</option>
             {allAnalyses?.map((a) => (
@@ -482,7 +480,7 @@ export default function ProCompare() {
 
         {/* Pro selector */}
         <div>
-          <label className="flex items-center gap-2 text-sm text-amber-400 mb-2">
+          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-sand mb-2">
             <Trophy className="w-4 h-4" />
             Pro Reference
           </label>
@@ -490,16 +488,16 @@ export default function ProCompare() {
             value={proMode}
             onValueChange={(v) => setProMode(v as "video" | "average")}
           >
-            <Tabs.List className="flex border-b border-padel-border mb-2">
+            <Tabs.List className="flex border-b border-rule mb-2">
               <Tabs.Trigger
                 value="video"
-                className="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors data-[state=active]:border-amber-400 data-[state=active]:text-amber-400 data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500"
+                className="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors data-[state=active]:border-sand data-[state=active]:text-sand data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-2"
               >
                 Match with Pro Video
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="average"
-                className="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors data-[state=active]:border-amber-400 data-[state=active]:text-amber-400 data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500"
+                className="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors data-[state=active]:border-sand data-[state=active]:text-sand data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-2"
               >
                 Use Pro Average
               </Tabs.Trigger>
@@ -514,7 +512,7 @@ export default function ProCompare() {
                       e.target.value ? Number(e.target.value) : null
                     )
                   }
-                  className="w-full bg-padel-surface border border-padel-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400"
+                  className="w-full bg-surface border border-rule rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sand"
                 >
                   <option value="">Select a pro reference...</option>
                   {matchingProAnalyses.map((p) => (
@@ -524,7 +522,7 @@ export default function ProCompare() {
                   ))}
                 </select>
               ) : (
-                <p className="text-sm text-slate-500 py-2">
+                <p className="text-sm text-muted-2 py-2">
                   {!playerShotType
                     ? "Select your swing first to see matching pro references."
                     : `No pro references for ${SHOT_TYPE_LABELS[playerShotType] ?? playerShotType} yet. Go to Annotate to label pro videos.`}
@@ -534,19 +532,19 @@ export default function ProCompare() {
 
             <Tabs.Content value="average">
               {benchmark ? (
-                <div className="bg-padel-surface border border-padel-border rounded-lg px-3 py-2.5 text-sm">
-                  <span className="text-amber-400 font-medium">
+                <div className="bg-surface border border-rule rounded-xl px-3 py-2.5 text-sm">
+                  <span className="text-sand font-medium">
                     {SHOT_TYPE_LABELS[playerShotType as ShotType] ??
                       playerShotType}
                   </span>
-                  <span className="text-slate-400">
+                  <span className="text-ink-2">
                     {" "}
                     — Based on {benchmark.sampleCount} pro sample
                     {benchmark.sampleCount !== 1 ? "s" : ""}
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500 py-2">
+                <p className="text-sm text-muted-2 py-2">
                   {!playerShotType
                     ? "Select your swing first."
                     : "No pro benchmarks available for this shot type."}
@@ -562,9 +560,9 @@ export default function ProCompare() {
         <>
           {/* Overview scores */}
           <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-padel-surface rounded-xl border border-padel-border p-5 flex items-center justify-between">
+            <div className="bg-surface rounded-2xl border border-rule p-5 flex items-center justify-between">
               <div>
-                <p className="text-xs text-padel-green font-medium mb-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent mb-1">
                   Your Score
                 </p>
                 <p className="font-semibold">
@@ -574,15 +572,15 @@ export default function ProCompare() {
               <ScoreCard score={playerData?.overallScore ?? 0} size="sm" />
             </div>
 
-            <div className="bg-padel-surface rounded-xl border border-amber-400/20 p-5 flex flex-col items-center justify-center">
-              <p className="text-xs text-slate-400 mb-1">Gap Score</p>
+            <div className="bg-flood rounded-2xl p-5 flex flex-col items-center justify-center text-ink">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70 mb-1">Gap Score</p>
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-amber-400" />
-                <span className="text-3xl font-bold text-amber-400">
+                <Target className="w-5 h-5 text-sand" />
+                <span className="text-4xl font-bold tabular-nums text-ink">
                   {gapAnalysis.overallGapScore}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-white/70 mt-1">
                 {gapAnalysis.overallGapScore >= 80
                   ? "Very close to pro!"
                   : gapAnalysis.overallGapScore >= 60
@@ -591,9 +589,9 @@ export default function ProCompare() {
               </p>
             </div>
 
-            <div className="bg-padel-surface rounded-xl border border-padel-border p-5 flex items-center justify-between">
+            <div className="bg-surface rounded-2xl border border-rule p-5 flex items-center justify-between">
               <div>
-                <p className="text-xs text-amber-400 font-medium mb-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand mb-1">
                   Pro Reference
                 </p>
                 <p className="font-semibold">
@@ -610,7 +608,7 @@ export default function ProCompare() {
 
           {/* Synchronized skeleton replay */}
           {proMode === "video" && proFrames.length > 0 && (
-            <div className="bg-padel-surface rounded-xl border border-padel-border p-5 mb-8">
+            <div className="bg-surface rounded-2xl border border-rule p-5 mb-8">
               <div className="flex justify-center gap-8 mb-4">
                 <SkeletonReplay
                   frames={playerFrames}
@@ -621,7 +619,7 @@ export default function ProCompare() {
                     playerFrames.length - 1
                   )}
                   showControls={false}
-                  accentColor="#a3e635"
+                  accentColor="#5b8cff"
                   label="You"
                 />
                 <SkeletonReplay
@@ -633,7 +631,7 @@ export default function ProCompare() {
                     proFrames.length - 1
                   )}
                   showControls={false}
-                  accentColor="#f59e0b"
+                  accentColor="#e8c468"
                   label="Pro"
                 />
               </div>
@@ -645,13 +643,13 @@ export default function ProCompare() {
                     setSyncPlaying(false);
                     setSyncFrameIdx((prev) => Math.max(0, prev - 1));
                   }}
-                  className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
                 >
                   <SkipBack className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setSyncPlaying((p) => !p)}
-                  className="p-2 rounded-lg bg-padel-green/15 text-padel-green hover:bg-padel-green/25 transition-colors"
+                  className="p-2 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                 >
                   {syncPlaying ? (
                     <Pause className="w-5 h-5" />
@@ -666,7 +664,7 @@ export default function ProCompare() {
                       Math.min(maxFrames - 1, prev + 1)
                     );
                   }}
-                  className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
                 >
                   <SkipForward className="w-4 h-4" />
                 </button>
@@ -679,9 +677,9 @@ export default function ProCompare() {
                     setSyncPlaying(false);
                     setSyncFrameIdx(Number(e.target.value));
                   }}
-                  className="w-64 accent-padel-green"
+                  className="w-64 accent-accent"
                 />
-                <span className="text-xs text-slate-500 tabular-nums">
+                <span className="text-xs text-muted-2 tabular-nums">
                   {syncFrameIdx + 1}/{maxFrames}
                 </span>
               </div>
@@ -689,24 +687,24 @@ export default function ProCompare() {
           )}
 
           {/* Phase-by-phase gap bars */}
-          <h2 className="font-semibold text-lg mb-4">
+          <h2 className="font-display-condensed text-xl text-ink mb-4">
             Phase-by-Phase Comparison
           </h2>
           <div className="space-y-3 mb-8">
             {gapAnalysis.phaseGaps.map((pg) => (
               <div
                 key={pg.phase}
-                className="bg-padel-surface rounded-xl border border-padel-border p-4"
+                className="bg-surface rounded-2xl border border-rule p-4"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">{PHASE_LABELS[pg.phase]}</h3>
                   <span
-                    className={`text-sm font-mono ${
+                    className={`text-sm tabular-nums ${
                       pg.delta > 0
                         ? "text-green-400"
                         : pg.delta < 0
                           ? "text-red-400"
-                          : "text-slate-400"
+                          : "text-ink-2"
                     }`}
                   >
                     {pg.delta > 0 ? "+" : ""}
@@ -715,24 +713,24 @@ export default function ProCompare() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-slate-800 rounded-full h-2">
+                    <div className="flex-1 bg-white/10 rounded-full h-2">
                       <div
-                        className="h-full rounded-full bg-padel-green"
+                        className="h-full rounded-full bg-accent"
                         style={{ width: `${pg.playerScore}%` }}
                       />
                     </div>
-                    <span className="text-sm font-mono w-8 text-right text-padel-green">
+                    <span className="text-sm tabular-nums w-8 text-right text-accent">
                       {pg.playerScore}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-slate-800 rounded-full h-2">
+                    <div className="flex-1 bg-white/10 rounded-full h-2">
                       <div
-                        className="h-full rounded-full bg-amber-400"
+                        className="h-full rounded-full bg-sand"
                         style={{ width: `${pg.proScore}%` }}
                       />
                     </div>
-                    <span className="text-sm font-mono w-8 text-right text-amber-400">
+                    <span className="text-sm tabular-nums w-8 text-right text-sand">
                       {pg.proScore}
                     </span>
                   </div>
@@ -758,7 +756,7 @@ export default function ProCompare() {
             <button
               onClick={handleSave}
               disabled={saveMutation.isPending || saveMutation.isSuccess}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold bg-padel-green text-white hover:bg-padel-green/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 min-h-11 rounded-full font-bold bg-cta text-cta-ink hover:bg-white/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
               <Save className="w-4 h-4" />
               {saveMutation.isSuccess
@@ -770,8 +768,8 @@ export default function ProCompare() {
           </div>
         </>
       ) : (
-        <div className="text-center py-16 text-slate-500">
-          <Target className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+        <div className="text-center py-16 text-muted-2">
+          <Target className="w-12 h-12 mx-auto mb-4 text-muted-2" />
           <p className="text-lg mb-2">Select both swings to compare</p>
           <p className="text-sm">
             Choose your swing on the left and a pro reference on the right.

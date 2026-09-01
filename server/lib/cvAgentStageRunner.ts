@@ -12,6 +12,7 @@ import {
   PADEL_BALL_BACKENDS,
 } from "../../shared/config.js";
 import { terminateChildWithEscalation } from "./managedSubprocess.js";
+import { logger } from "./logger.js";
 
 const DEFAULT_STAGE_TIMEOUT_MS: Record<CvAgentStage, number> = {
   court: CV_COURT_STAGE_TIMEOUT_MS,
@@ -96,8 +97,9 @@ function envForStage(stage: CvAgentStage): NodeJS.ProcessEnv {
   if (stage === "ball" && requestedBackend === "tracknet" && !existsSync(trackNetModelPath())) {
     if (!warnedMissingTrackNetModel) {
       warnedMissingTrackNetModel = true;
-      console.warn(
-        `[cv-agent:ball] PADEL_BALL_BACKEND=tracknet requested but ${trackNetModelPath()} is missing; using OpenCV fallback.`
+      logger.warn(
+        { modelPath: trackNetModelPath(), fallback: "opencv" },
+        "tracknet model missing; using OpenCV ball fallback",
       );
     }
     env.PADEL_BALL_BACKEND = "opencv";

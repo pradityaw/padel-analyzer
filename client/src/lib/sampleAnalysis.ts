@@ -9,9 +9,12 @@ export type DemoAnalysisRow = {
   videoStorageKey: string | null;
   thumbnailPath: string | null;
   createdAt: string;
+  mode: string | null;
   overallScore: number;
   dominantSide: "left" | "right";
   durationMs: number;
+  ballTracking: unknown;
+  racketTracking: unknown;
   frameCount: number;
   sampleFps: number;
   phasesJson: string;
@@ -109,9 +112,12 @@ export function getDemoAnalysisData(): DemoAnalysisRow {
     videoStorageKey: null,
     thumbnailPath: null,
     createdAt: new Date().toISOString(),
+    mode: null,
     overallScore: 79,
     dominantSide: "right",
     durationMs: 3200,
+    ballTracking: null,
+    racketTracking: null,
     frameCount: frames.length,
     sampleFps: 15,
     phasesJson: JSON.stringify(DEMO_PHASES),

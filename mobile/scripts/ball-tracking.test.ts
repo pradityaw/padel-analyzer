@@ -45,6 +45,20 @@ assert("buildBallFrameMap keeps highest confidence per frame", () => {
   if (!p || p.confidence !== 0.8) throw new Error("confidence pick");
 });
 
+assert("buildBallFrameMap normalizes pixel-space samples by intrinsic size", () => {
+  const map = buildBallFrameMap([[10, 960, 540, 0.9]], { w: 1920, h: 1080 });
+  const p = getBallForFrameIndex(map, 10);
+  if (!p) throw new Error("pixel sample dropped");
+  if (Math.abs(p.x - 0.5) > 1e-6 || Math.abs(p.y - 0.5) > 1e-6) {
+    throw new Error(`expected (0.5, 0.5), got (${p.x}, ${p.y})`);
+  }
+  // Without real dimensions, out-of-range pixel coords must be dropped, not misplaced
+  const unknownDims = buildBallFrameMap([[10, 960, 540, 0.9]], { w: 1, h: 1 });
+  if (getBallForFrameIndex(unknownDims, 10) != null) {
+    throw new Error("pixel sample should drop when dimensions are unknown");
+  }
+});
+
 assert("computeBallSpeedPxPerFrame rejects zero frame delta", () => {
   const a = { x: 0, y: 0, confidence: 0.9 };
   const b = { x: 0.1, y: 0, confidence: 0.9 };

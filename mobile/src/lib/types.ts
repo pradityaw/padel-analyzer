@@ -1,3 +1,5 @@
+import type { RecordMode } from "./recordMode";
+
 export type AnalysisJobStatus =
   | "queued"
   | "processing"
@@ -57,6 +59,7 @@ export type AnalysisJob = {
   statusMessage?: string | null;
   errorMessage?: string | null;
   analysisId?: number | null;
+  mode?: RecordMode;
   stages?: AnalysisJobStageProgress[];
   createdAt: string;
   updatedAt: string;
@@ -87,6 +90,7 @@ export type AnalysisSummary = {
   poseDetectionRate?: number | null;
   cameraAngle?: string | null;
   captureMetadataJson?: string | null;
+  mode?: RecordMode | null;
 };
 
 export type CvStatus = "pending" | "running" | "done" | "failed";

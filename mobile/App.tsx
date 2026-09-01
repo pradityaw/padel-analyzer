@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import HomeScreen from "./src/screens/HomeScreen";
 import UploadScreen from "./src/screens/UploadScreen";
 import RecordScreen from "./src/screens/RecordScreen";
+import SetupWizardScreen from "./src/screens/SetupWizardScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import CompareScreen from "./src/screens/CompareScreen";
 import ProCompareScreen from "./src/screens/ProCompareScreen";
@@ -16,6 +17,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import JobStatusScreen from "./src/screens/JobStatusScreen";
 import AnalysisScreen from "./src/screens/AnalysisScreen";
 import type { RootStackParamList } from "./src/lib/navigation";
+import { theme as courtFlood } from "./src/lib/theme";
 
 if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
   void import("@sentry/react-native")
@@ -37,12 +39,12 @@ const theme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: "#a3e635",
-    background: "#0f172a",
-    card: "#1e293b",
-    text: "#f8fafc",
-    border: "#334155",
-    notification: "#f59e0b",
+    primary: courtFlood.accent,
+    background: courtFlood.paper,
+    card: courtFlood.surface,
+    text: courtFlood.ink,
+    border: courtFlood.rule,
+    notification: courtFlood.sand,
   },
 };
 
@@ -55,9 +57,9 @@ export default function App() {
             <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
-                headerStyle: { backgroundColor: "#0f172a" },
-                headerTintColor: "#f8fafc",
-                contentStyle: { backgroundColor: "#0f172a" },
+                headerStyle: { backgroundColor: courtFlood.paper },
+                headerTintColor: courtFlood.ink,
+                contentStyle: { backgroundColor: courtFlood.paper },
               }}
             >
               <Stack.Screen
@@ -69,6 +71,11 @@ export default function App() {
                 name="Upload"
                 component={UploadScreen}
                 options={{ title: "Upload" }}
+              />
+              <Stack.Screen
+                name="Setup"
+                component={SetupWizardScreen}
+                options={{ title: "Record setup" }}
               />
               <Stack.Screen
                 name="Record"

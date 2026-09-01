@@ -1,5 +1,6 @@
 import { router } from "../_core/trpc.js";
 import { analysisRouter } from "./analysis.js";
+import { authRouter } from "./authStub.js";
 import { youtubeRouter } from "./youtube.js";
 import { annotationRouter } from "./annotation.js";
 import { proCompareRouter } from "./proCompare.js";
@@ -8,6 +9,7 @@ import { objectStorageRouter } from "./objectStorage.js";
 
 export const appRouter = router({
   analysis: analysisRouter,
+  auth: authRouter,
   youtube: youtubeRouter,
   annotation: annotationRouter,
   proCompare: proCompareRouter,

@@ -19,18 +19,32 @@ function normalizeCoordinate(value: number, max: number): number {
  * `interpolated` flag is recovered from the confidence band
  * (`confidence < 0.5`).
  *
- * @param targetPlayerId Restrict samples to a specific player id (most
- *   sessions only have one swing player so the default of `1` matches
- *   the Python tracker's default emit).
+ * @param filter Restrict samples to player id(s). An empty set yields no
+ *   track. When omitted, defaults to player `1` (Python tracker default).
  */
+export type RacketTrackPlayerFilter =
+  | { playerIds: ReadonlySet<number> }
+  | { playerId: number };
+
 export function buildRacketPositionsForFrames(
   frames: FrameLandmarks[],
   racketTracking: RacketTrackSample[] | null | undefined,
   frameSync: FrameSyncIndex,
   dimensions: Dimensions,
-  targetPlayerId: number = 1
+  filter: RacketTrackPlayerFilter | number = 1
 ): Float32Array | undefined {
   if (!racketTracking || racketTracking.length === 0 || frames.length === 0) {
+    return undefined;
+  }
+
+  const allowedIds =
+    typeof filter === "number"
+      ? new Set([filter])
+      : "playerIds" in filter
+        ? filter.playerIds
+        : new Set([filter.playerId]);
+
+  if (allowedIds.size === 0) {
     return undefined;
   }
 
@@ -40,7 +54,7 @@ export function buildRacketPositionsForFrames(
   confidences.fill(-1);
 
   for (const [frameIndex, playerId, x, y, confidence] of racketTracking) {
-    if (playerId !== targetPlayerId) continue;
+    if (!allowedIds.has(playerId)) continue;
     if (
       !Number.isFinite(frameIndex) ||
       !Number.isFinite(x) ||

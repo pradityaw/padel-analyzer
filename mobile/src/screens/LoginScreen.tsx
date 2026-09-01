@@ -13,6 +13,7 @@ import {
 import SectionCard from "../components/SectionCard";
 import { getSession, logout, requestMagicLink } from "../lib/api";
 import type { RootStackParamList } from "../lib/navigation";
+import { theme, radius } from "../lib/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -65,7 +66,7 @@ export default function LoginScreen({ navigation }: Props) {
   if (sessionQuery.isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#a3e635" />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -102,7 +103,7 @@ export default function LoginScreen({ navigation }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
               placeholder="you@example.com"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={theme.muted}
               style={styles.input}
             />
             <Pressable
@@ -135,45 +136,52 @@ export default function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0f172a" },
+  screen: { flex: 1, backgroundColor: theme.paper },
   content: { padding: 16 },
   centered: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
     alignItems: "center",
     justifyContent: "center",
   },
   stack: { gap: 12 },
-  body: { color: "#cbd5e1", fontSize: 14, lineHeight: 20 },
-  label: { color: "#94a3b8", fontSize: 12, fontWeight: "600" },
+  body: { color: theme.ink2, fontSize: 14, lineHeight: 20 },
+  label: {
+    color: theme.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
   input: {
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.paper,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 12,
+    borderColor: theme.rule,
+    borderRadius: radius.input,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 16,
   },
-  banner: { color: "#fbbf24", fontSize: 13, lineHeight: 18 },
+  banner: { color: theme.sand, fontSize: 13, lineHeight: 18 },
   primaryButton: {
-    backgroundColor: "#a3e635",
-    borderRadius: 12,
+    backgroundColor: theme.cta,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: "center",
   },
-  primaryButtonText: { color: "#0f172a", fontWeight: "700", fontSize: 16 },
+  primaryButtonText: { color: theme.ctaInk, fontWeight: "700", fontSize: 16 },
   secondaryButton: {
-    borderRadius: 12,
+    backgroundColor: theme.white10,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: theme.white15,
     paddingVertical: 12,
     alignItems: "center",
   },
-  secondaryButtonText: { color: "#e2e8f0", fontWeight: "600" },
+  secondaryButtonText: { color: theme.ink, fontWeight: "600" },
   linkButton: { marginTop: 8, alignItems: "center" },
-  linkText: { color: "#94a3b8", fontSize: 14 },
+  linkText: { color: theme.ink2, fontSize: 14 },
   buttonPressed: { opacity: 0.85 },
   buttonDisabled: { opacity: 0.65 },
 });

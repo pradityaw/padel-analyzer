@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { theme, radius } from "../lib/theme";
 
 type Props = PropsWithChildren<{
   title: string;
@@ -29,10 +30,10 @@ export default function SectionCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#1e293b",
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 16,
+    borderColor: theme.rule,
+    borderRadius: radius.card,
     padding: 16,
     gap: 12,
   },
@@ -47,12 +48,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    color: "#f8fafc",
+    color: theme.ink,
     fontSize: 18,
     fontWeight: "700",
   },
   subtitle: {
-    color: "#94a3b8",
+    color: theme.ink2,
     fontSize: 13,
   },
 });

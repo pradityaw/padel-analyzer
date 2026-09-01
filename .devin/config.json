@@ -1,0 +1,78 @@
+{
+  "project": {
+    "name": "padel-analyzer",
+    "description": "AI-powered padel swing analysis using MediaPipe pose estimation",
+    "type": "fullstack"
+  },
+  "techStack": {
+    "frontend": {
+      "framework": "React 19",
+      "buildTool": "Vite",
+      "styling": "Tailwind CSS v4",
+      "ui": "Radix UI + shadcn/ui",
+      "animation": "Framer Motion",
+      "ml": "MediaPipe Tasks Vision (BlazePose)"
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express",
+      "api": "tRPC",
+      "database": "SQLite via Drizzle ORM"
+    },
+    "mobile": {
+      "framework": "Expo React Native",
+      "analysis": "Server-side Python + MediaPipe"
+    }
+  },
+  "workstreams": {
+    "A": {
+      "name": "Client/analysis UX",
+      "paths": ["client/src/**", "client/index.html", "client/public/**"],
+      "focus": "UI, MediaPipe, canvas, routing"
+    },
+    "B": {
+      "name": "Server/data",
+      "paths": ["server/**", "drizzle/**", "data/"],
+      "focus": "API, DB, YouTube pipeline"
+    },
+    "C": {
+      "name": "Tooling/PWA/docs",
+      "paths": ["vite.config.ts", "package.json", "tsconfig.json", "README.md"],
+      "focus": "Build, deploy, installability"
+    },
+    "D": {
+      "name": "ML Models",
+      "paths": ["client/public/models/**", "client/src/lib/analysisPipeline.ts", "training/**"],
+      "focus": "ONNX models, inference, training"
+    }
+  },
+  "sharedContracts": [
+    "shared/types.ts",
+    "server/routers/index.ts",
+    "client/src/lib/trpc.ts"
+  ],
+  "devCommands": {
+    "start": "npm run dev",
+    "port": 3001,
+    "db": "npx drizzle-kit push",
+    "mobile": "npm run mobile:start"
+  },
+  "designSystem": {
+    "name": "Tennis Neon",
+    "locked": true,
+    "primary": "#a3e635",
+    "background": "#0f172a",
+    "surface": "#1e293b",
+    "border": "#334155",
+    "gold": "#f59e0b",
+    "font": "Geist Variable",
+    "documentation": "design.md"
+  },
+  "rules": {
+    "noPlaceholders": true,
+    "asyncArchitecture": true,
+    "stateSeparation": true,
+    "honestCopy": true,
+    "workstreamBoundaries": true
+  }
+}

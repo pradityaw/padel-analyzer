@@ -3,7 +3,7 @@ import path from "path";
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, publicProcedure } from "../_core/trpc.js";
+import { router, publicProcedure, rateLimit } from "../_core/trpc.js";
 import { db } from "../db.js";
 import {
   analysisJobs,
@@ -14,7 +14,9 @@ import {
   analysisJobGetInputSchema,
   analysisJobIdInputSchema,
   analysisJobSchema,
+  courtCornersInputSchema,
   createMobileAnalysisJobInputSchema,
+  recordModeSchema,
   trackingSyncInputSchema,
   type TrackingSyncInput,
 } from "../../shared/schema.js";
@@ -32,6 +34,7 @@ import {
 } from "../lib/analysisJobProgress.js";
 import { getTrackingSyncDir } from "../lib/paths.js";
 import { assertVideoAccessible } from "../lib/videoAccess.js";
+import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 
 function trackingSyncPath(sessionId: string): string {
   return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
@@ -49,12 +52,17 @@ async function appendTrackingSync(input: TrackingSyncInput) {
 function createJobRecord(input: {
   videoFileName: string;
   videoStorageKey: string;
+  courtCornersJson?: string | null;
+  mode?: string;
 }): ReturnType<typeof analysisJobSchema.parse> {
+  const mode = recordModeSchema.parse(input.mode ?? "match");
   const created = db
     .insert(analysisJobs)
     .values({
       videoFileName: input.videoFileName,
       videoStorageKey: input.videoStorageKey,
+      courtCornersJson: input.courtCornersJson ?? null,
+      mode,
       status: "queued",
       progress: 0,
       statusMessage: "Queued for analysis.",
@@ -97,7 +105,20 @@ async function hydrateJobTracking(
 }
 
 export const mobileAnalysisRouter = router({
+  // The create/retry mutations kick off the full Python CV pipeline (the most
+  // expensive work on the server). Rate-limit per client IP so a single caller
+  // cannot queue unbounded jobs. Tune via env; auth-exempt by design (see
+  // rateLimit docs in trpc.ts).
   create: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.create",
+      }),
+    )
     .input(createMobileAnalysisJobInputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -111,7 +132,15 @@ export const mobileAnalysisRouter = router({
               : "Uploaded video could not be found. Upload the file again.",
         });
       }
-      return createJobRecord(input);
+      const courtCornersJson = input.courtCorners
+        ? JSON.stringify(courtCornersInputSchema.parse(input.courtCorners))
+        : null;
+      return createJobRecord({
+        videoFileName: input.videoFileName,
+        videoStorageKey: input.videoStorageKey,
+        courtCornersJson,
+        mode: input.mode,
+      });
     }),
 
   syncTracking: publicProcedure
@@ -154,12 +183,14 @@ export const mobileAnalysisRouter = router({
       }
 
       const analysis = db
-        .select({ landmarksJson: analyses.landmarksJson })
+        .select()
         .from(analyses)
         .where(eq(analyses.id, job.analysisId))
         .get();
 
-      const landmarksJson = analysis?.landmarksJson ?? "[]";
+      const landmarksJson = analysis
+        ? resolveLandmarksJson(analysis)
+        : "[]";
       const tracking = await hydrateJobTracking(job, landmarksJson);
 
       return analysisJobDetailSchema.parse({
@@ -196,6 +227,15 @@ export const mobileAnalysisRouter = router({
 
   /** Re-queue analysis for an existing upload (failed or completed jobs). */
   retry: publicProcedure
+    .use(
+      rateLimit({
+        capacity: Number(process.env.RATE_LIMIT_ANALYSIS_CAPACITY ?? 5),
+        refillPerSecond: Number(
+          process.env.RATE_LIMIT_ANALYSIS_REFILL_PER_SEC ?? 0.1,
+        ),
+        id: "mobileAnalysis.retry",
+      }),
+    )
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input }) => {
       const job = db
@@ -223,6 +263,8 @@ export const mobileAnalysisRouter = router({
       return createJobRecord({
         videoFileName: job.videoFileName,
         videoStorageKey: job.videoStorageKey,
+        courtCornersJson: job.courtCornersJson,
+        mode: job.mode,
       });
     }),
 });

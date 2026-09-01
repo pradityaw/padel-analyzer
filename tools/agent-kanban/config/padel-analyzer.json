@@ -1,0 +1,21 @@
+{
+  "name": "padel-analyzer",
+  "repository": "https://github.com/pradityaw/padel-analyzer",
+  "defaultBranch": "main",
+  "devServerPort": 3001,
+  "kanbanPort": 3010,
+  "docs": {
+    "kanban": "../../docs/AGENT_KANBAN.md",
+    "backlog": "../../PRODUCT_BACKLOG.md",
+    "agents": "../../AGENTS.md"
+  },
+  "guardrails": [
+    "Stack: React 19 + Vite + Express + tRPC + Drizzle + SQLite — not Python/Flask",
+    "Branch: main unless the backlog item specifies otherwise",
+    "One backlog item per cloud agent",
+    "Do not delete client/, server/, shared/, or mobile/",
+    "Run npm run typecheck before opening a PR",
+    "Respect workstream ownership in AGENTS.md",
+    "Do not commit or push unless explicitly asked"
+  ]
+}

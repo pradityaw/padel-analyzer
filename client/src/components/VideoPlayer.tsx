@@ -7,6 +7,7 @@ import {
   useMemo,
   useImperativeHandle,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import {
   Play,
@@ -19,6 +20,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { UI } from "@/lib/uiColors";
 import CourtCalibrationOverlay from "@/components/CourtCalibrationOverlay";
 import { useVideoOverlayWorker } from "@/hooks/useVideoOverlayWorker";
 import { useVideoFrameSync } from "@/hooks/useVideoFrameSync";
@@ -102,12 +104,25 @@ type Props = {
    * the dominant wrist proxy for older sessions.
    */
   racketTracking?: RacketTrackSample[];
+  /**
+   * When set, racket speed / tracker samples are limited to these player ids.
+   * An empty set hides CV racket tracking for the session.
+   */
+  selectedRacketPlayerIds?: ReadonlySet<number>;
   /** Optional normalized racket x,y pairs aligned to the frames array. */
   racketPositions?: Float32Array;
   onCourtCalibrationChange?: (
     calibration: CourtCalibration,
     homography: HomographyMatrix | null
   ) => void;
+  /** When set, forces the stage box to this aspect ratio (e.g. 16/9 cinematic). */
+  forceAspectRatio?: number;
+  /** Hide the built-in phase pill when an external HUD overlay is used. */
+  suppressPhaseBadge?: boolean;
+  /** Fill parent container (used inside a fixed aspect-ratio stage). */
+  fillParent?: boolean;
+  /** React HUD rendered above the video stage (below controls). */
+  stageOverlay?: ReactNode;
 };
 
 function VideoPlayerInner(
@@ -126,8 +141,13 @@ function VideoPlayerInner(
     ballTracking,
     ballPositions,
     racketTracking,
+    selectedRacketPlayerIds,
     racketPositions,
     onCourtCalibrationChange,
+    forceAspectRatio,
+    suppressPhaseBadge = false,
+    fillParent = false,
+    stageOverlay,
   }: Props,
   ref: React.ForwardedRef<VideoPlayerHandle>
 ) {
@@ -177,9 +197,19 @@ function VideoPlayerInner(
         frames,
         racketTracking,
         frameSync,
-        dimensions
+        dimensions,
+        selectedRacketPlayerIds !== undefined
+          ? { playerIds: selectedRacketPlayerIds }
+          : 1
       ),
-    [racketPositions, racketTracking, dimensions, frameSync, frames]
+    [
+      racketPositions,
+      racketTracking,
+      selectedRacketPlayerIds,
+      dimensions,
+      frameSync,
+      frames,
+    ]
   );
 
   const showSkeletonRef = useRef(showSkeleton);
@@ -460,20 +490,51 @@ function VideoPlayerInner(
   };
 
   if (!videoUrl) {
+    const emptyStageAspect =
+      forceAspectRatio && forceAspectRatio > 0 ? forceAspectRatio : 16 / 9;
+
     return (
-      <div className="relative bg-slate-900 rounded-xl overflow-hidden border border-padel-border p-8 text-center text-slate-400 text-sm">
-        No saved video for replay. Analysis data is still available on the right.
+      <div
+        className={
+          fillParent
+            ? "relative h-full w-full min-h-0 overflow-hidden"
+            : "relative overflow-hidden rounded-2xl border border-rule bg-raised"
+        }
+      >
+        <div
+          className="relative flex min-h-[12rem] items-center justify-center p-8"
+          style={{ aspectRatio: `${emptyStageAspect}` }}
+        >
+          <p className="max-w-sm text-center text-sm text-ink-2">
+            No saved video for replay. Analysis data is still available on the
+            right.
+          </p>
+          {stageOverlay}
+        </div>
       </div>
     );
   }
 
   const phaseColor = activePhaseType ? PHASE_COLORS[activePhaseType] : undefined;
 
+  const stageAspect =
+    forceAspectRatio && forceAspectRatio > 0
+      ? forceAspectRatio
+      : dimensions.w / Math.max(dimensions.h, 1);
+
   return (
-    <div className="relative bg-black rounded-xl overflow-hidden">
+    <div
+      className={
+        fillParent
+          ? "relative h-full w-full min-h-0 bg-black overflow-hidden"
+          : "relative bg-black rounded-2xl overflow-hidden"
+      }
+    >
       <div
-        className="relative"
-        style={{ aspectRatio: `${dimensions.w}/${dimensions.h}` }}
+        className={fillParent ? "absolute inset-0" : "relative"}
+        style={
+          fillParent ? undefined : { aspectRatio: `${stageAspect}` }
+        }
       >
         <video
           ref={videoRef}
@@ -508,6 +569,8 @@ function VideoPlayerInner(
           racketSource={racketSpeedSource}
         />
 
+        {stageOverlay}
+
         <AnimatePresence>
           {contactFlash && (
             <motion.div
@@ -526,7 +589,7 @@ function VideoPlayerInner(
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-          {activePhaseType && (
+          {activePhaseType && !suppressPhaseBadge && (
             <motion.div
               key={activePhaseType}
               initial={{ opacity: 0, y: -4 }}
@@ -583,11 +646,11 @@ function VideoPlayerInner(
         />
       )}
 
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-900/90 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-raised/90 backdrop-blur">
         <button
           type="button"
           onClick={togglePlay}
-          className="p-2 rounded-lg bg-padel-green text-black hover:opacity-90 transition-colors"
+          className="p-2 rounded-full bg-cta text-cta-ink hover:bg-white/90 transition-colors"
           aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? (
@@ -598,23 +661,23 @@ function VideoPlayerInner(
         </button>
 
         <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10 border border-white/15"
           aria-label="Video time"
         >
-          <span className="text-xs font-mono tabular-nums text-white min-w-[3.25rem] text-right">
+          <span className="text-xs font-mono tabular-nums text-ink min-w-[3.25rem] text-right">
             {formatVideoTime(currentTimeSec)}
           </span>
-          <span className="text-xs text-slate-500">/</span>
-          <span className="text-xs font-mono tabular-nums text-slate-400 min-w-[3.25rem]">
+          <span className="text-xs text-muted-2">/</span>
+          <span className="text-xs font-mono tabular-nums text-ink-2 min-w-[3.25rem]">
             {formatVideoTime(videoDurationSec)}
           </span>
         </div>
 
-        <div className="flex items-center gap-1 border-l border-slate-700/70 pl-2">
+        <div className="flex items-center gap-1 border-l border-rule pl-2">
           <button
             type="button"
             onClick={() => stepFrame(-1)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/10 text-muted-2 hover:text-ink transition-colors"
             title="Previous frame"
             aria-label="Previous frame"
           >
@@ -623,7 +686,7 @@ function VideoPlayerInner(
           <button
             type="button"
             onClick={() => stepFrame(1)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/10 text-muted-2 hover:text-ink transition-colors"
             title="Next frame"
             aria-label="Next frame"
           >
@@ -634,21 +697,21 @@ function VideoPlayerInner(
         <button
           type="button"
           onClick={changeSpeed}
-          className="px-2 py-1 rounded text-xs font-mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors min-w-[38px] text-center"
+          className="px-2 py-1 rounded-full text-xs font-mono bg-white/10 text-ink-2 border border-white/15 hover:bg-white/15 transition-colors min-w-[38px] text-center"
         >
           {playbackRate}x
         </button>
 
         <div className="flex-1 min-w-[1rem]" />
 
-        <span className="text-xs text-slate-500 font-mono tabular-nums">
+        <span className="text-xs text-muted-2 font-mono tabular-nums">
           Frame {frames[currentFrame]?.frameIndex ?? 0}
         </span>
 
         <button
           type="button"
           onClick={() => setShowSkeleton(!showSkeleton)}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-full hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
           aria-label={showSkeleton ? "Hide skeleton overlay" : "Show skeleton overlay"}
         >
           {showSkeleton ? (
@@ -682,20 +745,20 @@ function SpeedReadout({
   unavailableLabel?: string;
 }) {
   return (
-    <div className="min-w-[94px] rounded-lg border border-white/10 bg-slate-950/65 px-3 py-2 shadow-[0_0_20px_rgba(15,23,42,0.35)]">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="min-w-[94px] rounded-lg border border-white/10 bg-raised/65 px-3 py-2 shadow-[0_0_20px_rgba(7,11,34,0.35)]">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-2">
         {label}
       </div>
       <div className="mt-0.5 flex items-baseline gap-1.5">
-        <span className="font-mono text-2xl font-bold leading-none text-white tabular-nums">
+        <span className="font-mono text-2xl font-bold leading-none text-ink tabular-nums">
           {value == null ? "--" : value}
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-padel-green">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">
           km/h
         </span>
       </div>
       {value == null && unavailableLabel && (
-        <div className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">
+        <div className="mt-1 text-[9px] uppercase tracking-wider text-muted-2">
           {unavailableLabel}
         </div>
       )}
@@ -724,7 +787,7 @@ function LiveSpeedDash({
 
   return (
     <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
-      <div className="rounded-2xl border border-padel-green/25 bg-slate-950/55 p-1.5 shadow-2xl backdrop-blur-md">
+      <div className="rounded-2xl border border-accent/25 bg-raised/55 p-1.5 shadow-2xl backdrop-blur-md">
         <div className="flex items-stretch gap-1.5">
           <SpeedReadout
             label="Ball Speed"
@@ -738,7 +801,7 @@ function LiveSpeedDash({
           />
         </div>
       </div>
-      <div className="rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[10px] font-medium text-slate-400 backdrop-blur">
+      <div className="rounded-full border border-white/10 bg-raised/50 px-2 py-0.5 text-[10px] font-medium text-ink-2 backdrop-blur">
         {calibrated ? "Court-calibrated" : "Calibration pending"} · {racketSourceLabel}
       </div>
     </div>
@@ -812,11 +875,11 @@ function PhaseTimelineBar({
     Boolean(onTimelineSeek) && timelineDurationSec > 0;
 
   return (
-    <div className="flex items-stretch w-full bg-slate-900/95 border-y border-slate-700/60">
+    <div className="flex items-stretch w-full bg-raised/95 border-y border-rule">
       <button
         type="button"
         onClick={onSeekBack}
-        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
         title={`Back ${seekStepSec} seconds`}
         aria-label={`Back ${seekStepSec} seconds`}
       >
@@ -827,7 +890,7 @@ function PhaseTimelineBar({
         className={`relative flex-1 h-6 min-w-0 ${trackInteractable ? "cursor-pointer touch-none" : ""}`}
         onPointerDown={trackInteractable ? onTimelinePointerDown : undefined}
       >
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-slate-700 overflow-hidden">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-rule overflow-hidden">
           {phases.length > 0 ? (
             phases.map((phase) => {
               const denom = lastPhaseFrame || 1;
@@ -848,7 +911,7 @@ function PhaseTimelineBar({
             })
           ) : (
             <div
-              className="absolute top-0 left-0 h-full bg-padel-green/50"
+              className="absolute top-0 left-0 h-full bg-accent/50"
               style={{ width: `${playheadPct}%` }}
             />
           )}
@@ -862,7 +925,7 @@ function PhaseTimelineBar({
       <button
         type="button"
         onClick={onSeekForward}
-        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+        className="shrink-0 flex items-center justify-center w-9 hover:bg-white/10 text-ink-2 hover:text-ink transition-colors"
         title={`Forward ${seekStepSec} seconds`}
         aria-label={`Forward ${seekStepSec} seconds`}
       >
@@ -872,7 +935,7 @@ function PhaseTimelineBar({
       <button
         type="button"
         onClick={onCycleSeekStep}
-        className="shrink-0 px-2 text-[10px] font-mono text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors border-l border-slate-700/60"
+        className="shrink-0 px-2 text-[10px] font-mono text-muted-2 hover:bg-white/10 hover:text-ink-2 transition-colors border-l border-rule"
         title="Change skip interval"
         aria-label={`Skip interval ${seekStepSec} seconds, click to change`}
       >
@@ -905,9 +968,9 @@ function RallySegmentStrip({
 }: RallySegmentStripProps) {
   const duration = Math.max(videoDurationSec, 1);
   return (
-    <div className="relative h-2 w-full bg-slate-900/80 border-y border-padel-border/70">
+    <div className="relative h-2 w-full bg-raised/80 border-y border-rule/70">
       {/* dimmed full-width background indicates dead time */}
-      <div className="absolute inset-0 bg-slate-900 opacity-70 pointer-events-none" />
+      <div className="absolute inset-0 bg-raised opacity-70 pointer-events-none" />
       {rallies.map((rally) => {
         const startSec = rally.startMs / 1000;
         const endSec = rally.endMs / 1000;
@@ -932,10 +995,10 @@ function RallySegmentStrip({
             style={{
               left: `${left}%`,
               width: `${width}%`,
-              backgroundColor: isCurrent ? "#a3e635" : "#4ade80",
-              opacity: isCurrent ? 1 : intensity,
+              backgroundColor: UI.accent,
+              opacity: isCurrent ? 1 : intensity * 0.75,
               boxShadow: isCurrent
-                ? "0 0 6px rgba(163, 230, 53, 0.7)"
+                ? "0 0 6px rgba(91, 140, 255, 0.7)"
                 : undefined,
             }}
           />
@@ -950,7 +1013,7 @@ function RallySegmentStrip({
       />
       {onlyRallies && (
         <div
-          className="absolute -top-1 right-2 px-1.5 py-0.5 rounded-sm text-[9px] font-semibold uppercase tracking-wider bg-padel-green text-black pointer-events-none"
+          className="absolute -top-1 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider bg-accent text-cta-ink pointer-events-none"
           style={{ transform: "translateY(-100%)" }}
         >
           Only Rallies

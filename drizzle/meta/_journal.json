@@ -22,6 +22,20 @@
       "when": 1776188159226,
       "tag": "0002_nappy_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1779979246187,
+      "tag": "0003_analysis_quality_landmarks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1779979246188,
+      "tag": "0004_court_corners",
+      "breakpoints": true
     }
   ]
 }

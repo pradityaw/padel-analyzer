@@ -24,7 +24,13 @@ import {
   createPipelineTimer,
   writePipelineTimingArtifact,
 } from "./pipelineTiming.js";
+import {
+  computePoseDetectionRate,
+  qualityWarningForPoseRate,
+} from "./poseQuality.js";
+import { writeLandmarksFile } from "./landmarksStorage.js";
 import { isAgentStageSoftFailure } from "./agentStageFallbacks.js";
+import { logger } from "./logger.js";
 
 async function updateJob(
   jobId: number,
@@ -115,7 +121,11 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     const result = await runParallelAnalysisOrchestration(
       videoPath,
       (stageId, patch, statusMessage) =>
-        updateStage(jobId, stageId, patch, statusMessage)
+        updateStage(jobId, stageId, patch, statusMessage),
+      {
+        courtCornersJson: job.courtCornersJson,
+        recordMode: job.mode,
+      }
     );
     timer.mark("orchestration-done", {
       rallyWindows: result.rallyWindows?.windows.length ?? 0,
@@ -154,6 +164,11 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
         ? `Analysis complete (${warnings.join("; ")}).`
         : "Analysis complete.";
 
+    const frameLandmarks = result.swing.frameLandmarks;
+    const landmarksJson = JSON.stringify(frameLandmarks);
+    const poseDetectionRate = computePoseDetectionRate(frameLandmarks);
+    const qualityWarning = qualityWarningForPoseRate(poseDetectionRate);
+
     const newAnalysis: NewAnalysis = {
       videoFileName: job.videoFileName,
       videoStorageKey: job.videoStorageKey,
@@ -163,15 +178,25 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       frameCount: result.swing.frameCount,
       sampleFps: result.swing.sampleFps,
       phasesJson: JSON.stringify(result.swing.phases),
-      landmarksJson: JSON.stringify(result.swing.frameLandmarks),
+      landmarksJson: "[]",
       shotType: result.swing.shotType as NewAnalysis["shotType"],
       shotConfidence: result.swing.shotConfidence,
       skillLabel: result.swing.skillLabel as NewAnalysis["skillLabel"],
       skillConfidence: result.swing.skillConfidence,
       qualityScore: result.swing.qualityScore,
+      poseDetectionRate,
+      qualityWarning,
+      courtCornersJson: job.courtCornersJson,
+      mode: job.mode,
     };
 
     const saved = db.insert(analyses).values(newAnalysis).returning().get();
+    const landmarksPath = `analysis-${saved.id}.json`;
+    writeLandmarksFile(landmarksPath, landmarksJson);
+    db.update(analyses)
+      .set({ landmarksPath })
+      .where(eq(analyses.id, saved.id))
+      .run();
 
     await updateStage(
       jobId,
@@ -196,9 +221,9 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     try {
       await writePipelineTimingArtifact(jobId, timer.snapshot());
     } catch (artifactError) {
-      console.warn(
-        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
-        artifactError
+      logger.warn(
+        { jobId, err: artifactError },
+        "could not write pipeline timing artifact",
       );
     }
   } catch (error) {
@@ -220,9 +245,9 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
     try {
       await writePipelineTimingArtifact(jobId, timer.snapshot());
     } catch (artifactError) {
-      console.warn(
-        `[pipeline] analysis-job-${jobId} could not write timing artifact:`,
-        artifactError
+      logger.warn(
+        { jobId, err: artifactError, failed: true },
+        "could not write pipeline timing artifact",
       );
     }
   }
