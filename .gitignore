@@ -8,6 +8,9 @@ data/landmarks/
 data/analysis-agents/
 data/analysis-timing/
 
+# Python virtualenv (created locally; see AGENTS.md)
+.venv/
+
 # Python bytecode
 **/__pycache__/
 *.pyc
