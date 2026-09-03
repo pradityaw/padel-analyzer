@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server/_core/index.ts",
+    "dev": "CV_PYTHON_BIN=.venv/bin/python3 MOBILE_ANALYSIS_PYTHON=.venv/bin/python3 tsx watch server/_core/index.ts",
     "build": "vite build --config vite.config.ts && node scripts/esbuild-server.mjs",
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "npm run build && npm run start",
