@@ -17,6 +17,7 @@
  * intentional: an authenticated abuser should still be throttled.
  */
 import type { Request, Response, NextFunction, RequestHandler } from "express";
+import { clientIpFromRequest } from "./clientIp.js";
 
 export type RateLimiterOptions = {
   /** Bucket capacity (burst size). */
@@ -35,9 +36,7 @@ type Bucket = {
 const MINUTE_MS = 60_000;
 
 function clientIp(req: Request): string {
-  // Trust X-Forwarded-For only when behind a proxy the operator opted into via
-  // express's "trust proxy". Otherwise req.ip is the direct socket peer.
-  return req.ip ?? req.socket?.remoteAddress ?? "unknown";
+  return clientIpFromRequest(req);
 }
 
 /**

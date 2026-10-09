@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getUploadsDir } from "../lib/paths.js";
 import { downloadOnceToFile } from "../lib/atomicDownload.js";
+import { ownedUploadPrefix } from "../lib/uploadAccess.js";
 import {
   YOUTUBE_DOWNLOAD_DEFAULT_TIMEOUT_MS,
   YOUTUBE_MAX_DURATION_SEC,
@@ -151,7 +152,7 @@ export const youtubeRouter = router({
         .trim()
         .replace(/\s+/g, "_");
 
-      const ownerPrefix = ctx.user?.id != null ? `u${ctx.user.id}_` : "";
+      const ownerPrefix = ctx.user?.id != null ? ownedUploadPrefix(ctx.user.id) : "";
       const fileName = `${ownerPrefix}yt_${info.id}_${safeTitle}.mp4`;
       const filePath = path.join(uploadsDir, fileName);
 

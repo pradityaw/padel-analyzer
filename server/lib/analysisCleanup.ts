@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync, statSync } from "fs";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, ne, or } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   analyses,
@@ -21,6 +21,44 @@ function unlinkQuiet(filePath: string): void {
   }
 }
 
+function otherRowsShareUploadKey(
+  basename: string,
+  excludeAnalysisId: number,
+): boolean {
+  const analysisHit = db
+    .select({ id: analyses.id })
+    .from(analyses)
+    .where(
+      and(
+        ne(analyses.id, excludeAnalysisId),
+        or(
+          eq(analyses.videoStorageKey, basename),
+          eq(analyses.videoFileName, basename),
+        ),
+      ),
+    )
+    .get();
+  if (analysisHit) return true;
+
+  const jobHit = db
+    .select({ id: analysisJobs.id })
+    .from(analysisJobs)
+    .where(
+      and(
+        or(
+          eq(analysisJobs.videoStorageKey, basename),
+          eq(analysisJobs.videoFileName, basename),
+        ),
+        or(
+          isNull(analysisJobs.analysisId),
+          ne(analysisJobs.analysisId, excludeAnalysisId),
+        ),
+      ),
+    )
+    .get();
+  return !!jobHit;
+}
+
 export function deleteAnalysisArtifacts(analysisId: number): void {
   const row = db.select().from(analyses).where(eq(analyses.id, analysisId)).get();
   if (!row) return;
@@ -35,7 +73,10 @@ export function deleteAnalysisArtifacts(analysisId: number): void {
 
   const storageKey = row.videoStorageKey ?? row.videoFileName;
   if (storageKey && !storageKey.startsWith("s3://") && !storageKey.includes("/")) {
-    unlinkQuiet(path.join(getUploadsDir(), path.basename(storageKey)));
+    const basename = path.basename(storageKey);
+    if (!otherRowsShareUploadKey(basename, analysisId)) {
+      unlinkQuiet(path.join(getUploadsDir(), basename));
+    }
   }
 
   for (const job of jobs) {
