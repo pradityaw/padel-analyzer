@@ -125,6 +125,27 @@ await assert(
   },
 );
 
+await assert(
+  "processAnalysisJob links analysisId atomically and skips duplicate work",
+  async () => {
+    const processorPath = path.join(
+      repoRoot,
+      "server/lib/analysisJobProcessor.ts",
+    );
+    const source = await readFile(processorPath, "utf8");
+    if (!source.includes("db.transaction((tx)")) {
+      throw new Error(
+        "analysis insert must link analysisId on the job inside a transaction",
+      );
+    }
+    if (!source.includes("job.analysisId != null")) {
+      throw new Error(
+        "processAnalysisJob must short-circuit when the job already has analysisId",
+      );
+    }
+  },
+);
+
 if (process.exitCode) {
   process.exit(process.exitCode);
 }
