@@ -58,6 +58,31 @@ async function updateStage(
   });
 }
 
+async function finishJobWithExistingAnalysis(
+  jobId: number,
+  analysisId: number,
+  statusMessage = "Analysis complete (recovered after restart).",
+): Promise<void> {
+  await updateStage(
+    jobId,
+    "aggregation",
+    {
+      status: "completed",
+      progress: 100,
+      message: "Analysis payload already saved.",
+      errorMessage: null,
+    },
+    statusMessage,
+  );
+  await updateJob(jobId, {
+    status: "completed",
+    progress: 100,
+    statusMessage,
+    analysisId,
+    errorMessage: null,
+  });
+}
+
 async function writeAgentArtifacts(
   jobId: number,
   artifacts: {
@@ -95,6 +120,19 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       .get();
 
     if (!job) return;
+
+    if (job.analysisId != null) {
+      const linked = db
+        .select({ id: analyses.id })
+        .from(analyses)
+        .where(eq(analyses.id, job.analysisId))
+        .get();
+      if (linked) {
+        await finishJobWithExistingAnalysis(jobId, job.analysisId);
+        timer.finish({ analysisId: job.analysisId, recovered: true });
+        return;
+      }
+    }
 
     await updateJob(jobId, {
       status: "processing",
@@ -191,7 +229,15 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       mode: job.mode,
     };
 
-    const saved = db.insert(analyses).values(newAnalysis).returning().get();
+    const linkTimestamp = new Date().toISOString();
+    const saved = db.transaction((tx) => {
+      const row = tx.insert(analyses).values(newAnalysis).returning().get();
+      tx.update(analysisJobs)
+        .set({ analysisId: row.id, updatedAt: linkTimestamp })
+        .where(eq(analysisJobs.id, jobId))
+        .run();
+      return row;
+    });
     const landmarksPath = `analysis-${saved.id}.json`;
     writeLandmarksFile(landmarksPath, landmarksJson);
     db.update(analyses)
