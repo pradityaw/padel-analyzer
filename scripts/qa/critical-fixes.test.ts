@@ -7,6 +7,7 @@ import { existsSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import { fileURLToPath } from "url";
+import { eq } from "drizzle-orm";
 import { downloadOnceToFile } from "../../server/lib/atomicDownload.js";
 import { resolveVideoPlaybackUrl } from "../../server/lib/videoAccess.js";
 import { isCloudStorageKey } from "../../server/lib/objectStorage.js";
@@ -124,6 +125,80 @@ await assert(
     }
   },
 );
+
+await assert("deleteAnalysisArtifacts rolls back DB deletes if analysis row delete fails", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "padel-analysis-del-"));
+  process.env.PADEL_DATA_DIR = dataDir;
+  process.env.NODE_ENV = "test";
+
+  const { ensureSchema } = await import("../../server/lib/ensureSchema.js");
+  const { sqlite } = await import("../../server/db.js");
+  const { db } = await import("../../server/db.js");
+  const { analyses, feedback } = await import("../../drizzle/schema.js");
+  const { deleteAnalysisArtifacts } = await import("../../server/lib/analysisCleanup.js");
+
+  ensureSchema();
+
+  const row = db
+    .insert(analyses)
+    .values({
+      userId: null,
+      videoFileName: "orphan-test.mp4",
+      overallScore: 70,
+      dominantSide: "right",
+      durationMs: 1000,
+      frameCount: 10,
+      sampleFps: 15,
+      phasesJson: "[]",
+      landmarksJson: "[]",
+    })
+    .returning()
+    .get();
+  if (!row) throw new Error("expected analysis insert");
+
+  db.insert(feedback)
+    .values({ analysisId: row.id, userId: null, rating: 5, comment: "x" })
+    .run();
+
+  const originalPrepare = sqlite.prepare.bind(sqlite) as typeof sqlite.prepare;
+  let failNextAnalysesDelete = true;
+  sqlite.prepare = ((source: string) => {
+    if (
+      failNextAnalysesDelete &&
+      /delete\s+from\s+"analyses"/i.test(source.replace(/\s+/g, " "))
+    ) {
+      failNextAnalysesDelete = false;
+      throw new Error("simulated analysis delete failure");
+    }
+    return originalPrepare(source);
+  }) as typeof sqlite.prepare;
+
+  try {
+    deleteAnalysisArtifacts(row.id);
+    throw new Error("expected deleteAnalysisArtifacts to throw");
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("simulated analysis delete failure")) {
+      throw err;
+    }
+  } finally {
+    sqlite.prepare = originalPrepare;
+  }
+
+  const analysisStill = db.select().from(analyses).where(eq(analyses.id, row.id)).get();
+  const feedbackStill = db.select().from(feedback).where(eq(feedback.analysisId, row.id)).get();
+  if (!analysisStill || !feedbackStill) {
+    throw new Error("expected analysis and feedback to remain after failed transaction");
+  }
+
+  deleteAnalysisArtifacts(row.id);
+  const analysisAfter = db.select().from(analyses).where(eq(analyses.id, row.id)).get();
+  const feedbackAfter = db.select().from(feedback).where(eq(feedback.analysisId, row.id)).get();
+  if (analysisAfter || feedbackAfter) {
+    throw new Error("expected full delete after successful retry");
+  }
+
+  await rm(dataDir, { recursive: true, force: true });
+});
 
 if (process.exitCode) {
   process.exit(process.exitCode);
