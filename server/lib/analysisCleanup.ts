@@ -44,11 +44,20 @@ export function deleteAnalysisArtifacts(analysisId: number): void {
   }
   unlinkQuiet(path.join(getDataRoot(), "rallies", `${analysisId}.json`));
 
-  db.delete(feedback).where(eq(feedback.analysisId, analysisId)).run();
-  db.delete(annotations).where(eq(annotations.analysisId, analysisId)).run();
-  db.delete(proComparisons).where(eq(proComparisons.playerAnalysisId, analysisId)).run();
-  db.delete(analysisJobs).where(eq(analysisJobs.analysisId, analysisId)).run();
-  db.delete(analyses).where(eq(analyses.id, analysisId)).run();
+  // Single SQLite transaction so a crash/power-loss cannot leave orphaned child
+  // rows (e.g. pro_comparisons referencing a deleted analysis) after partial deletes.
+  db.transaction((tx) => {
+    tx.delete(feedback).where(eq(feedback.analysisId, analysisId)).run();
+    tx.delete(annotations).where(eq(annotations.analysisId, analysisId)).run();
+    tx.delete(proComparisons).where(eq(proComparisons.playerAnalysisId, analysisId)).run();
+    tx.delete(analysisJobs).where(eq(analysisJobs.analysisId, analysisId)).run();
+    const deleted = tx.delete(analyses).where(eq(analyses.id, analysisId)).run();
+    if (deleted.changes === 0) {
+      throw new Error(
+        `deleteAnalysisArtifacts: analysis ${analysisId} was not removed (missing row or concurrent delete)`,
+      );
+    }
+  });
 }
 
 export function dataRootBytes(): number {
