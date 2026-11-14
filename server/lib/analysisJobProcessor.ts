@@ -96,6 +96,16 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
 
     if (!job) return;
 
+    if (job.analysisId != null) {
+      await updateJob(jobId, {
+        status: "completed",
+        progress: 100,
+        statusMessage: "Analysis complete.",
+        errorMessage: null,
+      });
+      return;
+    }
+
     await updateJob(jobId, {
       status: "processing",
       progress: 0,
@@ -191,13 +201,48 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       mode: job.mode,
     };
 
-    const saved = db.insert(analyses).values(newAnalysis).returning().get();
-    const landmarksPath = `analysis-${saved.id}.json`;
+    const linkedJob = db
+      .select({ analysisId: analysisJobs.analysisId })
+      .from(analysisJobs)
+      .where(eq(analysisJobs.id, jobId))
+      .get();
+    if (linkedJob?.analysisId != null) {
+      await updateJob(jobId, {
+        status: "completed",
+        progress: 100,
+        statusMessage: completionMessage,
+        errorMessage: null,
+      });
+      return;
+    }
+
+    const saved = db.transaction((tx) => {
+      const inserted = tx
+        .insert(analyses)
+        .values(newAnalysis)
+        .returning()
+        .get();
+      const landmarksPath = `analysis-${inserted.id}.json`;
+      tx.update(analyses)
+        .set({ landmarksPath })
+        .where(eq(analyses.id, inserted.id))
+        .run();
+      tx.update(analysisJobs)
+        .set({
+          analysisId: inserted.id,
+          status: "completed",
+          progress: 100,
+          statusMessage: completionMessage,
+          errorMessage: null,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(analysisJobs.id, jobId))
+        .run();
+      return { ...inserted, landmarksPath };
+    });
+
+    const landmarksPath = saved.landmarksPath;
     writeLandmarksFile(landmarksPath, landmarksJson);
-    db.update(analyses)
-      .set({ landmarksPath })
-      .where(eq(analyses.id, saved.id))
-      .run();
 
     await updateStage(
       jobId,
@@ -210,14 +255,6 @@ export async function processAnalysisJob(jobId: number): Promise<void> {
       },
       completionMessage
     );
-
-    await updateJob(jobId, {
-      status: "completed",
-      progress: 100,
-      statusMessage: completionMessage,
-      analysisId: saved.id,
-      errorMessage: null,
-    });
     timer.finish({ analysisId: saved.id });
     try {
       await writePipelineTimingArtifact(jobId, timer.snapshot());
@@ -282,6 +319,22 @@ export function recoverPendingAnalysisJobs(): void {
 
   const now = new Date().toISOString();
   for (const row of rows) {
+    const full = db
+      .select({ analysisId: analysisJobs.analysisId })
+      .from(analysisJobs)
+      .where(eq(analysisJobs.id, row.id))
+      .get();
+    if (full?.analysisId != null) {
+      db.update(analysisJobs)
+        .set({
+          status: "completed",
+          statusMessage: "Analysis complete.",
+          updatedAt: now,
+        })
+        .where(eq(analysisJobs.id, row.id))
+        .run();
+      continue;
+    }
     if (row.status === "processing") {
       db.update(analysisJobs)
         .set({

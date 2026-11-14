@@ -177,6 +177,20 @@ await assert("B list/export does not leak A's filename or landmarks", async () =
   }
 });
 
+await assert("B cannot queue analysis on A's on-disk video key", async () => {
+  const victimKey = `u${userA.id}_yt_testvid_demo.mp4`;
+  try {
+    await callerB.mobileAnalysis.create({
+      videoFileName: "stolen.mp4",
+      videoStorageKey: victimKey,
+      mode: "match",
+    });
+    throw new Error("Bob queued a job on Alice's storage key");
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
+  }
+});
+
 await assert("B cannot read A's upload filename", async () => {
   if (canReadUploadFile(userB.id, "alice-swing.mp4")) {
     throw new Error("Bob canReadUploadFile Alice's clip");
