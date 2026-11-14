@@ -36,6 +36,7 @@ import { getTrackingSyncDir } from "../lib/paths.js";
 import { assertVideoAccessible } from "../lib/videoAccess.js";
 import { resolveLandmarksJson } from "../lib/landmarksStorage.js";
 import { ownerIdForInsert, requireOwner } from "../lib/ownership.js";
+import { requireVideoStorageForUser } from "../lib/uploadAccess.js";
 
 function trackingSyncPath(sessionId: string): string {
   return path.join(getTrackingSyncDir(), `${sessionId}.jsonl`);
@@ -124,6 +125,11 @@ export const mobileAnalysisRouter = router({
     )
     .input(createMobileAnalysisJobInputSchema)
     .mutation(async ({ ctx, input }) => {
+      requireVideoStorageForUser(
+        ctx.authMode,
+        ctx.user?.id,
+        input.videoStorageKey,
+      );
       try {
         await assertVideoAccessible(input.videoStorageKey);
       } catch (error) {
